@@ -20,6 +20,7 @@ final class Application
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'script-log',
+        'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
         'relay-multikey-reordering',
     ];
@@ -47,6 +48,8 @@ final class Application
                 $this->write(self::HELP);
                 return 0;
             }
+
+            $outputMode = OutputMode::parse($options->string('output', 'json'));
 
             if ($options->has('verbose')) {
                 Log::setLogger(function (string $level, string $message, array $context): void {
@@ -128,7 +131,7 @@ final class Application
                 scriptLog: $options->nullableString('script-log'),
             ));
 
-            $this->write(json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
+            $this->write((new ResultFormatter())->format($result, $outputMode));
             return 0;
         } catch (\Throwable $throwable) {
             $this->write('phpredis-fuzz: ' . $throwable->getMessage() . "\n", true);
@@ -225,6 +228,7 @@ Run configuration:
                              gets keys in different cluster slots, forcing a
                              CROSSSLOT error (cluster only, default: 0)
   --script-log=FILE          Write an executable PHP reproduction script
+  --output=MODE              json, simple, or detailed (default: json)
   --raw                      Enable raw-protocol command paths
   --include-blocking         Enable blocking commands
   --include-local            Enable commands that alter local client state

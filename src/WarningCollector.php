@@ -10,6 +10,11 @@ final class WarningCollector
     /** @var array<string, int> */
     private array $warnings = [];
 
+    /** @var array<string, array<string, int>> */
+    private array $warningsByContext = [];
+
+    private ?string $context = null;
+
     private bool $registered = false;
 
     public function __construct()
@@ -49,6 +54,8 @@ final class WarningCollector
     public function reset(): void
     {
         $this->warnings = [];
+        $this->warningsByContext = [];
+        $this->context = null;
     }
 
     /**
@@ -57,6 +64,17 @@ final class WarningCollector
     public function warnings(): array
     {
         return $this->warnings;
+    }
+
+    /** @return array<string, array<string, int>> */
+    public function warningsByContext(): array
+    {
+        return $this->warningsByContext;
+    }
+
+    public function setContext(?string $context): void
+    {
+        $this->context = $context;
     }
 
     public function uniqueCount(): int
@@ -91,6 +109,11 @@ final class WarningCollector
 
         $formatted = $this->formatMessage($message, $file, $line);
         $this->warnings[$formatted] = ($this->warnings[$formatted] ?? 0) + 1;
+        if ($this->context !== null) {
+            $this->warningsByContext[$this->context] ??= [];
+            $this->warningsByContext[$this->context][$formatted] =
+                ($this->warningsByContext[$this->context][$formatted] ?? 0) + 1;
+        }
 
         return true;
     }

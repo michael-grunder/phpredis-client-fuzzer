@@ -72,6 +72,9 @@ echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
 The same call accepts a mixed client list, for example `[$redis, $relay]`. A
 command runs only on a selected client that exposes the normal method or can
 execute that command through its raw-protocol implementation.
+`FuzzResult::$commandWarnings` exposes captured warning counts keyed first by
+command for custom text renderers; JSON serialization retains the existing
+aggregate `warnings` field and report shape.
 
 ## CLI
 
@@ -108,11 +111,14 @@ vendor/bin/phpredis-fuzz \
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
 
-CLI output is JSON and includes the seed, PHP/client versions, client classes and
-topology, effective configuration, elapsed time, selected commands, reply-type
-counts, captured PHP warnings, and thrown exceptions. `--script-log`
-writes an executable PHP reproduction script containing the concrete generated
-calls.
+Use `--output=json` (the default) for the complete machine-readable report,
+including the seed, PHP/client versions, client classes and topology, effective
+configuration, elapsed time, selected commands, reply-type counts, captured PHP
+warnings, and thrown exceptions. `--output=simple` prints only concise overall
+statistics. `--output=detailed` adds an aligned per-command table and groups the
+full warning and exception messages under the command that produced them.
+`--script-log` writes an executable PHP reproduction script containing the
+concrete generated calls.
 
 ## Command coverage
 

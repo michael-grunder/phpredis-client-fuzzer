@@ -235,6 +235,15 @@ abstract class Command implements HasWeight {
         return self::warningCollector()->warnings();
     }
 
+    /** @return array<string, array<string, int>> */
+    public static function capturedWarningsByCommand(): array {
+        return self::warningCollector()->warningsByContext();
+    }
+
+    public static function setCapturedWarningCommand(?string $command): void {
+        self::warningCollector()->setContext($command);
+    }
+
     public static function resetCapturedWarnings(): void {
         $collector = self::warningCollector();
         $collector->register();

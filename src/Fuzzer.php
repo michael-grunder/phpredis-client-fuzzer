@@ -65,6 +65,7 @@ final class Fuzzer
 
         Command::resetCapturedWarnings();
         $warnings = [];
+        $commandWarnings = [];
         try {
             while ($this->withinLimits($steps, $started, $configuration)) {
                 $command = $selector->pick();
@@ -94,6 +95,7 @@ final class Fuzzer
                 $steps++;
 
                 try {
+                    Command::setCapturedWarningCommand($name);
                     $operation = $operations[array_rand($operations)];
                     if ($operation === 'raw' && $command instanceof FuzzRawInterface) {
                         $reply = $command->fuzzRaw($client, $arguments);
@@ -107,10 +109,13 @@ final class Fuzzer
                 } catch (\Throwable $throwable) {
                     $exception = $throwable::class . ': ' . $throwable->getMessage();
                     $results[$name]['exceptions'][$exception] = ($results[$name]['exceptions'][$exception] ?? 0) + 1;
+                } finally {
+                    Command::setCapturedWarningCommand(null);
                 }
             }
         } finally {
             $warnings = Command::finishCapturedWarnings();
+            $commandWarnings = Command::capturedWarningsByCommand();
             if ($scriptLogging) {
                 ScriptLogger::finish();
             }
@@ -128,6 +133,7 @@ final class Fuzzer
             $this->environment($clients),
             $configuration->jsonSerialize(),
             $crossSlotSteps,
+            $commandWarnings,
         );
     }
 

@@ -12,6 +12,7 @@ final readonly class FuzzResult implements \JsonSerializable
      * @param list<string> $selectedCommands
      * @param array<string, mixed> $environment
      * @param array<string, mixed> $configuration
+     * @param array<string, array<string, int>> $commandWarnings
      */
     public function __construct(
         public int $seed,
@@ -23,6 +24,7 @@ final readonly class FuzzResult implements \JsonSerializable
         public array $environment,
         public array $configuration,
         public int $crossSlotSteps = 0,
+        public array $commandWarnings = [],
     ) {
     }
 
