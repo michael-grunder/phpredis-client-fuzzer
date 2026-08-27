@@ -1,0 +1,21 @@
+{
+    "name": "mgrunder/phpredis-command-fuzzer",
+    "description": "A project that can fuzz PhpRedis compatible Redis clients",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Mgrunder\\PhpredisCommandFuzzer\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "michael-grunder",
+            "email": "michael.grunder@gmail.com"
+        }
+    ],
+    "require-dev": {
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^13.3"
+    }
+}
