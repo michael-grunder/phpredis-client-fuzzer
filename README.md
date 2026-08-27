@@ -118,7 +118,11 @@ warnings, and thrown exceptions. `--output=simple` prints only concise overall
 statistics. `--output=detailed` adds an aligned per-command table and groups the
 full warning and exception messages under the command that produced them.
 `--script-log` writes an executable PHP reproduction script containing the
-concrete generated calls.
+concrete generated calls. `--catch=STRING` stops the workload as soon as a
+captured warning or exception contains `STRING`, using a case-insensitive
+search. The selected output mode is still written, including the matching
+diagnostic in `caught_diagnostic` for JSON output, and the process exits with a
+nonzero status.
 
 ## Command coverage
 
@@ -336,6 +340,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `includeFlush` | `false` | Include `FLUSHDB` and `FLUSHALL` |
 | `includeCrashing` | `false` | Include deliberately crashing commands |
 | `scriptLog` | `null` | Optional executable reproduction script path |
+| `catchPattern` | `null` | Case-insensitive warning/exception substring that stops the run after a match |
 
 At least one of `maxSteps` or `maxSeconds` must be greater than zero.
 

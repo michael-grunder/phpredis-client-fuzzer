@@ -19,7 +19,7 @@ final class Application
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
-        'wrongtype-chance', 'crossslot-chance', 'script-log',
+        'wrongtype-chance', 'crossslot-chance', 'script-log', 'catch',
         'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
         'relay-multikey-reordering',
@@ -129,10 +129,11 @@ final class Application
                 includeFlush: $options->has('include-flush'),
                 includeCrashing: $options->has('include-crashing'),
                 scriptLog: $options->nullableString('script-log'),
+                catchPattern: $options->nullableString('catch'),
             ));
 
             $this->write((new ResultFormatter())->format($result, $outputMode));
-            return 0;
+            return $result->caughtDiagnostic === null ? 0 : 1;
         } catch (\Throwable $throwable) {
             $this->write('phpredis-fuzz: ' . $throwable->getMessage() . "\n", true);
             return 1;
@@ -228,6 +229,8 @@ Run configuration:
                              gets keys in different cluster slots, forcing a
                              CROSSSLOT error (cluster only, default: 0)
   --script-log=FILE          Write an executable PHP reproduction script
+  --catch=STRING             Stop after a warning or exception contains STRING
+                             (case-insensitive; exits nonzero after normal output)
   --output=MODE              json, simple, or detailed (default: json)
   --raw                      Enable raw-protocol command paths
   --include-blocking         Enable blocking commands

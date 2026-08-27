@@ -29,6 +29,7 @@ final class ResultFormatterTest extends TestCase
             'configuration',
             'commands',
             'warnings',
+            'caught_diagnostic',
         ], array_keys($result->jsonSerialize()));
     }
 
@@ -87,6 +88,7 @@ final class ResultFormatterTest extends TestCase
             configuration: [],
             crossSlotSteps: 0,
             commandWarnings: ['get' => ['PHP Warning: bad warning' => 2]],
+            caughtDiagnostic: 'RuntimeException: broken',
         );
     }
 }

@@ -32,6 +32,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public bool $includeFlush = false,
         public bool $includeCrashing = false,
         public ?string $scriptLog = null,
+        public ?string $catchPattern = null,
     ) {
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -53,6 +54,9 @@ final readonly class RunConfiguration implements \JsonSerializable
         }
         if ($crossSlotChance < 0.0 || $crossSlotChance > 1.0) {
             throw new \InvalidArgumentException('crossSlotChance must be between 0 and 1');
+        }
+        if ($catchPattern === '') {
+            throw new \InvalidArgumentException('catchPattern cannot be empty');
         }
         foreach ($weights as $name => $weight) {
             if ($name === '' || $weight < 0.0) {
@@ -86,6 +90,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'includeFlush' => $this->includeFlush,
             'includeCrashing' => $this->includeCrashing,
             'scriptLog' => $this->scriptLog,
+            'catchPattern' => $this->catchPattern,
         ];
     }
 }

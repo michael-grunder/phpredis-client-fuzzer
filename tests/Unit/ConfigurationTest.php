@@ -38,6 +38,15 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($configuration->includeAdmin);
         self::assertFalse($configuration->includeFlush);
         self::assertFalse($configuration->includeCrashing);
+        self::assertNull($configuration->catchPattern);
+    }
+
+    public function testRunConfigurationRejectsAnEmptyCatchPattern(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('catchPattern cannot be empty');
+
+        new RunConfiguration(catchPattern: '');
     }
 
     public function testRunConfigurationRequiresALimit(): void

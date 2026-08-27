@@ -240,6 +240,10 @@ abstract class Command implements HasWeight {
         return self::warningCollector()->warningsByContext();
     }
 
+    public static function matchingCapturedWarning(string $search): ?string {
+        return self::warningCollector()->matchingWarning($search);
+    }
+
     public static function setCapturedWarningCommand(?string $command): void {
         self::warningCollector()->setContext($command);
     }

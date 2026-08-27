@@ -25,6 +25,7 @@ final readonly class FuzzResult implements \JsonSerializable
         public array $configuration,
         public int $crossSlotSteps = 0,
         public array $commandWarnings = [],
+        public ?string $caughtDiagnostic = null,
     ) {
     }
 
@@ -41,6 +42,7 @@ final readonly class FuzzResult implements \JsonSerializable
             'configuration' => $this->configuration,
             'commands' => $this->commands,
             'warnings' => $this->warnings,
+            'caught_diagnostic' => $this->caughtDiagnostic,
         ];
     }
 }

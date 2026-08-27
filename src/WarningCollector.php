@@ -87,6 +87,17 @@ final class WarningCollector
         return array_sum($this->warnings);
     }
 
+    public function matchingWarning(string $search): ?string
+    {
+        foreach (array_keys($this->warnings) as $warning) {
+            if (stripos($warning, $search) !== false) {
+                return $warning;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Suppress the warning output while counting occurrences.
      *

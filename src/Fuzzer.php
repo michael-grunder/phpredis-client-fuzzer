@@ -66,6 +66,7 @@ final class Fuzzer
         Command::resetCapturedWarnings();
         $warnings = [];
         $commandWarnings = [];
+        $caughtDiagnostic = null;
         try {
             while ($this->withinLimits($steps, $started, $configuration)) {
                 $command = $selector->pick();
@@ -109,8 +110,18 @@ final class Fuzzer
                 } catch (\Throwable $throwable) {
                     $exception = $throwable::class . ': ' . $throwable->getMessage();
                     $results[$name]['exceptions'][$exception] = ($results[$name]['exceptions'][$exception] ?? 0) + 1;
+                    if ($this->matchesCatch($exception, $configuration->catchPattern)) {
+                        $caughtDiagnostic = $exception;
+                    }
                 } finally {
                     Command::setCapturedWarningCommand(null);
+                }
+
+                if ($caughtDiagnostic === null && $configuration->catchPattern !== null) {
+                    $caughtDiagnostic = Command::matchingCapturedWarning($configuration->catchPattern);
+                }
+                if ($caughtDiagnostic !== null) {
+                    break;
                 }
             }
         } finally {
@@ -134,7 +145,13 @@ final class Fuzzer
             $configuration->jsonSerialize(),
             $crossSlotSteps,
             $commandWarnings,
+            $caughtDiagnostic,
         );
+    }
+
+    private function matchesCatch(string $diagnostic, ?string $search): bool
+    {
+        return $search !== null && stripos($diagnostic, $search) !== false;
     }
 
     /**

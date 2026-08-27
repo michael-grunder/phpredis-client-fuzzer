@@ -33,4 +33,23 @@ final class WarningCollectorTest extends TestCase
             $collector->restore();
         }
     }
+
+    public function testMatchingWarningIsCaseInsensitive(): void
+    {
+        $collector = new WarningCollector();
+        $errorReporting = error_reporting(E_ALL);
+        try {
+            $collector->reset();
+            $collector->handle(E_USER_WARNING, 'Connection RESET by peer');
+
+            self::assertStringContainsString(
+                'Connection RESET by peer',
+                $collector->matchingWarning('connection reset') ?? '',
+            );
+            self::assertNull($collector->matchingWarning('timed out'));
+        } finally {
+            error_reporting($errorReporting);
+            $collector->restore();
+        }
+    }
 }
