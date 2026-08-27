@@ -31,7 +31,7 @@ class Cities {
                 || !is_numeric($city['lat'] ?? null)
                 || !is_numeric($city['lng'] ?? null)
                 || !is_string($city['country'] ?? null)
-                || !is_int($city['population'] ?? null)) {
+                || !is_numeric($city['population'] ?? null)) {
                 throw new \UnexpectedValueException('Malformed city fixture row');
             }
 
@@ -40,7 +40,7 @@ class Cities {
                 (float) $city['lat'],
                 (float) $city['lng'],
                 $city['country'],
-                $city['population'],
+                (int) $city['population'],
             );
         }
     }
