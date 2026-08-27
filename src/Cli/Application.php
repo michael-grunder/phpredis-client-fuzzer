@@ -9,6 +9,7 @@ use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
+use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
 
 final class Application
@@ -19,6 +20,8 @@ final class Application
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'script-log',
+        'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
+        'relay-multikey-reordering',
     ];
 
     private const FLAG_OPTIONS = [
@@ -58,6 +61,19 @@ final class Application
                 ? [$username, $password]
                 : $password;
 
+            $relayCluster = new RelayClusterOptions(
+                failover: $this->nullableString($options, 'relay-failover'),
+                distribute: $this->nullableString($options, 'relay-distribute'),
+                nodeReadTimeout: $this->optionalNumber($options, 'relay-node-read-timeout'),
+                multikeyReordering: $this->nullableString($options, 'relay-multikey-reordering'),
+            );
+
+            if (!$relayCluster->isEmpty() && !in_array(ClientType::RelayCluster, $clientTypes, true)) {
+                throw new \InvalidArgumentException(
+                    'The --relay-* cluster options require --client=relay-cluster',
+                );
+            }
+
             $factory = new ClientFactory();
             $clients = [];
             foreach ($clientTypes as $type) {
@@ -73,6 +89,9 @@ final class Application
                     serializer: $this->string($options, 'serializer', 'none'),
                     compression: $this->string($options, 'compression', 'none'),
                     relayCompatibility: !isset($options['no-relay-compatibility']),
+                    relayCluster: $type === ClientType::RelayCluster
+                        ? $relayCluster
+                        : new RelayClusterOptions(),
                 ));
             }
 
@@ -197,8 +216,14 @@ final class Application
     /** @param array<string, string|list<string>|true> $options */
     private function number(array $options, string $name, float $default): float
     {
+        return $this->optionalNumber($options, $name) ?? $default;
+    }
+
+    /** @param array<string, string|list<string>|true> $options */
+    private function optionalNumber(array $options, string $name): ?float
+    {
         if (!array_key_exists($name, $options)) {
-            return $default;
+            return null;
         }
         $value = $this->string($options, $name, '');
         if (!is_numeric($value)) {
@@ -275,6 +300,18 @@ Clients and connection:
   --compression=NAME         none, lzf, zstd, lz4
   --prefix=PREFIX            Client key prefix
   --no-relay-compatibility   Disable Relay PhpRedis compatibility
+
+Relay cluster options (relay-cluster only; each is verified via setOption()):
+  --relay-failover=MODE      Cluster::OPT_FAILOVER retry strategy:
+                             none, primary, random_replica, replicas, all
+  --relay-distribute=MODE    Cluster::OPT_DISTRIBUTE readonly distribution:
+                             none, random, random_replica, replicas, all
+  --relay-node-read-timeout=SECONDS
+                             Cluster::OPT_NODE_READ_TIMEOUT per-node read
+                             timeout override; 0 disables the override
+  --relay-multikey-reordering=MODE
+                             Cluster::OPT_MULTIKEY_REORDERING slot grouping:
+                             none, reads, writes, all
 
 Run configuration:
   --steps=N                  Maximum executed operations (default: 100)

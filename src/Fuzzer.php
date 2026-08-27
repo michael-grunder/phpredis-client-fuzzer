@@ -221,6 +221,9 @@ final class Fuzzer
             $details['serializer'] = $client->getOption(Redis::OPT_SERIALIZER);
             $details['compression'] = $client->getOption(Redis::OPT_COMPRESSION);
             $details['prefix'] = $client->getOption(Redis::OPT_PREFIX);
+            if ($client instanceof Cluster) {
+                $details['relay_cluster'] = RelayClusterOptions::describe($client);
+            }
         } catch (\Throwable $throwable) {
             $details['introspection_error'] = $throwable->getMessage();
         }

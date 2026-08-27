@@ -9,6 +9,7 @@ final readonly class ClientConfiguration
     /**
      * @param list<string> $seeds Cluster seeds in host:port form.
      * @param string|array{0: string, 1: string}|null $auth
+     * @param RelayClusterOptions $relayCluster Relay-only `Relay\Cluster` options; requires the `relay-cluster` type.
      */
     public function __construct(
         public ClientType $type = ClientType::Redis,
@@ -22,6 +23,7 @@ final readonly class ClientConfiguration
         public string $serializer = 'none',
         public string $compression = 'none',
         public bool $relayCompatibility = true,
+        public RelayClusterOptions $relayCluster = new RelayClusterOptions(),
     ) {
         if ($port < 1 || $port > 65535) {
             throw new \InvalidArgumentException('Port must be between 1 and 65535');
@@ -31,6 +33,11 @@ final readonly class ClientConfiguration
         }
         if ($timeout < 0 || $readTimeout < 0) {
             throw new \InvalidArgumentException('Timeouts cannot be negative');
+        }
+        if (!$relayCluster->isEmpty() && $type !== ClientType::RelayCluster) {
+            throw new \InvalidArgumentException(
+                'Relay cluster options require the relay-cluster client type',
+            );
         }
     }
 }

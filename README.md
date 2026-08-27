@@ -187,6 +187,58 @@ $relay = (new ClientFactory())->create(new ClientConfiguration(
 `ClientType` values are `redis`, `redis-cluster`, `relay`, and
 `relay-cluster`. Cluster configurations use `seeds` in `host:port` form.
 
+### Relay cluster options
+
+`RelayClusterOptions` carries the Relay-only `Relay\Cluster` tuning options.
+Modes are given as names so a configuration can be built and validated without
+the Relay extension loaded; the matching `Relay\Cluster` constants are resolved
+when the client is created. Passing them with any other `ClientType` is an
+error rather than a silent no-op.
+
+```php
+use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
+
+$cluster = (new ClientFactory())->create(new ClientConfiguration(
+    type: ClientType::RelayCluster,
+    seeds: ['127.0.0.1:7000', '127.0.0.1:7001', '127.0.0.1:7002'],
+    relayCluster: new RelayClusterOptions(
+        failover: 'all',
+        distribute: 'random',
+        nodeReadTimeout: 0.25,
+        multikeyReordering: 'all',
+    ),
+));
+```
+
+| Setting | Option | Modes |
+| --- | --- | --- |
+| `failover` | `Cluster::OPT_FAILOVER` | `none`, `primary`, `random_replica`, `replicas`, `all` |
+| `distribute` | `Cluster::OPT_DISTRIBUTE` | `none`, `random`, `random_replica`, `replicas`, `all` |
+| `nodeReadTimeout` | `Cluster::OPT_NODE_READ_TIMEOUT` | Seconds; `0.0` disables the override |
+| `multikeyReordering` | `Cluster::OPT_MULTIKEY_REORDERING` | `none`, `reads`, `writes`, `all` |
+
+Each option is applied with `setOption()` and the return value is checked, so a
+Relay build that does not understand an option fails the run instead of leaving
+the caller believing it took effect. A constant the loaded Relay does not define
+is reported the same way. The applied values are read back with `getOption()`
+and reported under `environment.clients[].relay_cluster` in the result.
+
+The equivalent CLI options are `--relay-failover`, `--relay-distribute`,
+`--relay-node-read-timeout`, and `--relay-multikey-reordering`; they require
+`--client=relay-cluster`.
+
+```bash
+vendor/bin/phpredis-fuzz \
+    --client=relay-cluster \
+    --seeds=127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002 \
+    --relay-failover=all \
+    --relay-distribute=random \
+    --relay-node-read-timeout=0.25 \
+    --relay-multikey-reordering=all \
+    --steps=1000 \
+    --seed=123456
+```
+
 ## Custom run configuration
 
 All settings are constructor arguments on the immutable `RunConfiguration`:

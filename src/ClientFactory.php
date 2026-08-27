@@ -53,7 +53,18 @@ final class ClientFactory
 
         if (($client instanceof Relay || $client instanceof Cluster)
             && defined(Relay::class . '::OPT_PHPREDIS_COMPATIBILITY')) {
-            $client->setOption(Relay::OPT_PHPREDIS_COMPATIBILITY, $configuration->relayCompatibility);
+            $this->setNamedOption(
+                $client,
+                Relay::OPT_PHPREDIS_COMPATIBILITY,
+                $configuration->relayCompatibility,
+            );
+        }
+
+        if (!$configuration->relayCluster->isEmpty()) {
+            if (!$client instanceof Cluster) {
+                throw new \RuntimeException('Relay cluster options require a Relay\\Cluster client');
+            }
+            $configuration->relayCluster->applyTo($client);
         }
 
         return $client;
