@@ -75,7 +75,8 @@ execute that command through its raw-protocol implementation.
 
 ## CLI
 
-Composer installs `vendor/bin/phpredis-fuzz`. Its generic `--client` option
+Composer installs `vendor/bin/phpredis-fuzz` and `vendor/bin/phpredis-coverage`.
+The fuzzer's generic `--client` option
 selects one or more concrete client types rather than using separate PhpRedis
 and Relay client-count flags.
 
@@ -112,6 +113,69 @@ topology, effective configuration, elapsed time, selected commands, reply-type
 counts, captured PHP warnings, and thrown exceptions. `--script-log`
 writes an executable PHP reproduction script containing the concrete generated
 calls.
+
+## Command coverage
+
+Composer also installs `vendor/bin/phpredis-coverage`, which reports the Redis
+commands the catalog does not yet exercise. Unlike `phpredis-fuzz`, it only
+issues `COMMAND` and never writes, so it is safe to point at a server the
+fuzzer itself must not touch.
+
+```bash
+vendor/bin/phpredis-coverage --client=redis --port=6379
+```
+
+```
+Command coverage for Redis (--client=redis)
+Source: 127.0.0.1:6379, 242 server commands, 234 catalog commands
+Covered: 188/202 (93.1%), 40 ignored
+
+Not covered, Redis has a method for it (10):
+  blpop
+  brpop
+  ...
+
+Not covered, Redis has no method for it (4):
+  bitfield
+  ...
+```
+
+It works in three steps:
+
+1. `COMMAND` gives the command table the target server actually implements.
+   Container subcommands (`config|get`) are folded into their parent because
+   the catalog has one class per top-level command.
+2. Commands the catalog does not implement are matched against the ignore
+   patterns in [`data/coverage-ignore.txt`](data/coverage-ignore.txt): server
+   administration, replication and cluster bus internals, connection
+   handshakes, stateful pub/sub subscriptions, and deprecated aliases. Patterns
+   are applied only to uncovered commands, so an ignore pattern can never hide
+   existing coverage.
+3. What remains is split with `method_exists()` on the class named by
+   `--client`. A command the client exposes a method for is a real catalog gap;
+   one it has no method for cannot be fuzzed through that client at all.
+
+`--client` selects only the class checked with `method_exists()`. The command
+table is server-wide, so a cluster client type still reads `COMMAND` from the
+single `--host`/`--port` node.
+
+Useful options:
+
+| Option | Effect |
+| --- | --- |
+| `--client=TYPE` | `redis`, `redis-cluster`, `relay`, `relay-cluster` (default: `redis`) |
+| `--ignore=PATTERN,...` | Add shell globs to ignore; repeatable |
+| `--ignore-file=FILE` | Use `FILE` instead of the shipped ignore list |
+| `--no-default-ignores` | Start from an empty ignore list |
+| `--commands-file=FILE` | Read command names from a file instead of connecting |
+| `--quiet` | Print only the uncovered command names, one per line |
+| `--json` | Emit the full report, including the covered and ignored lists |
+| `--all` | Also list covered, ignored, and client-side-API commands |
+
+`--help` lists every option and does not connect to Redis. The same report is
+available in process through `Coverage\CoverageAnalyzer`, which accepts a
+`ServerCommands` list, a `ClientType`, an optional `Registry`, and an optional
+`IgnoreList`.
 
 ## Minimal HTTP shim
 
@@ -413,6 +477,7 @@ find src tests bin -type f -exec php -l {} +
 vendor/bin/phpstan analyse --debug --no-progress
 vendor/bin/phpunit
 bin/phpredis-fuzz --help
+bin/phpredis-coverage --help
 ```
 
 PHPStan runs at level `max`. PHPUnit unit tests do not require a Redis server.

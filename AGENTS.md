@@ -37,6 +37,10 @@ required compatibility API; Relay is optional for package consumers.
   construction helpers; embedded callers should be able to pass existing clients.
 - `src/Http/FuzzerEndpoint.php` is the framework-neutral HTTP adapter.
 - `src/Cli/Application.php` and `bin/phpredis-fuzz` provide the Composer binary.
+- `src/Cli/Options.php` is the long-option parser shared by both binaries.
+- `src/Coverage/` and `bin/phpredis-coverage` report which server commands the
+  catalog does not yet exercise; `data/coverage-ignore.txt` holds the default
+  ignore patterns.
 - `src/Data/` and `data/` contain geo and stream workload fixtures.
 - `tests/` contains server-free PHPUnit unit tests.
 
@@ -109,6 +113,7 @@ find src tests bin -type f -exec php -l {} +
 vendor/bin/phpstan analyse --debug --no-progress
 vendor/bin/phpunit
 bin/phpredis-fuzz --help
+bin/phpredis-coverage --help
 ```
 
 PHPStan must remain clean at level `max`; do not add a baseline or ignored

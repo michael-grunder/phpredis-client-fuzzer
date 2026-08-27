@@ -1,0 +1,64 @@
+# Default ignore patterns for bin/phpredis-coverage.
+#
+# One shell glob per line, matched case-insensitively against a server command
+# name with fnmatch(). Blank lines and lines starting with "#" are ignored.
+#
+# Patterns are only applied to commands the catalog does NOT already cover, so
+# adding a pattern can never hide existing coverage.
+#
+# These are commands a command fuzzer has no business generating: server
+# administration, replication and cluster bus internals, connection handshakes,
+# stateful pub/sub subscriptions, and deprecated aliases.
+
+# Server administration and introspection
+acl
+bgrewriteaof
+bgsave
+client
+command
+commandlog
+failover
+latency
+lolwut
+memory
+module
+monitor
+save
+shutdown
+slowlog
+
+# Replication, cluster bus, and other internal plumbing
+asking
+cluster
+psync
+readonly
+readwrite
+replconf
+replicaof
+restore-asking
+role
+slaveof
+sync
+wait
+waitaof
+
+# Connection handshake and lifecycle
+hello
+quit
+reset
+
+# Stateful pub/sub subscriptions; they park the connection in a subscribe loop.
+# PUBLISH, SPUBLISH, and PUBSUB are deliberately NOT ignored.
+psubscribe
+punsubscribe
+ssubscribe
+subscribe
+sunsubscribe
+unsubscribe
+
+# Internal HyperLogLog testing commands
+pfdebug
+pfselftest
+
+# Deprecated aliases of commands the catalog already covers
+substr

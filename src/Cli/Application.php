@@ -30,42 +30,50 @@ final class Application
         'no-relay-compatibility',
     ];
 
+    private const REPEATABLE_OPTIONS = ['weight'];
+
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
         try {
-            $options = $this->parse($arguments);
-            if (isset($options['help'])) {
+            $options = Options::parse(
+                $arguments,
+                self::VALUE_OPTIONS,
+                self::FLAG_OPTIONS,
+                self::REPEATABLE_OPTIONS,
+            );
+
+            if ($options->has('help')) {
                 $this->write(self::HELP);
                 return 0;
             }
 
-            if (isset($options['verbose'])) {
+            if ($options->has('verbose')) {
                 Log::setLogger(function (string $level, string $message, array $context): void {
                     $suffix = $context === [] ? '' : ' ' . json_encode($context, JSON_THROW_ON_ERROR);
                     $this->write("[{$level}] {$message}{$suffix}\n", true);
                 });
             }
 
-            $clientTypes = $this->clientTypes($this->string($options, 'client', 'redis'));
-            $host = $this->string($options, 'host', '127.0.0.1');
-            $port = $this->integer($options, 'port', 6379);
-            $seeds = $this->csv($this->string($options, 'seeds', "{$host}:{$port}"));
+            $clientTypes = $this->clientTypes($options->string('client', 'redis'));
+            $host = $options->string('host', '127.0.0.1');
+            $port = $options->integer('port', 6379);
+            $seeds = Options::split($options->string('seeds', "{$host}:{$port}"));
             if ($seeds === []) {
                 throw new \InvalidArgumentException('--seeds cannot be empty');
             }
 
-            $username = $this->nullableString($options, 'username');
-            $password = $this->nullableString($options, 'password');
+            $username = $options->nullableString('username');
+            $password = $options->nullableString('password');
             $auth = $username !== null && $password !== null
                 ? [$username, $password]
                 : $password;
 
             $relayCluster = new RelayClusterOptions(
-                failover: $this->nullableString($options, 'relay-failover'),
-                distribute: $this->nullableString($options, 'relay-distribute'),
-                nodeReadTimeout: $this->optionalNumber($options, 'relay-node-read-timeout'),
-                multikeyReordering: $this->nullableString($options, 'relay-multikey-reordering'),
+                failover: $options->nullableString('relay-failover'),
+                distribute: $options->nullableString('relay-distribute'),
+                nodeReadTimeout: $options->optionalNumber('relay-node-read-timeout'),
+                multikeyReordering: $options->nullableString('relay-multikey-reordering'),
             );
 
             if (!$relayCluster->isEmpty() && !in_array(ClientType::RelayCluster, $clientTypes, true)) {
@@ -82,13 +90,13 @@ final class Application
                     host: $host,
                     port: $port,
                     seeds: $seeds,
-                    timeout: $this->number($options, 'timeout', 1.0),
-                    readTimeout: $this->number($options, 'read-timeout', 1.0),
+                    timeout: $options->number('timeout', 1.0),
+                    readTimeout: $options->number('read-timeout', 1.0),
                     auth: $auth,
-                    prefix: $this->string($options, 'prefix', ''),
-                    serializer: $this->string($options, 'serializer', 'none'),
-                    compression: $this->string($options, 'compression', 'none'),
-                    relayCompatibility: !isset($options['no-relay-compatibility']),
+                    prefix: $options->string('prefix', ''),
+                    serializer: $options->string('serializer', 'none'),
+                    compression: $options->string('compression', 'none'),
+                    relayCompatibility: !$options->has('no-relay-compatibility'),
                     relayCluster: $type === ClientType::RelayCluster
                         ? $relayCluster
                         : new RelayClusterOptions(),
@@ -97,27 +105,27 @@ final class Application
 
             /** @var non-empty-list<\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster> $clients */
             $result = (new Fuzzer())->run($clients, new RunConfiguration(
-                maxSteps: $this->integer($options, 'steps', 100),
-                maxSeconds: $this->number($options, 'seconds', 0.0),
-                seed: $this->optionalInteger($options, 'seed'),
-                keys: $this->integer($options, 'keys', 100),
-                shards: $this->integer($options, 'shards', 16),
-                members: $this->integer($options, 'members', 10),
-                minLength: $this->integer($options, 'min-length', 4),
-                maxLength: $this->integer($options, 'max-length', 32),
-                maxKeysPerCommand: $this->integer($options, 'max-command-keys', 10),
-                maxPrefixLength: $this->integer($options, 'max-prefix-length', 0),
-                wrongTypeChance: $this->number($options, 'wrongtype-chance', 0.0),
-                crossSlotChance: $this->number($options, 'crossslot-chance', 0.0),
-                commands: $this->csv($this->string($options, 'commands', '')),
-                weights: $this->weights($options['weight'] ?? []),
-                raw: isset($options['raw']),
-                includeBlocking: isset($options['include-blocking']),
-                includeLocal: isset($options['include-local']),
-                includeAdmin: isset($options['include-admin']),
-                includeFlush: isset($options['include-flush']),
-                includeCrashing: isset($options['include-crashing']),
-                scriptLog: $this->nullableString($options, 'script-log'),
+                maxSteps: $options->integer('steps', 100),
+                maxSeconds: $options->number('seconds', 0.0),
+                seed: $options->optionalInteger('seed'),
+                keys: $options->integer('keys', 100),
+                shards: $options->integer('shards', 16),
+                members: $options->integer('members', 10),
+                minLength: $options->integer('min-length', 4),
+                maxLength: $options->integer('max-length', 32),
+                maxKeysPerCommand: $options->integer('max-command-keys', 10),
+                maxPrefixLength: $options->integer('max-prefix-length', 0),
+                wrongTypeChance: $options->number('wrongtype-chance', 0.0),
+                crossSlotChance: $options->number('crossslot-chance', 0.0),
+                commands: $options->csv('commands'),
+                weights: $this->weights($options->repeated('weight')),
+                raw: $options->has('raw'),
+                includeBlocking: $options->has('include-blocking'),
+                includeLocal: $options->has('include-local'),
+                includeAdmin: $options->has('include-admin'),
+                includeFlush: $options->has('include-flush'),
+                includeCrashing: $options->has('include-crashing'),
+                scriptLog: $options->nullableString('script-log'),
             ));
 
             $this->write(json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n");
@@ -128,124 +136,11 @@ final class Application
         }
     }
 
-    /**
-     * @param list<string> $arguments
-     * @return array<string, string|list<string>|true>
-     */
-    private function parse(array $arguments): array
-    {
-        $options = [];
-        for ($index = 0; $index < count($arguments); $index++) {
-            $argument = $arguments[$index];
-            if (!str_starts_with($argument, '--')) {
-                throw new \InvalidArgumentException("Unexpected argument: {$argument}");
-            }
-
-            $argument = substr($argument, 2);
-            if (str_contains($argument, '=')) {
-                [$name, $value] = explode('=', $argument, 2);
-            } else {
-                $name = $argument;
-                $next = $arguments[$index + 1] ?? null;
-                if ($next !== null && !str_starts_with($next, '--')) {
-                    $value = $next;
-                    $index++;
-                } else {
-                    $value = true;
-                }
-            }
-
-            if (!in_array($name, self::VALUE_OPTIONS, true)
-                && !in_array($name, self::FLAG_OPTIONS, true)) {
-                throw new \InvalidArgumentException("Unknown option: --{$name}");
-            }
-            if (in_array($name, self::FLAG_OPTIONS, true) && $value !== true) {
-                throw new \InvalidArgumentException("--{$name} does not accept a value");
-            }
-            if (in_array($name, self::VALUE_OPTIONS, true) && $value === true) {
-                throw new \InvalidArgumentException("--{$name} requires a value");
-            }
-
-            if ($name === 'weight') {
-                $current = $options[$name] ?? [];
-                $current[] = $value;
-                $options[$name] = $current;
-            } else {
-                $options[$name] = $value;
-            }
-        }
-
-        return $options;
-    }
-
-    /** @param array<string, string|list<string>|true> $options */
-    private function string(array $options, string $name, string $default): string
-    {
-        $value = $options[$name] ?? $default;
-        if (!is_string($value)) {
-            throw new \InvalidArgumentException("--{$name} requires a value");
-        }
-        return $value;
-    }
-
-    /** @param array<string, string|list<string>|true> $options */
-    private function nullableString(array $options, string $name): ?string
-    {
-        return array_key_exists($name, $options) ? $this->string($options, $name, '') : null;
-    }
-
-    /** @param array<string, string|list<string>|true> $options */
-    private function integer(array $options, string $name, int $default): int
-    {
-        return $this->optionalInteger($options, $name) ?? $default;
-    }
-
-    /** @param array<string, string|list<string>|true> $options */
-    private function optionalInteger(array $options, string $name): ?int
-    {
-        if (!array_key_exists($name, $options)) {
-            return null;
-        }
-        $value = $this->string($options, $name, '');
-        if (filter_var($value, FILTER_VALIDATE_INT) === false) {
-            throw new \InvalidArgumentException("--{$name} must be an integer");
-        }
-        return (int) $value;
-    }
-
-    /** @param array<string, string|list<string>|true> $options */
-    private function number(array $options, string $name, float $default): float
-    {
-        return $this->optionalNumber($options, $name) ?? $default;
-    }
-
-    /** @param array<string, string|list<string>|true> $options */
-    private function optionalNumber(array $options, string $name): ?float
-    {
-        if (!array_key_exists($name, $options)) {
-            return null;
-        }
-        $value = $this->string($options, $name, '');
-        if (!is_numeric($value)) {
-            throw new \InvalidArgumentException("--{$name} must be numeric");
-        }
-        return (float) $value;
-    }
-
-    /** @return list<string> */
-    private function csv(string $value): array
-    {
-        return array_values(array_filter(
-            array_map('trim', explode(',', $value)),
-            static fn (string $item): bool => $item !== '',
-        ));
-    }
-
     /** @return non-empty-list<ClientType> */
     private function clientTypes(string $value): array
     {
         $types = [];
-        foreach ($this->csv($value) as $name) {
+        foreach (Options::split($value) as $name) {
             $type = ClientType::tryFrom(strtolower($name));
             if ($type === null) {
                 throw new \InvalidArgumentException("Unknown client type: {$name}");
@@ -259,15 +154,14 @@ final class Application
     }
 
     /**
-     * @param string|list<string>|true $values
+     * @param list<string> $values
      * @return array<string, float>
      */
-    private function weights(string|array|true $values): array
+    private function weights(array $values): array
     {
-        $values = is_array($values) ? $values : [$values];
         $weights = [];
         foreach ($values as $value) {
-            if (!is_string($value) || !preg_match('/^(@?[a-zA-Z_]+):([0-9]+(?:\.[0-9]+)?)$/', $value, $matches)) {
+            if (!preg_match('/^(@?[a-zA-Z_]+):([0-9]+(?:\.[0-9]+)?)$/', $value, $matches)) {
                 throw new \InvalidArgumentException("Invalid weight: " . var_export($value, true));
             }
             $weights[strtolower($matches[1])] = (float) $matches[2];
