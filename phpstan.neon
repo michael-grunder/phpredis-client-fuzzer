@@ -1,0 +1,9 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    tmpDir: /tmp/phpredis-command-fuzzer-phpstan
+    reportUnmatchedIgnoredErrors: true
+    parallel:
+        maximumNumberOfProcesses: 1

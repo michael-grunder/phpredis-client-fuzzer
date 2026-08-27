@@ -1,21 +1,48 @@
 {
     "name": "mgrunder/phpredis-command-fuzzer",
     "description": "A project that can fuzz PhpRedis compatible Redis clients",
-    "type": "project",
+    "type": "library",
     "license": "MIT",
     "autoload": {
         "psr-4": {
             "Mgrunder\\PhpredisCommandFuzzer\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Mgrunder\\PhpredisCommandFuzzer\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/phpredis-fuzz"
+    ],
     "authors": [
         {
             "name": "michael-grunder",
             "email": "michael.grunder@gmail.com"
         }
     ],
+    "require": {
+        "php": ">=8.4",
+        "ext-json": "*",
+        "ext-redis": "*"
+    },
+    "suggest": {
+        "ext-relay": "Required to fuzz Relay\\Relay or Relay\\Cluster clients"
+    },
     "require-dev": {
         "phpstan/phpstan": "^2.2",
         "phpunit/phpunit": "^13.3"
+    },
+    "scripts": {
+        "analyse": "phpstan analyse --debug --no-progress",
+        "test": "phpunit",
+        "check": [
+            "@analyse",
+            "@test"
+        ]
+    },
+    "config": {
+        "sort-packages": true
     }
 }

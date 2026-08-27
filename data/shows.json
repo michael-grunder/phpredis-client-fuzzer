@@ -1,0 +1,6826 @@
+{
+    "60028-40": {
+        "title": "Star Trek: La serie original",
+        "region": "ES"
+    },
+    "60028-41": {
+        "title": "Star Trek: Seria originala",
+        "region": "RO"
+    },
+    "60028-42": {
+        "title": "Star Trek: The Original Series",
+        "region": "US"
+    },
+    "60028-43": {
+        "title": "Star Trek: TOS",
+        "region": "US"
+    },
+    "69637-10": {
+        "title": "Star Trek: The Animated Series",
+        "region": "NL"
+    },
+    "69637-11": {
+        "title": "Star Trek: The Animated Series",
+        "region": "PL"
+    },
+    "69637-12": {
+        "title": "Star Trek: The Animated Series",
+        "region": "US"
+    },
+    "69637-13": {
+        "title": "Star Trek: The Animated Series",
+        "region": "XWW"
+    },
+    "69637-14": {
+        "title": "Star Trek: La serie animada",
+        "region": "ES"
+    },
+    "69637-15": {
+        "title": "Star Trek: La serie animada",
+        "region": "MX"
+    },
+    "69637-19": {
+        "title": "Star Trek: Die Abenteuer des Raumschiff Enterprise",
+        "region": "DE"
+    },
+    "69637-20": {
+        "title": "Star Trek: TAS",
+        "region": "US"
+    },
+    "69637-21": {
+        "title": "Star Trek: The Animated Series - The Animated Adventures of Gene Roddenberry's Star Trek",
+        "region": "US"
+    },
+    "69637-28": {
+        "title": "Star Trek: The Animated Series",
+        "region": "US"
+    },
+    "69637-9": {
+        "title": "Star Trek: The Animated Series",
+        "region": "GB"
+    },
+    "79945-1": {
+        "title": "Star Trek: The Motion Picture",
+        "region": null
+    },
+    "79945-10": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "ZA"
+    },
+    "79945-2": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "AU"
+    },
+    "79945-23": {
+        "title": "Star Trek: Film",
+        "region": "CSHH"
+    },
+    "79945-24": {
+        "title": "Star Trek: Film",
+        "region": "CZ"
+    },
+    "79945-3": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "CA"
+    },
+    "79945-4": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "EC"
+    },
+    "79945-41": {
+        "title": "Star Trek: A mozifilm",
+        "region": "HU"
+    },
+    "79945-42": {
+        "title": "Star Trek: Avaruusmatka",
+        "region": "FI"
+    },
+    "79945-43": {
+        "title": "Star Trek: Csillag\u00f6sv\u00e9ny",
+        "region": "HU"
+    },
+    "79945-44": {
+        "title": "Star Trek: Du H\u00e0nh Gi\u1eefa C\u00e1c V\u00ec Sao",
+        "region": "VN"
+    },
+    "79945-45": {
+        "title": "Star Trek: La pel\u00edcula",
+        "region": "ES"
+    },
+    "79945-46": {
+        "title": "Star Trek: Phase II",
+        "region": "US"
+    },
+    "79945-47": {
+        "title": "Star Trek: The Motion Picture - Director's Edition",
+        "region": "IT"
+    },
+    "79945-48": {
+        "title": "Star Trek: The Motion Picture - The Director's Edition",
+        "region": "US"
+    },
+    "79945-49": {
+        "title": "Star Trek: \u0424\u0438\u043b\u043c\u044a\u0442",
+        "region": "BG"
+    },
+    "79945-5": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "GB"
+    },
+    "79945-6": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "NL"
+    },
+    "79945-7": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "PH"
+    },
+    "79945-8": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "PL"
+    },
+    "79945-9": {
+        "title": "Star Trek: The Motion Picture",
+        "region": "US"
+    },
+    "84726-47": {
+        "title": "Star Trek: The Wrath of Khan",
+        "region": "US"
+    },
+    "84726-48": {
+        "title": "Star Trek: \u0413\u043d\u0435\u0432\u044a\u0442 \u043d\u0430 \u0425\u0430\u043d",
+        "region": "BG"
+    },
+    "88170-42": {
+        "title": "Star Trek: The Search for Spock",
+        "region": "US"
+    },
+    "92007-45": {
+        "title": "Star Trek: The Voyage Home",
+        "region": "XWW"
+    },
+    "92455-1": {
+        "title": "Star Trek: The Next Generation",
+        "region": null
+    },
+    "92455-10": {
+        "title": "Star Trek: The Next Generation",
+        "region": "ID"
+    },
+    "92455-11": {
+        "title": "Star Trek: The Next Generation",
+        "region": "IL"
+    },
+    "92455-12": {
+        "title": "Star Trek: The Next Generation",
+        "region": "IN"
+    },
+    "92455-13": {
+        "title": "Star Trek: The Next Generation",
+        "region": "IN"
+    },
+    "92455-14": {
+        "title": "Star Trek: The Next Generation",
+        "region": "IT"
+    },
+    "92455-15": {
+        "title": "Star Trek: The Next Generation",
+        "region": "NL"
+    },
+    "92455-16": {
+        "title": "Star Trek: The Next Generation",
+        "region": "PH"
+    },
+    "92455-17": {
+        "title": "Star Trek: The Next Generation",
+        "region": "SE"
+    },
+    "92455-18": {
+        "title": "Star Trek: The Next Generation",
+        "region": "SG"
+    },
+    "92455-19": {
+        "title": "Star Trek: The Next Generation",
+        "region": "TH"
+    },
+    "92455-2": {
+        "title": "Star Trek: The Next Generation",
+        "region": "AE"
+    },
+    "92455-20": {
+        "title": "Star Trek: The Next Generation",
+        "region": "TR"
+    },
+    "92455-21": {
+        "title": "Star Trek: The Next Generation",
+        "region": "US"
+    },
+    "92455-22": {
+        "title": "Star Trek: The Next Generation",
+        "region": "ZA"
+    },
+    "92455-3": {
+        "title": "Star Trek: The Next Generation",
+        "region": "AU"
+    },
+    "92455-37": {
+        "title": "Star Trek: A Gera\u00e7\u00e3o Seguinte",
+        "region": "PT"
+    },
+    "92455-38": {
+        "title": "Star Trek: Az \u00faj nemzed\u00e9k",
+        "region": "HU"
+    },
+    "92455-39": {
+        "title": "Star Trek: Genera\u021bia urm\u0103toare",
+        "region": "RO"
+    },
+    "92455-4": {
+        "title": "Star Trek: The Next Generation",
+        "region": "CA"
+    },
+    "92455-40": {
+        "title": "Star Trek: I epomeni gennia",
+        "region": "GR"
+    },
+    "92455-41": {
+        "title": "Star Trek: La nouvelle g\u00e9n\u00e9ration",
+        "region": "FR"
+    },
+    "92455-42": {
+        "title": "Star Trek: La nueva generaci\u00f3n",
+        "region": "ES"
+    },
+    "92455-43": {
+        "title": "Star Trek: Nast\u0119pne pokolenie",
+        "region": "PL"
+    },
+    "92455-44": {
+        "title": "Star Trek: Nov\u00e1 generace",
+        "region": "CZ"
+    },
+    "92455-45": {
+        "title": "Star Trek: Nov\u00e1 gener\u00e1cia",
+        "region": "SK"
+    },
+    "92455-46": {
+        "title": "Star Trek: TNG",
+        "region": "US"
+    },
+    "92455-47": {
+        "title": "Star Trek: Uus p\u00f5lvkond",
+        "region": "EE"
+    },
+    "92455-5": {
+        "title": "Star Trek: The Next Generation",
+        "region": "CA"
+    },
+    "92455-6": {
+        "title": "Star Trek: The Next Generation",
+        "region": "DE"
+    },
+    "92455-7": {
+        "title": "Star Trek: The Next Generation",
+        "region": "EC"
+    },
+    "92455-8": {
+        "title": "Star Trek: The Next Generation",
+        "region": "GB"
+    },
+    "92455-9": {
+        "title": "Star Trek: The Next Generation",
+        "region": "HK"
+    },
+    "98382-41": {
+        "title": "Star Trek: The Final Frontier",
+        "region": "XWW"
+    },
+    "102975-21": {
+        "title": "Star Trek: The Undiscovered Country",
+        "region": "NL"
+    },
+    "102975-22": {
+        "title": "Star Trek: The Undiscovered Country",
+        "region": "XWW"
+    },
+    "102975-43": {
+        "title": "Star Trek: A nem ismert tartom\u00e1ny",
+        "region": "HU"
+    },
+    "106145-1": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": null
+    },
+    "106145-10": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "HU"
+    },
+    "106145-11": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "IL"
+    },
+    "106145-12": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "IN"
+    },
+    "106145-13": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "IN"
+    },
+    "106145-14": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "IT"
+    },
+    "106145-15": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "MX"
+    },
+    "106145-16": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "NL"
+    },
+    "106145-17": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "PH"
+    },
+    "106145-18": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "RO"
+    },
+    "106145-19": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "SE"
+    },
+    "106145-2": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "AE"
+    },
+    "106145-20": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "SG"
+    },
+    "106145-21": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "TR"
+    },
+    "106145-22": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "US"
+    },
+    "106145-23": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "ZA"
+    },
+    "106145-27": {
+        "title": "Star Trek: Deep Space IX",
+        "region": "US"
+    },
+    "106145-28": {
+        "title": "Star Trek: Diastimikos stathmos 9",
+        "region": "GR"
+    },
+    "106145-29": {
+        "title": "Star Trek: DS9",
+        "region": "US"
+    },
+    "106145-3": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "AU"
+    },
+    "106145-30": {
+        "title": "Star Trek: Espacio Profundo Nueve",
+        "region": "ES"
+    },
+    "106145-31": {
+        "title": "Star Trek: Hlbok\u00fd vesm\u00edr dev\u00e4\u0165",
+        "region": "SK"
+    },
+    "106145-32": {
+        "title": "Star Trek: Hlubok\u00fd vesm\u00edr dev\u011bt",
+        "region": "CZ"
+    },
+    "106145-33": {
+        "title": "Star Trek: Stacja kosmiczna",
+        "region": "PL"
+    },
+    "106145-4": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "CA"
+    },
+    "106145-5": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "CA"
+    },
+    "106145-6": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "DE"
+    },
+    "106145-7": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "EC"
+    },
+    "106145-8": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "FR"
+    },
+    "106145-9": {
+        "title": "Star Trek: Deep Space Nine",
+        "region": "GB"
+    },
+    "111280-1": {
+        "title": "Star Trek: Generations",
+        "region": null
+    },
+    "111280-10": {
+        "title": "Star Trek: Generations",
+        "region": "US"
+    },
+    "111280-2": {
+        "title": "Star Trek: Generations",
+        "region": "AU"
+    },
+    "111280-3": {
+        "title": "Star Trek: Generations",
+        "region": "CA"
+    },
+    "111280-31": {
+        "title": "Star Trek: C\u00e1c Th\u1ebf H\u1ec7",
+        "region": "VN"
+    },
+    "111280-32": {
+        "title": "Star Trek: Genees",
+        "region": "GR"
+    },
+    "111280-33": {
+        "title": "Star Trek: Generaciones",
+        "region": "MX"
+    },
+    "111280-34": {
+        "title": "Star Trek: Generatii",
+        "region": "RO"
+    },
+    "111280-36": {
+        "title": "Star Trek: Gera\u00e7\u00f5es",
+        "region": "PT"
+    },
+    "111280-37": {
+        "title": "Star Trek: La pr\u00f3xima generaci\u00f3n",
+        "region": "ES"
+    },
+    "111280-38": {
+        "title": "Star Trek: Nemzed\u00e9kek",
+        "region": "HU"
+    },
+    "111280-39": {
+        "title": "Star Trek: Sukupolvet",
+        "region": "FI"
+    },
+    "111280-4": {
+        "title": "Star Trek: Generations",
+        "region": "EC"
+    },
+    "111280-40": {
+        "title": "Star Trek: The Next Generation - The Movie",
+        "region": "US"
+    },
+    "111280-5": {
+        "title": "Star Trek: Generations",
+        "region": "GB"
+    },
+    "111280-6": {
+        "title": "Star Trek: Generations",
+        "region": "IL"
+    },
+    "111280-7": {
+        "title": "Star Trek: Generations",
+        "region": "IN"
+    },
+    "111280-8": {
+        "title": "Star Trek: Generations",
+        "region": "PH"
+    },
+    "111280-9": {
+        "title": "Star Trek: Generations",
+        "region": "SE"
+    },
+    "111281-2": {
+        "title": "Star Trek: The Next Generation-All Good Things, Part I",
+        "region": null
+    },
+    "111281-3": {
+        "title": "Star Trek: The Next Generation-All Good Things, Part I",
+        "region": "AU"
+    },
+    "111281-4": {
+        "title": "Star Trek: The Next Generation-All Good Things, Part I",
+        "region": "GB"
+    },
+    "111282-27": {
+        "title": "Stargate: La puerta del tiempo",
+        "region": "AR"
+    },
+    "111282-28": {
+        "title": "Stargate: La puerta del tiempo",
+        "region": "UY"
+    },
+    "111282-37": {
+        "title": "Stargate: A Chave para o Futuro da Humanidade",
+        "region": "BR"
+    },
+    "111282-38": {
+        "title": "Stargate: la puerta del tiempo",
+        "region": "MX"
+    },
+    "111282-39": {
+        "title": "Stargate: Puerta a las estrellas",
+        "region": "ES"
+    },
+    "112178-1": {
+        "title": "Star Trek: Voyager",
+        "region": null
+    },
+    "112178-10": {
+        "title": "Star Trek: Voyager",
+        "region": "FR"
+    },
+    "112178-11": {
+        "title": "Star Trek: Voyager",
+        "region": "GB"
+    },
+    "112178-12": {
+        "title": "Star Trek: Voyager",
+        "region": "HU"
+    },
+    "112178-13": {
+        "title": "Star Trek: Voyager",
+        "region": "ID"
+    },
+    "112178-14": {
+        "title": "Star Trek: Voyager",
+        "region": "IL"
+    },
+    "112178-15": {
+        "title": "Star Trek: Voyager",
+        "region": "IN"
+    },
+    "112178-16": {
+        "title": "Star Trek: Voyager",
+        "region": "IN"
+    },
+    "112178-17": {
+        "title": "Star Trek: Voyager",
+        "region": "IT"
+    },
+    "112178-18": {
+        "title": "Star Trek: Voyager",
+        "region": "NL"
+    },
+    "112178-19": {
+        "title": "Star Trek: Voyager",
+        "region": "PH"
+    },
+    "112178-2": {
+        "title": "Star Trek: Voyager",
+        "region": "AE"
+    },
+    "112178-20": {
+        "title": "Star Trek: Voyager",
+        "region": "PL"
+    },
+    "112178-21": {
+        "title": "Star Trek: Voyager",
+        "region": "RO"
+    },
+    "112178-22": {
+        "title": "Star Trek: Voyager",
+        "region": "SE"
+    },
+    "112178-23": {
+        "title": "Star Trek: Voyager",
+        "region": "SG"
+    },
+    "112178-24": {
+        "title": "Star Trek: Voyager",
+        "region": "SK"
+    },
+    "112178-25": {
+        "title": "Star Trek: Voyager",
+        "region": "TR"
+    },
+    "112178-26": {
+        "title": "Star Trek: Voyager",
+        "region": "US"
+    },
+    "112178-27": {
+        "title": "Star Trek: Voyager",
+        "region": "ZA"
+    },
+    "112178-3": {
+        "title": "Star Trek: Voyager",
+        "region": "AU"
+    },
+    "112178-30": {
+        "title": "Star Trek: Raumschiff Voyager",
+        "region": "DE"
+    },
+    "112178-31": {
+        "title": "Star Trek: VOY",
+        "region": "US"
+    },
+    "112178-32": {
+        "title": "Star Trek: Voyager - Shediazontas ta nea synora",
+        "region": "GR"
+    },
+    "112178-4": {
+        "title": "Star Trek: Voyager",
+        "region": "CA"
+    },
+    "112178-5": {
+        "title": "Star Trek: Voyager",
+        "region": "CA"
+    },
+    "112178-6": {
+        "title": "Star Trek: Voyager",
+        "region": "CZ"
+    },
+    "112178-7": {
+        "title": "Star Trek: Voyager",
+        "region": "DE"
+    },
+    "112178-8": {
+        "title": "Star Trek: Voyager",
+        "region": "EC"
+    },
+    "112178-9": {
+        "title": "Star Trek: Voyager",
+        "region": "ES"
+    },
+    "114530-4": {
+        "title": "Star Trek: Voyager - Der F\u00fcrsorger",
+        "region": "DE"
+    },
+    "117731-1": {
+        "title": "Star Trek: First Contact",
+        "region": null
+    },
+    "117731-10": {
+        "title": "Star Trek: First Contact",
+        "region": "SG"
+    },
+    "117731-11": {
+        "title": "Star Trek: First Contact",
+        "region": "ZA"
+    },
+    "117731-12": {
+        "title": "Star Trek: Primer contacto",
+        "region": "AR"
+    },
+    "117731-13": {
+        "title": "Star Trek: Primer contacto",
+        "region": "ES"
+    },
+    "117731-2": {
+        "title": "Star Trek: First Contact",
+        "region": "AU"
+    },
+    "117731-3": {
+        "title": "Star Trek: First Contact",
+        "region": "CA"
+    },
+    "117731-34": {
+        "title": "Star Trek: Borg",
+        "region": "US"
+    },
+    "117731-35": {
+        "title": "Star Trek: Destinies",
+        "region": "US"
+    },
+    "117731-36": {
+        "title": "Star Trek: Ensimm\u00e4inen yhteys",
+        "region": "FI"
+    },
+    "117731-37": {
+        "title": "Star Trek: Esimene kontakt",
+        "region": "EE"
+    },
+    "117731-38": {
+        "title": "Star Trek: Future Generations",
+        "region": "US"
+    },
+    "117731-39": {
+        "title": "Star Trek: Generations II",
+        "region": "US"
+    },
+    "117731-4": {
+        "title": "Star Trek: First Contact",
+        "region": "EC"
+    },
+    "117731-40": {
+        "title": "Star Trek: I proti epafi",
+        "region": "GR"
+    },
+    "117731-41": {
+        "title": "Star Trek: Kapcsolatfelv\u00e9tel",
+        "region": "HU"
+    },
+    "117731-42": {
+        "title": "Star Trek: L\u1ea7n \u0110\u1ea7u G\u1eb7p M\u1eb7t",
+        "region": "VN"
+    },
+    "117731-43": {
+        "title": "Star Trek: O Primeiro Contacto",
+        "region": "PT"
+    },
+    "117731-44": {
+        "title": "Star Trek: Pierwszy kontakt",
+        "region": "PL"
+    },
+    "117731-46": {
+        "title": "Star Trek: Primul contact",
+        "region": "RO"
+    },
+    "117731-47": {
+        "title": "Star Trek: Proti epafi",
+        "region": "GR"
+    },
+    "117731-48": {
+        "title": "Star Trek: Renaissance",
+        "region": "US"
+    },
+    "117731-49": {
+        "title": "Star Trek: Resurrection",
+        "region": "US"
+    },
+    "117731-5": {
+        "title": "Star Trek: First Contact",
+        "region": "GB"
+    },
+    "117731-6": {
+        "title": "Star Trek: First Contact",
+        "region": "IL"
+    },
+    "117731-64": {
+        "title": "Star Trek: First Contact",
+        "region": "US"
+    },
+    "117731-7": {
+        "title": "Star Trek: First Contact",
+        "region": "IN"
+    },
+    "117731-8": {
+        "title": "Star Trek: First Contact",
+        "region": "NL"
+    },
+    "117731-9": {
+        "title": "Star Trek: First Contact",
+        "region": "SE"
+    },
+    "118480-40": {
+        "title": "Stargate: Kommando SG-1",
+        "region": "DE"
+    },
+    "118480-41": {
+        "title": "Stargate: SG-1",
+        "region": "US"
+    },
+    "120198-1": {
+        "title": "Star Trek: The Experience - The Klingon Encounter",
+        "region": null
+    },
+    "120198-2": {
+        "title": "Star Trek: The Experience - The Klingon Encounter",
+        "region": "US"
+    },
+    "120844-1": {
+        "title": "Star Trek: Insurrection",
+        "region": null
+    },
+    "120844-2": {
+        "title": "Star Trek: Insurrection",
+        "region": "AU"
+    },
+    "120844-23": {
+        "title": "Star Trek: I exegersi",
+        "region": "GR"
+    },
+    "120844-24": {
+        "title": "Star Trek: Insurectia",
+        "region": "RO"
+    },
+    "120844-25": {
+        "title": "Star Trek: Insurrecci\u00f3n",
+        "region": "ES"
+    },
+    "120844-26": {
+        "title": "Star Trek: Insurrei\u00e7\u00e3o",
+        "region": "PT"
+    },
+    "120844-27": {
+        "title": "Star Trek: Kapina",
+        "region": "FI"
+    },
+    "120844-28": {
+        "title": "Star Trek: Kh\u1edfi Ngh\u0129a",
+        "region": "VN"
+    },
+    "120844-29": {
+        "title": "Star Trek: Nemesis",
+        "region": "US"
+    },
+    "120844-3": {
+        "title": "Star Trek: Insurrection",
+        "region": "CA"
+    },
+    "120844-30": {
+        "title": "Star Trek: Prime Directive",
+        "region": "US"
+    },
+    "120844-31": {
+        "title": "Star Trek: Rebelia",
+        "region": "PL"
+    },
+    "120844-32": {
+        "title": "Star Trek: Rebellion",
+        "region": "US"
+    },
+    "120844-33": {
+        "title": "Star Trek: Stardust",
+        "region": "US"
+    },
+    "120844-34": {
+        "title": "Star Trek: \u00dclest\u00f5us",
+        "region": "EE"
+    },
+    "120844-35": {
+        "title": "Star Trek: \u0170rl\u00e1zad\u00e1s",
+        "region": "HU"
+    },
+    "120844-36": {
+        "title": "Star Trek: \u0411\u0443\u043d\u0442\u044a\u0442",
+        "region": "BG"
+    },
+    "120844-4": {
+        "title": "Star Trek: Insurrection",
+        "region": "CA"
+    },
+    "120844-5": {
+        "title": "Star Trek: Insurrection",
+        "region": "EC"
+    },
+    "120844-6": {
+        "title": "Star Trek: Insurrection",
+        "region": "GB"
+    },
+    "120844-7": {
+        "title": "Star Trek: Insurrection",
+        "region": "SE"
+    },
+    "120844-8": {
+        "title": "Star Trek: Insurrection",
+        "region": "US"
+    },
+    "124140-1": {
+        "title": "Star Trek: Borg",
+        "region": null
+    },
+    "124140-2": {
+        "title": "Star Trek: Borg",
+        "region": "US"
+    },
+    "124141-1": {
+        "title": "Star Trek: Klingon",
+        "region": null
+    },
+    "124141-2": {
+        "title": "Star Trek: Klingon",
+        "region": "DE"
+    },
+    "124141-3": {
+        "title": "Star Trek: Klingon",
+        "region": "US"
+    },
+    "125516-1": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": null
+    },
+    "125516-2": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "CA"
+    },
+    "125516-3": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "US"
+    },
+    "125516-4": {
+        "title": "Star Trek: Starfleet Academy - Chekov's Lost Missions",
+        "region": "US"
+    },
+    "131029-1": {
+        "title": "Star Trek: The Next Generation - A Final Unity",
+        "region": null
+    },
+    "131029-2": {
+        "title": "Star Trek: The Next Generation - A Final Unity",
+        "region": "US"
+    },
+    "141842-1": {
+        "title": "The Sopranos",
+        "region": null
+    },
+    "141842-10": {
+        "title": "The Sopranos",
+        "region": "IL"
+    },
+    "141842-11": {
+        "title": "The Sopranos",
+        "region": "IN"
+    },
+    "141842-12": {
+        "title": "The Sopranos",
+        "region": "IN"
+    },
+    "141842-13": {
+        "title": "The Sopranos",
+        "region": "NL"
+    },
+    "141842-14": {
+        "title": "The Sopranos",
+        "region": "PH"
+    },
+    "141842-15": {
+        "title": "The Sopranos",
+        "region": "SE"
+    },
+    "141842-16": {
+        "title": "The Sopranos",
+        "region": "SG"
+    },
+    "141842-17": {
+        "title": "The Sopranos",
+        "region": "TH"
+    },
+    "141842-18": {
+        "title": "The Sopranos",
+        "region": "US"
+    },
+    "141842-19": {
+        "title": "The Sopranos",
+        "region": "ZA"
+    },
+    "141842-2": {
+        "title": "The Sopranos",
+        "region": "AE"
+    },
+    "141842-3": {
+        "title": "The Sopranos",
+        "region": "AU"
+    },
+    "141842-4": {
+        "title": "The Sopranos",
+        "region": "CA"
+    },
+    "141842-5": {
+        "title": "The Sopranos",
+        "region": "CA"
+    },
+    "141842-6": {
+        "title": "The Sopranos",
+        "region": "EC"
+    },
+    "141842-7": {
+        "title": "The Sopranos",
+        "region": "EG"
+    },
+    "141842-8": {
+        "title": "The Sopranos",
+        "region": "GB"
+    },
+    "141842-9": {
+        "title": "The Sopranos",
+        "region": "ID"
+    },
+    "143901-1": {
+        "title": "Star Trek: Generations",
+        "region": null
+    },
+    "143901-2": {
+        "title": "Star Trek: Generations",
+        "region": "US"
+    },
+    "159771-1": {
+        "title": "Star Trek: Klingon Academy",
+        "region": null
+    },
+    "159771-2": {
+        "title": "Star Trek: Klingon Academy",
+        "region": "US"
+    },
+    "159772-1": {
+        "title": "Star Trek: The Game Show",
+        "region": null
+    },
+    "159772-2": {
+        "title": "Star Trek: The Game Show",
+        "region": "US"
+    },
+    "189110-1": {
+        "title": "Star Trek: Judgment Rites",
+        "region": null
+    },
+    "189110-2": {
+        "title": "Star Trek: Judgment Rites",
+        "region": "US"
+    },
+    "201172-1": {
+        "title": "Star Trek: Armada",
+        "region": null
+    },
+    "201172-2": {
+        "title": "Star Trek: Armada",
+        "region": "US"
+    },
+    "201172-3": {
+        "title": "Star Trek: Armada 1",
+        "region": "US"
+    },
+    "203945-1": {
+        "title": "Star Trek: Deep Space Nine - The Fallen",
+        "region": null
+    },
+    "203945-2": {
+        "title": "Star Trek: Deep Space Nine - The Fallen",
+        "region": "US"
+    },
+    "205425-1": {
+        "title": "Star Trek: New Worlds",
+        "region": null
+    },
+    "205425-2": {
+        "title": "Star Trek: New Worlds",
+        "region": "CA"
+    },
+    "211159-1": {
+        "title": "NFL Weekly Magazine",
+        "region": null
+    },
+    "211159-4": {
+        "title": "NFL Weekly Magazine",
+        "region": "EC"
+    },
+    "214159-1": {
+        "title": "Star Trek: Starfleet Command",
+        "region": null
+    },
+    "214159-2": {
+        "title": "Star Trek: Starfleet Command",
+        "region": "US"
+    },
+    "214159-3": {
+        "title": "Star Trek: Starfleet Command: Gold Edition",
+        "region": "US"
+    },
+    "216237-1": {
+        "title": "Star Trek: Hidden Evil",
+        "region": null
+    },
+    "216237-2": {
+        "title": "Star Trek: Der Aufstand",
+        "region": "DE"
+    },
+    "216237-3": {
+        "title": "Star Trek: Hidden Evil",
+        "region": "US"
+    },
+    "217820-1": {
+        "title": "Star Trek: The Next Generation Interactive Technical Manual",
+        "region": null
+    },
+    "217820-2": {
+        "title": "Star Trek: The Next Generation Interactive Technical Manual",
+        "region": "US"
+    },
+    "244365-10": {
+        "title": "Star Trek: Enterprise",
+        "region": "IL"
+    },
+    "244365-11": {
+        "title": "Star Trek: Enterprise",
+        "region": "IT"
+    },
+    "244365-12": {
+        "title": "Star Trek: Enterprise",
+        "region": "NL"
+    },
+    "244365-13": {
+        "title": "Star Trek: Enterprise",
+        "region": "PL"
+    },
+    "244365-14": {
+        "title": "Star Trek: Enterprise",
+        "region": "RO"
+    },
+    "244365-15": {
+        "title": "Star Trek: Enterprise",
+        "region": "SG"
+    },
+    "244365-16": {
+        "title": "Star Trek: Enterprise",
+        "region": "SK"
+    },
+    "244365-17": {
+        "title": "Star Trek: Enterprise",
+        "region": "US"
+    },
+    "244365-18": {
+        "title": "Star Trek: Enterprise",
+        "region": "XWW"
+    },
+    "244365-2": {
+        "title": "Star Trek: Enterprise",
+        "region": "AU"
+    },
+    "244365-3": {
+        "title": "Star Trek: Enterprise",
+        "region": "CZ"
+    },
+    "244365-35": {
+        "title": "Star Trek: Series V",
+        "region": "US"
+    },
+    "244365-36": {
+        "title": "Star Trek: Untitled Fifth Series",
+        "region": "US"
+    },
+    "244365-4": {
+        "title": "Star Trek: Enterprise",
+        "region": "DE"
+    },
+    "244365-44": {
+        "title": "Star Trek: Enterprise",
+        "region": "US"
+    },
+    "244365-5": {
+        "title": "Star Trek: Enterprise",
+        "region": "ES"
+    },
+    "244365-6": {
+        "title": "Star Trek: Enterprise",
+        "region": "FI"
+    },
+    "244365-7": {
+        "title": "Star Trek: Enterprise",
+        "region": "FR"
+    },
+    "244365-8": {
+        "title": "Star Trek: Enterprise",
+        "region": "GB"
+    },
+    "244365-9": {
+        "title": "Star Trek: Enterprise",
+        "region": "HU"
+    },
+    "253754-1": {
+        "title": "Star Trek: Nemesis",
+        "region": null
+    },
+    "253754-10": {
+        "title": "Star Trek: Nemesis",
+        "region": "PH"
+    },
+    "253754-11": {
+        "title": "Star Trek: Nemesis",
+        "region": "RO"
+    },
+    "253754-12": {
+        "title": "Star Trek: Nemesis",
+        "region": "SE"
+    },
+    "253754-13": {
+        "title": "Star Trek: Nemesis",
+        "region": "US"
+    },
+    "253754-2": {
+        "title": "Star Trek: Nemesis",
+        "region": "AU"
+    },
+    "253754-28": {
+        "title": "Star Trek: B\u00e1o \u1ee8ng",
+        "region": "VN"
+    },
+    "253754-29": {
+        "title": "Star Trek: N\u00e9mesis",
+        "region": "ES"
+    },
+    "253754-3": {
+        "title": "Star Trek: Nemesis",
+        "region": "CA"
+    },
+    "253754-30": {
+        "title": "Star Trek: N\u00e9m\u00e9sis",
+        "region": "CA"
+    },
+    "253754-31": {
+        "title": "Star Trek: Nemezis",
+        "region": "HU"
+    },
+    "253754-32": {
+        "title": "Star Trek: Vaenlane",
+        "region": "EE"
+    },
+    "253754-4": {
+        "title": "Star Trek: Nemesis",
+        "region": "EC"
+    },
+    "253754-5": {
+        "title": "Star Trek: Nemesis",
+        "region": "FI"
+    },
+    "253754-6": {
+        "title": "Star Trek: Nemesis",
+        "region": "FR"
+    },
+    "253754-7": {
+        "title": "Star Trek: Nemesis",
+        "region": "GB"
+    },
+    "253754-8": {
+        "title": "Star Trek: Nemesis",
+        "region": "IN"
+    },
+    "253754-9": {
+        "title": "Star Trek: Nemesis",
+        "region": "NL"
+    },
+    "256407-1": {
+        "title": "Star Trek: Invasion",
+        "region": null
+    },
+    "256407-2": {
+        "title": "Star Trek: Invasion",
+        "region": "US"
+    },
+    "260393-1": {
+        "title": "Star Trek: The Rebel Universe",
+        "region": null
+    },
+    "260393-2": {
+        "title": "Star Trek: The Rebel Universe",
+        "region": "US"
+    },
+    "272306-1": {
+        "title": "Star Trek: Starfleet Command: Volume II: Empires at War",
+        "region": null
+    },
+    "272306-2": {
+        "title": "Star Trek: Starfleet Command: Volume II: Empires at War",
+        "region": "US"
+    },
+    "274890-1": {
+        "title": "Star Trek: 30 Years and Beyond",
+        "region": null
+    },
+    "274890-2": {
+        "title": "Star Trek: 30 Jahre und dar\u00fcber hinaus",
+        "region": "DE"
+    },
+    "274890-3": {
+        "title": "Star Trek: 30 Years and Beyond",
+        "region": "US"
+    },
+    "276525-1": {
+        "title": "Star Trek: Away Team",
+        "region": null
+    },
+    "276525-2": {
+        "title": "Star Trek: Away Team",
+        "region": "MX"
+    },
+    "276525-3": {
+        "title": "Star Trek: Away Team",
+        "region": "US"
+    },
+    "277348-1": {
+        "title": "Star Trek: Pinball",
+        "region": null
+    },
+    "277348-2": {
+        "title": "Star Trek: Pinball",
+        "region": "US"
+    },
+    "281223-1": {
+        "title": "Star Trek: Bridge Commander",
+        "region": null
+    },
+    "281223-2": {
+        "title": "Star Trek: Bridge Commander",
+        "region": "US"
+    },
+    "284513-1": {
+        "title": "Star Trek: Armada II",
+        "region": null
+    },
+    "284513-2": {
+        "title": "Star Trek: Armada II",
+        "region": "US"
+    },
+    "284514-1": {
+        "title": "Star Trek: Shattered Universe",
+        "region": null
+    },
+    "284514-2": {
+        "title": "Star Trek: Shattered Universe",
+        "region": "US"
+    },
+    "292253-1": {
+        "title": "Star Trek: ConQuest Online",
+        "region": null
+    },
+    "292253-2": {
+        "title": "Star Trek: ConQuest Online",
+        "region": "US"
+    },
+    "300512-1": {
+        "title": "Star Trek: Deep Space Nine Companion",
+        "region": null
+    },
+    "300512-2": {
+        "title": "Star Trek: Deep Space Nine Companion",
+        "region": "US"
+    },
+    "300512-3": {
+        "title": "Star Trek: Deep Space Nine Episode Guide",
+        "region": null
+    },
+    "300513-1": {
+        "title": "Star Trek: The Next Generation Companion",
+        "region": null
+    },
+    "304745-1": {
+        "title": "Star Trek: Strategic Operations Simulator",
+        "region": null
+    },
+    "304745-3": {
+        "title": "Star Trek: Strategic Operations Simulator",
+        "region": "US"
+    },
+    "304745-4": {
+        "title": "Star Trek: The Arcade Game",
+        "region": "US"
+    },
+    "306414-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "306414-10": {
+        "title": "The Wire",
+        "region": "ID"
+    },
+    "306414-11": {
+        "title": "The Wire",
+        "region": "IL"
+    },
+    "306414-12": {
+        "title": "The Wire",
+        "region": "IN"
+    },
+    "306414-13": {
+        "title": "The Wire",
+        "region": "IN"
+    },
+    "306414-14": {
+        "title": "The Wire",
+        "region": "IT"
+    },
+    "306414-15": {
+        "title": "The Wire",
+        "region": "KR"
+    },
+    "306414-16": {
+        "title": "The Wire",
+        "region": "MX"
+    },
+    "306414-17": {
+        "title": "The Wire",
+        "region": "NL"
+    },
+    "306414-18": {
+        "title": "The Wire",
+        "region": "PH"
+    },
+    "306414-19": {
+        "title": "The Wire",
+        "region": "SE"
+    },
+    "306414-2": {
+        "title": "The Wire",
+        "region": "AE"
+    },
+    "306414-20": {
+        "title": "The Wire",
+        "region": "SG"
+    },
+    "306414-21": {
+        "title": "The Wire",
+        "region": "TH"
+    },
+    "306414-22": {
+        "title": "The Wire",
+        "region": "TR"
+    },
+    "306414-23": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "306414-24": {
+        "title": "The Wire",
+        "region": "ZA"
+    },
+    "306414-3": {
+        "title": "The Wire",
+        "region": "AU"
+    },
+    "306414-4": {
+        "title": "The Wire",
+        "region": "CA"
+    },
+    "306414-5": {
+        "title": "The Wire",
+        "region": "CA"
+    },
+    "306414-6": {
+        "title": "The Wire",
+        "region": "DE"
+    },
+    "306414-7": {
+        "title": "The Wire",
+        "region": "EC"
+    },
+    "306414-8": {
+        "title": "The Wire",
+        "region": "EG"
+    },
+    "306414-9": {
+        "title": "The Wire",
+        "region": "GB"
+    },
+    "320526-1": {
+        "title": "Star Trek: Starfleet Command: Orion Pirates",
+        "region": null
+    },
+    "320526-2": {
+        "title": "Star Trek: Starfleet Command: Orion Pirates",
+        "region": "US"
+    },
+    "320969-2": {
+        "title": "Stargate: Infinity",
+        "region": "AU"
+    },
+    "320969-3": {
+        "title": "Stargate: Infinity",
+        "region": "DE"
+    },
+    "320969-4": {
+        "title": "Stargate: Infinity",
+        "region": "FR"
+    },
+    "320969-5": {
+        "title": "Stargate: Infinity",
+        "region": "GB"
+    },
+    "320969-6": {
+        "title": "Stargate: Infinity",
+        "region": "US"
+    },
+    "324065-1": {
+        "title": "Star Trek: A Captain's Log",
+        "region": null
+    },
+    "324065-2": {
+        "title": "Star Trek: A Captain's Log",
+        "region": "US"
+    },
+    "339724-1": {
+        "title": "Star Trek: Starfleet Command III",
+        "region": null
+    },
+    "339724-2": {
+        "title": "Star Trek: Starfleet Command III",
+        "region": "US"
+    },
+    "348111-1": {
+        "title": "Star Trek: Elite Force II",
+        "region": null
+    },
+    "348111-2": {
+        "title": "Star Trek: Elite Force II",
+        "region": "US"
+    },
+    "348914-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "348914-10": {
+        "title": "Deadwood",
+        "region": "FI"
+    },
+    "348914-11": {
+        "title": "Deadwood",
+        "region": "FR"
+    },
+    "348914-12": {
+        "title": "Deadwood",
+        "region": "GB"
+    },
+    "348914-13": {
+        "title": "Deadwood",
+        "region": "GR"
+    },
+    "348914-14": {
+        "title": "Deadwood",
+        "region": "HK"
+    },
+    "348914-15": {
+        "title": "Deadwood",
+        "region": "HR"
+    },
+    "348914-16": {
+        "title": "Deadwood",
+        "region": "HU"
+    },
+    "348914-17": {
+        "title": "Deadwood",
+        "region": "ID"
+    },
+    "348914-18": {
+        "title": "Deadwood",
+        "region": "IL"
+    },
+    "348914-19": {
+        "title": "Deadwood",
+        "region": "IN"
+    },
+    "348914-2": {
+        "title": "Deadwood",
+        "region": "AE"
+    },
+    "348914-20": {
+        "title": "Deadwood",
+        "region": "IN"
+    },
+    "348914-21": {
+        "title": "Deadwood",
+        "region": "IT"
+    },
+    "348914-22": {
+        "title": "Deadwood",
+        "region": "KR"
+    },
+    "348914-23": {
+        "title": "Deadwood",
+        "region": "MX"
+    },
+    "348914-24": {
+        "title": "Deadwood",
+        "region": "NL"
+    },
+    "348914-25": {
+        "title": "Deadwood",
+        "region": "PH"
+    },
+    "348914-26": {
+        "title": "Deadwood",
+        "region": "PL"
+    },
+    "348914-27": {
+        "title": "Deadwood",
+        "region": "RO"
+    },
+    "348914-28": {
+        "title": "Deadwood",
+        "region": "SE"
+    },
+    "348914-29": {
+        "title": "Deadwood",
+        "region": "SG"
+    },
+    "348914-3": {
+        "title": "Deadwood",
+        "region": "AU"
+    },
+    "348914-30": {
+        "title": "Deadwood",
+        "region": "TH"
+    },
+    "348914-31": {
+        "title": "Deadwood",
+        "region": "TR"
+    },
+    "348914-32": {
+        "title": "Deadwood",
+        "region": "US"
+    },
+    "348914-33": {
+        "title": "Deadwood",
+        "region": "ZA"
+    },
+    "348914-4": {
+        "title": "Deadwood",
+        "region": "CA"
+    },
+    "348914-5": {
+        "title": "Deadwood",
+        "region": "CA"
+    },
+    "348914-6": {
+        "title": "Deadwood",
+        "region": "DE"
+    },
+    "348914-7": {
+        "title": "Deadwood",
+        "region": "EC"
+    },
+    "348914-8": {
+        "title": "Deadwood",
+        "region": "EG"
+    },
+    "348914-9": {
+        "title": "Deadwood",
+        "region": "ES"
+    },
+    "356069-1": {
+        "title": "Star Trek: The Experience - Borg Invasion 4D",
+        "region": null
+    },
+    "356069-2": {
+        "title": "Star Trek: Borg Encounter",
+        "region": "US"
+    },
+    "356069-3": {
+        "title": "Star Trek: The Experience - Borg Invasion 4D",
+        "region": "IN"
+    },
+    "356069-4": {
+        "title": "Star Trek: The Experience - Borg Invasion 4D",
+        "region": "US"
+    },
+    "367090-1": {
+        "title": "Stargate: The Lowdown",
+        "region": null
+    },
+    "367090-2": {
+        "title": "Stargate: The Lowdown",
+        "region": "GB"
+    },
+    "367090-3": {
+        "title": "Stargate: The Lowdown",
+        "region": "US"
+    },
+    "374455-1": {
+        "title": "Stargate: Atlantis",
+        "region": null
+    },
+    "374455-10": {
+        "title": "Stargate: Atlantis",
+        "region": "GB"
+    },
+    "374455-11": {
+        "title": "Stargate: Atlantis",
+        "region": "GR"
+    },
+    "374455-12": {
+        "title": "Stargate: Atlantis",
+        "region": "ID"
+    },
+    "374455-13": {
+        "title": "Stargate: Atlantis",
+        "region": "IN"
+    },
+    "374455-14": {
+        "title": "Stargate: Atlantis",
+        "region": "IN"
+    },
+    "374455-15": {
+        "title": "Stargate: Atlantis",
+        "region": "KR"
+    },
+    "374455-16": {
+        "title": "Stargate: Atlantis",
+        "region": "NL"
+    },
+    "374455-17": {
+        "title": "Stargate: Atlantis",
+        "region": "PH"
+    },
+    "374455-18": {
+        "title": "Stargate: Atlantis",
+        "region": "RO"
+    },
+    "374455-19": {
+        "title": "Stargate: Atlantis",
+        "region": "SE"
+    },
+    "374455-2": {
+        "title": "Stargate: Atlantis",
+        "region": "AE"
+    },
+    "374455-20": {
+        "title": "Stargate: Atlantis",
+        "region": "SG"
+    },
+    "374455-21": {
+        "title": "Stargate: Atlantis",
+        "region": "US"
+    },
+    "374455-22": {
+        "title": "Stargate: Atlantis",
+        "region": "ZA"
+    },
+    "374455-3": {
+        "title": "Stargate: Atlantis",
+        "region": "AR"
+    },
+    "374455-34": {
+        "title": "Stargate: Atl\u00e5ntis",
+        "region": "IL"
+    },
+    "374455-4": {
+        "title": "Stargate: Atlantis",
+        "region": "AU"
+    },
+    "374455-5": {
+        "title": "Stargate: Atlantis",
+        "region": "BR"
+    },
+    "374455-6": {
+        "title": "Stargate: Atlantis",
+        "region": "DE"
+    },
+    "374455-7": {
+        "title": "Stargate: Atlantis",
+        "region": "EC"
+    },
+    "374455-8": {
+        "title": "Stargate: Atlantis",
+        "region": "ES"
+    },
+    "374455-9": {
+        "title": "Stargate: Atlantis",
+        "region": "FR"
+    },
+    "375096-6": {
+        "title": "Star Trek: The Next Generation Interactive VCR Board Game - A Klingon Challenge",
+        "region": "US"
+    },
+    "378242-3": {
+        "title": "Star Trek: Wie alles begann",
+        "region": "XWG"
+    },
+    "384766-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "384766-10": {
+        "title": "Rome",
+        "region": "ID"
+    },
+    "384766-11": {
+        "title": "Rome",
+        "region": "IL"
+    },
+    "384766-12": {
+        "title": "Rome",
+        "region": "IN"
+    },
+    "384766-13": {
+        "title": "Rome",
+        "region": "IN"
+    },
+    "384766-14": {
+        "title": "Rome",
+        "region": "NL"
+    },
+    "384766-15": {
+        "title": "Rome",
+        "region": "PH"
+    },
+    "384766-16": {
+        "title": "Rome",
+        "region": "SE"
+    },
+    "384766-17": {
+        "title": "Rome",
+        "region": "SG"
+    },
+    "384766-18": {
+        "title": "Rome",
+        "region": "TH"
+    },
+    "384766-19": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "384766-2": {
+        "title": "Rome",
+        "region": "AE"
+    },
+    "384766-20": {
+        "title": "Rome",
+        "region": "ZA"
+    },
+    "384766-3": {
+        "title": "Rome",
+        "region": "AU"
+    },
+    "384766-4": {
+        "title": "Rome",
+        "region": "CA"
+    },
+    "384766-5": {
+        "title": "Rome",
+        "region": "CA"
+    },
+    "384766-6": {
+        "title": "Rome",
+        "region": "EC"
+    },
+    "384766-7": {
+        "title": "Rome",
+        "region": "EG"
+    },
+    "384766-8": {
+        "title": "Rome",
+        "region": "FR"
+    },
+    "384766-9": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "395773-1": {
+        "title": "Star Trek: Disco Generation",
+        "region": null
+    },
+    "395773-2": {
+        "title": "Star Trek: Disco Generation",
+        "region": "CA"
+    },
+    "413308-1": {
+        "title": "Star Trek: Deep Space Nine - Harbinger",
+        "region": null
+    },
+    "413308-2": {
+        "title": "Star Trek: Deep Space Nine - Harbinger",
+        "region": "US"
+    },
+    "416240-1": {
+        "title": "Star Trek: Birth of the Federation",
+        "region": null
+    },
+    "416240-4": {
+        "title": "Star Trek: Birth of the Federation",
+        "region": "US"
+    },
+    "435741-1": {
+        "title": "The Sopranos",
+        "region": null
+    },
+    "435741-2": {
+        "title": "The Sopranos",
+        "region": "US"
+    },
+    "454957-1": {
+        "title": "Star Trek: Deep Space Nine - Dominion Wars",
+        "region": null
+    },
+    "454957-3": {
+        "title": "Star Trek: Deep Space Nine - Dominion Wars",
+        "region": "US"
+    },
+    "458122-1": {
+        "title": "Star Trek: New Voyages",
+        "region": null
+    },
+    "458122-10": {
+        "title": "Star Trek: New Voyages",
+        "region": "JP"
+    },
+    "458122-11": {
+        "title": "Star Trek: New Voyages",
+        "region": "MX"
+    },
+    "458122-12": {
+        "title": "Star Trek: New Voyages",
+        "region": "NL"
+    },
+    "458122-13": {
+        "title": "Star Trek: New Voyages",
+        "region": "ZA"
+    },
+    "458122-2": {
+        "title": "Star Trek: New Voyages",
+        "region": "AU"
+    },
+    "458122-3": {
+        "title": "Star Trek: New Voyages",
+        "region": "BR"
+    },
+    "458122-4": {
+        "title": "Star Trek: New Voyages",
+        "region": "CA"
+    },
+    "458122-5": {
+        "title": "Star Trek: New Voyages",
+        "region": "CA"
+    },
+    "458122-6": {
+        "title": "Star Trek: New Voyages",
+        "region": "DE"
+    },
+    "458122-7": {
+        "title": "Star Trek: New Voyages",
+        "region": "EC"
+    },
+    "458122-8": {
+        "title": "Star Trek: New Voyages",
+        "region": "GB"
+    },
+    "458122-9": {
+        "title": "Star Trek: New Voyages",
+        "region": "IT"
+    },
+    "465589-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "465589-5": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "467491-1": {
+        "title": "Star Trek: Hidden Frontier",
+        "region": null
+    },
+    "467491-2": {
+        "title": "Star Trek: Hidden Frontier",
+        "region": "EC"
+    },
+    "467491-3": {
+        "title": "Star Trek: Hidden Frontier",
+        "region": "GB"
+    },
+    "467491-4": {
+        "title": "Star Trek: Hidden Frontier",
+        "region": "IT"
+    },
+    "467491-5": {
+        "title": "Star Trek: Hidden Frontier",
+        "region": "US"
+    },
+    "551427-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "551427-2": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "556296-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "556296-2": {
+        "title": "Deadwood",
+        "region": "US"
+    },
+    "557776-1": {
+        "title": "The Sopranos",
+        "region": null
+    },
+    "572254-1": {
+        "title": "The Expanse",
+        "region": null
+    },
+    "572254-2": {
+        "title": "The Expanse",
+        "region": "US"
+    },
+    "671619-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "708648-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "708648-2": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "717128-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "717128-2": {
+        "title": "Deadwood",
+        "region": "US"
+    },
+    "749452-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "749452-2": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "764546-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "780435-3": {
+        "title": "NFL Week in Review",
+        "region": "US"
+    },
+    "796366-30": {
+        "title": "Star Trek: The Future Begins",
+        "region": "MY"
+    },
+    "796366-31": {
+        "title": "Star Trek: The Future Begins",
+        "region": "NL"
+    },
+    "796366-32": {
+        "title": "Star Trek: The Future Begins",
+        "region": "US"
+    },
+    "796366-33": {
+        "title": "Star Trek: The Future Begins",
+        "region": "XWW"
+    },
+    "796366-48": {
+        "title": "Star Trek: Du H\u00e0nh Gi\u1eefa C\u00e1c V\u00ec Sao",
+        "region": "VN"
+    },
+    "796366-49": {
+        "title": "Star Trek: The Beginning",
+        "region": "KR"
+    },
+    "796366-50": {
+        "title": "Star Trek: The IMAX Experience",
+        "region": "US"
+    },
+    "820490-1": {
+        "title": "Star Trek: The Pepsi Generation",
+        "region": null
+    },
+    "820490-2": {
+        "title": "Star Trek: The Pepsi Generation",
+        "region": "US"
+    },
+    "835378-1": {
+        "title": "Star Trek: Of Gods and Men",
+        "region": null
+    },
+    "835378-2": {
+        "title": "Star Trek: Of Gods and Men",
+        "region": "AU"
+    },
+    "835378-3": {
+        "title": "Star Trek: Of Gods and Men",
+        "region": "CA"
+    },
+    "835378-4": {
+        "title": "Star Trek: Of Gods and Men",
+        "region": "US"
+    },
+    "835378-5": {
+        "title": "Star Trek: De dioses y hombres",
+        "region": "ES"
+    },
+    "844485-1": {
+        "title": "Star Trek: Legacy",
+        "region": null
+    },
+    "844485-2": {
+        "title": "Star Trek: Legacy",
+        "region": "US"
+    },
+    "861678-1": {
+        "title": "Star Trek: Science vs. Fiction",
+        "region": null
+    },
+    "861678-2": {
+        "title": "Star Trek: Science vs. Fiction",
+        "region": "DE"
+    },
+    "872652-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "888524-1": {
+        "title": "Star Trek: Encounters",
+        "region": null
+    },
+    "888524-2": {
+        "title": "Star Trek: Encounters",
+        "region": "US"
+    },
+    "903747-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "903747-10": {
+        "title": "Breaking Bad",
+        "region": "EG"
+    },
+    "903747-11": {
+        "title": "Breaking Bad",
+        "region": "ES"
+    },
+    "903747-12": {
+        "title": "Breaking Bad",
+        "region": "FR"
+    },
+    "903747-13": {
+        "title": "Breaking Bad",
+        "region": "GB"
+    },
+    "903747-14": {
+        "title": "Breaking Bad",
+        "region": "ID"
+    },
+    "903747-15": {
+        "title": "Breaking Bad",
+        "region": "IN"
+    },
+    "903747-16": {
+        "title": "Breaking Bad",
+        "region": "IN"
+    },
+    "903747-17": {
+        "title": "Breaking Bad",
+        "region": "JP"
+    },
+    "903747-18": {
+        "title": "Breaking Bad",
+        "region": "KR"
+    },
+    "903747-19": {
+        "title": "Breaking Bad",
+        "region": "MX"
+    },
+    "903747-2": {
+        "title": "Breaking Bad",
+        "region": "AR"
+    },
+    "903747-20": {
+        "title": "Breaking Bad",
+        "region": "NL"
+    },
+    "903747-21": {
+        "title": "Breaking Bad",
+        "region": "PH"
+    },
+    "903747-22": {
+        "title": "Breaking Bad",
+        "region": "PL"
+    },
+    "903747-23": {
+        "title": "Breaking Bad",
+        "region": "SE"
+    },
+    "903747-24": {
+        "title": "Breaking Bad",
+        "region": "SG"
+    },
+    "903747-25": {
+        "title": "Breaking Bad",
+        "region": "TH"
+    },
+    "903747-26": {
+        "title": "Breaking Bad",
+        "region": "TR"
+    },
+    "903747-27": {
+        "title": "Breaking Bad",
+        "region": "US"
+    },
+    "903747-28": {
+        "title": "Breaking Bad",
+        "region": "UY"
+    },
+    "903747-29": {
+        "title": "Breaking Bad",
+        "region": "ZA"
+    },
+    "903747-3": {
+        "title": "Breaking Bad",
+        "region": "AU"
+    },
+    "903747-4": {
+        "title": "Breaking Bad",
+        "region": "BE"
+    },
+    "903747-5": {
+        "title": "Breaking Bad",
+        "region": "BR"
+    },
+    "903747-6": {
+        "title": "Breaking Bad",
+        "region": "CA"
+    },
+    "903747-7": {
+        "title": "Breaking Bad",
+        "region": "CA"
+    },
+    "903747-8": {
+        "title": "Breaking Bad",
+        "region": "DE"
+    },
+    "903747-9": {
+        "title": "Breaking Bad",
+        "region": "EC"
+    },
+    "929629-1": {
+        "title": "Stargate: Continuum",
+        "region": null
+    },
+    "929629-14": {
+        "title": "Stargate: El Continuo",
+        "region": "ES"
+    },
+    "929629-15": {
+        "title": "Stargate: Salt \u00een trecut",
+        "region": "RO"
+    },
+    "929629-16": {
+        "title": "Stargate: Tiempo infinito",
+        "region": "MX"
+    },
+    "929629-17": {
+        "title": "Stargate: To telos tou hronou",
+        "region": "GR"
+    },
+    "929629-2": {
+        "title": "Stargate: Continuum",
+        "region": "DE"
+    },
+    "929629-3": {
+        "title": "Stargate: Continuum",
+        "region": "GB"
+    },
+    "929629-4": {
+        "title": "Stargate: Continuum",
+        "region": "US"
+    },
+    "942903-1": {
+        "title": "Stargate: The Ark of Truth",
+        "region": null
+    },
+    "942903-12": {
+        "title": "Stargate: El arca de la verdad",
+        "region": "ES"
+    },
+    "942903-13": {
+        "title": "Stargate: I kivotos tis alitheias",
+        "region": "GR"
+    },
+    "942903-14": {
+        "title": "Stargate: The Ark of Truth - Die Quelle der Wahrheit",
+        "region": "DE"
+    },
+    "942903-15": {
+        "title": "Stargate: totuuden arkki",
+        "region": "FI"
+    },
+    "942903-2": {
+        "title": "Stargate: A Arca da Verdade",
+        "region": "BR"
+    },
+    "942903-23": {
+        "title": "Stargate: The Ark of Truth",
+        "region": "US"
+    },
+    "942903-3": {
+        "title": "Stargate: A Arca da Verdade",
+        "region": "PT"
+    },
+    "960700-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "960700-2": {
+        "title": "The Wire",
+        "region": "AU"
+    },
+    "960700-3": {
+        "title": "The Wire",
+        "region": "DE"
+    },
+    "960700-4": {
+        "title": "The Wire",
+        "region": "GB"
+    },
+    "960700-5": {
+        "title": "The Wire",
+        "region": "IN"
+    },
+    "960700-6": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "970511-1": {
+        "title": "Star Trek: Beyond the Final Frontier",
+        "region": null
+    },
+    "970511-2": {
+        "title": "Star Trek: Beyond the Final Frontier",
+        "region": "US"
+    },
+    "10003818-1": {
+        "title": "Star Trek: Aurora",
+        "region": null
+    },
+    "10003818-2": {
+        "title": "Star Trek: Aurora",
+        "region": "US"
+    },
+    "10014788-1": {
+        "title": "Star Trek: The Brave and the Valiant",
+        "region": null
+    },
+    "10014788-2": {
+        "title": "Star Trek: The Brave and the Valiant",
+        "region": "GB"
+    },
+    "10015136-1": {
+        "title": "Star Trek: The Intrepid Finale",
+        "region": null
+    },
+    "10015136-2": {
+        "title": "Star Trek: The Intrepid Finale",
+        "region": "GB"
+    },
+    "10015584-1": {
+        "title": "Star Trek: Roddenberry - The Rhaquenion Incident",
+        "region": null
+    },
+    "10015584-2": {
+        "title": "Star Trek: Roddenberry - The Rhaquenion Incident",
+        "region": "GB"
+    },
+    "10044794-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "10123264-1": {
+        "title": "Star Trek: The Lack of Khan",
+        "region": null
+    },
+    "10289488-1": {
+        "title": "Star Trek: The \"Leftist\" Future",
+        "region": null
+    },
+    "10407414-1": {
+        "title": "Star Trek: Dark Remnant",
+        "region": null
+    },
+    "10407414-2": {
+        "title": "Star Trek: Dark Remnant",
+        "region": "US"
+    },
+    "10423648-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "10423648-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "10431694-1": {
+        "title": "Star Trek: Discovery Cast",
+        "region": null
+    },
+    "1050237-3": {
+        "title": "Star Trek: Borg War",
+        "region": "XWW"
+    },
+    "10515136-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "10594646-1": {
+        "title": "Star Trek: New Horizons",
+        "region": null
+    },
+    "10594646-2": {
+        "title": "Star Trek: New Horizons",
+        "region": "DE"
+    },
+    "10681628-1": {
+        "title": "Star Trek: The Next Generation #5",
+        "region": null
+    },
+    "10738992-1": {
+        "title": "Star Trek: Diplomacy, A Star Trek Fan Production",
+        "region": null
+    },
+    "10738992-2": {
+        "title": "Star Trek: Diplomacy, A Star Trek Fan Production",
+        "region": "CZ"
+    },
+    "1076697-1": {
+        "title": "The Sopranos",
+        "region": null
+    },
+    "1076697-2": {
+        "title": "The Sopranos",
+        "region": "GB"
+    },
+    "10768636-1": {
+        "title": "Stargate: The Definitive History",
+        "region": null
+    },
+    "10768636-2": {
+        "title": "Stargate: The Definitive History",
+        "region": "US"
+    },
+    "10968116-1": {
+        "title": "Star Trek: Beyond",
+        "region": null
+    },
+    "10975068-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "11273410-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "11302112-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "11302112-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "11430088-1": {
+        "title": "Star Trek: The Next Generation",
+        "region": null
+    },
+    "11644660-1": {
+        "title": "Star Trek: Picard",
+        "region": null
+    },
+    "11708700-1": {
+        "title": "Star Trek: The 8mm Movie",
+        "region": null
+    },
+    "11708700-2": {
+        "title": "Star Trek: The 8mm Movie",
+        "region": "US"
+    },
+    "11724042-1": {
+        "title": "Star Trek: Picard",
+        "region": null
+    },
+    "11724930-1": {
+        "title": "Star Trek: Deep Space Nine: Everybody Needs A little Space",
+        "region": null
+    },
+    "11724930-2": {
+        "title": "Star Trek: Deep Space Nine: Everybody Needs A little Space",
+        "region": "US"
+    },
+    "11808766-1": {
+        "title": "Star Trek: Picard Episodes 2 and 3",
+        "region": null
+    },
+    "11876314-1": {
+        "title": "Star Trek: Picard Episodes 4 and 5",
+        "region": null
+    },
+    "11962728-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "11997434-1": {
+        "title": "Star Trek: Picard Episodes 6, 7, and 8",
+        "region": null
+    },
+    "12021150-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1203063-1": {
+        "title": "Stargate: CIA psychic spies",
+        "region": null
+    },
+    "1203063-2": {
+        "title": "Stargate: CIA psychic spies",
+        "region": "US"
+    },
+    "12030888-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1206087-1": {
+        "title": "Star Trek: Operation Beta Shield",
+        "region": null
+    },
+    "1206087-2": {
+        "title": "Star Trek: Operation Beta Shield",
+        "region": "US"
+    },
+    "12065962-1": {
+        "title": "NFL Week 17 Mic'd Up, \"Just for the record that was the slowest spin ever\"",
+        "region": null
+    },
+    "12084802-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "12084802-2": {
+        "title": "Breaking Bad",
+        "region": "US"
+    },
+    "12112420-1": {
+        "title": "Star Trek: Nowe Przygody",
+        "region": null
+    },
+    "12112420-2": {
+        "title": "Star Trek: Nowe Przygody",
+        "region": "PL"
+    },
+    "12160160-1": {
+        "title": "Star Trek: Deep Space Nine is the Real Example of Inclusion",
+        "region": null
+    },
+    "12188568-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "12188568-2": {
+        "title": "Breaking Bad",
+        "region": "US"
+    },
+    "1221577-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "12327578-1": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": null
+    },
+    "12327578-10": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "EG"
+    },
+    "12327578-11": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "ES"
+    },
+    "12327578-12": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "FR"
+    },
+    "12327578-13": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "GB"
+    },
+    "12327578-14": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "HK"
+    },
+    "12327578-15": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "ID"
+    },
+    "12327578-16": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "IL"
+    },
+    "12327578-17": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "IN"
+    },
+    "12327578-18": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "IN"
+    },
+    "12327578-19": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "IT"
+    },
+    "12327578-2": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "AE"
+    },
+    "12327578-20": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "KR"
+    },
+    "12327578-21": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "MX"
+    },
+    "12327578-22": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "NL"
+    },
+    "12327578-23": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "PH"
+    },
+    "12327578-24": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "PL"
+    },
+    "12327578-25": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "SE"
+    },
+    "12327578-26": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "SG"
+    },
+    "12327578-27": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "TH"
+    },
+    "12327578-28": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "TR"
+    },
+    "12327578-29": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "TW"
+    },
+    "12327578-3": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "AR"
+    },
+    "12327578-30": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "US"
+    },
+    "12327578-31": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "ZA"
+    },
+    "12327578-32": {
+        "title": "Star Trek: K\u00fcl\u00f6n\u00f6s \u00faj vil\u00e1gok",
+        "region": "HU"
+    },
+    "12327578-33": {
+        "title": "Star Trek: kummalised uued maailmad",
+        "region": "EE"
+    },
+    "12327578-34": {
+        "title": "Star Trek: Noi lumi stranii",
+        "region": "RO"
+    },
+    "12327578-4": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "AU"
+    },
+    "12327578-5": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "BR"
+    },
+    "12327578-6": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "CA"
+    },
+    "12327578-7": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "CA"
+    },
+    "12327578-8": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "DE"
+    },
+    "12327578-9": {
+        "title": "Star Trek: Strange New Worlds",
+        "region": "EC"
+    },
+    "12344662-1": {
+        "title": "Star Trek: Discovery of Turmoil - Disney Star Wars Stupidity - REEEEan Johnson",
+        "region": null
+    },
+    "12345530-1": {
+        "title": "Star Trek: Picard - Episodes 2-6 Thoughts & Rambling Review",
+        "region": null
+    },
+    "12471366-1": {
+        "title": "Star Trek: First Contact",
+        "region": null
+    },
+    "12526356-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "12634112-1": {
+        "title": "Star Trek: Picard Finale & Season Wrap Up Thoughts",
+        "region": null
+    },
+    "12712704-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "12854868-1": {
+        "title": "Star Trek: The Motion Picture",
+        "region": null
+    },
+    "1286039-14": {
+        "title": "Stargate: Universe",
+        "region": "DE"
+    },
+    "1286039-15": {
+        "title": "Stargate: Universe",
+        "region": "FR"
+    },
+    "1286039-16": {
+        "title": "Stargate: Universe",
+        "region": "NL"
+    },
+    "1286039-17": {
+        "title": "Stargate: Universe",
+        "region": "XWW"
+    },
+    "12860686-1": {
+        "title": "Star Trek: The Traditional Series",
+        "region": null
+    },
+    "12860686-2": {
+        "title": "Star Trek: The Traditional Series",
+        "region": "ES"
+    },
+    "12860686-3": {
+        "title": "Star Trek: The Traditional Series",
+        "region": "US"
+    },
+    "12864406-1": {
+        "title": "Star Trek: Discovery of Obscurity - Another Star Trek Animated Series - Loki, LOTR, & 40K Subs!!!",
+        "region": null
+    },
+    "12864996-1": {
+        "title": "Star Trek: Dishonesty - Picard Series NOT Canon? The Expanse Drops, Black Widow Delayed and News",
+        "region": null
+    },
+    "12865228-1": {
+        "title": "Star Trek: Discovery of Backlash - The Orville, Doctor Who, Buffy Reboot and News",
+        "region": null
+    },
+    "1288602-1": {
+        "title": "Star Trek: Tactical Assault",
+        "region": null
+    },
+    "1288602-2": {
+        "title": "Star Trek: Tactical Assault",
+        "region": "US"
+    },
+    "12902082-1": {
+        "title": "Star Trek: Picard Episode 1 Spoiler Review & Discussion - SJU",
+        "region": null
+    },
+    "12902388-1": {
+        "title": "Star Trek: Generations",
+        "region": null
+    },
+    "12903338-1": {
+        "title": "Star Trek: First Contact",
+        "region": null
+    },
+    "12922528-1": {
+        "title": "Star Trek: Insurrection",
+        "region": null
+    },
+    "13039140-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "13085668-1": {
+        "title": "NFL Week 1 to GET WOKE and GO BROKE as Ratings hit 10 YEAR LOW!",
+        "region": null
+    },
+    "13128924-1": {
+        "title": "NFL Week 2 - Will The NFL Recover From a Week 1 Ratings BEATDOWN After Getting WOKE?",
+        "region": null
+    },
+    "1315405-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1315405-2": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "13174130-1": {
+        "title": "Star Trek: Beyond Stupidity",
+        "region": null
+    },
+    "13174172-1": {
+        "title": "NFL Week 3 - Woke Athletes Honoring Jacob Blake Just Took A SHOCKING TWIST!",
+        "region": null
+    },
+    "13190566-1": {
+        "title": "NFL Week 4: An IMPOSTOR Among Us. Seven 3-0 NFL Teams. CONTENDERS Or PRETENDERS?",
+        "region": null
+    },
+    "13191146-1": {
+        "title": "Star Trek: Lower Decks - Another Trash Show Nobody Wanted",
+        "region": null
+    },
+    "13231728-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "13255104-1": {
+        "title": "Star Trek: Discovery TV Pilot Review \"The Vulcan Hello\" Episode 1 (01x01)",
+        "region": null
+    },
+    "13255106-1": {
+        "title": "Star Trek: Discovery TV Review: \"Battle at the Binary Stars\" Episode 2 (01x02)",
+        "region": null
+    },
+    "13255128-1": {
+        "title": "Star Trek: Discovery TV Review \"Context Is for Kings\" Episode 3 (01x03)",
+        "region": null
+    },
+    "13255150-1": {
+        "title": "Star Trek: Discovery TV Review: Episode 4:\"The Butcher's Knife Cares Not for the Lamb's Cry\" 01x04",
+        "region": null
+    },
+    "13255184-1": {
+        "title": "Star Trek: Discovery TV Review: Episode 5: \"Choose Your Pain\" 01x05",
+        "region": null
+    },
+    "13255198-1": {
+        "title": "Star Trek: Discovery TV Review Episode 6 \"Lethe\" 01x06",
+        "region": null
+    },
+    "13255202-1": {
+        "title": "Star Trek: Discovery Officially Renewed for a 2nd Season",
+        "region": null
+    },
+    "13255204-1": {
+        "title": "Star Trek: Discovery Vs. The Orville: Which is Better?",
+        "region": null
+    },
+    "13255226-1": {
+        "title": "Star Trek: Discovery TV Review Episode 7 \"Magic to Make the Sanest Man Go Mad\" 01x07",
+        "region": null
+    },
+    "13255260-1": {
+        "title": "Star Trek: Discovery - TV Review Episode 8 \"Si Vis Pacem, Para Bellum\" 01x08",
+        "region": null
+    },
+    "13255454-1": {
+        "title": "Star Trek: Discovery - Review & Recap Episode 11 \"The Wolf Inside\" 01x11",
+        "region": null
+    },
+    "13255468-1": {
+        "title": "Star Trek: Discovery Review & Recap Episode 12 \"Vaulting Ambition\" 01x12",
+        "region": null
+    },
+    "13255478-1": {
+        "title": "Star Trek: Discovery Episode 13 Review & Recap \"What's Past Is Prologue\"",
+        "region": null
+    },
+    "13255506-1": {
+        "title": "Star Trek: Discovery Episode 14 Review & Recap \"The War Without, The War Within\"",
+        "region": null
+    },
+    "13255532-1": {
+        "title": "Star Trek: Discovery Season Finale Review & Recap Episode 15 \"Will You Take My Hand?\"",
+        "region": null
+    },
+    "13255544-1": {
+        "title": "Star Trek: Discovery Season One Review",
+        "region": null
+    },
+    "13260130-1": {
+        "title": "Star Trek: Discovery Season 2 Comic Con Trailer Review",
+        "region": null
+    },
+    "13267676-1": {
+        "title": "Star Trek: Discovery Season 2 & Finale Review (SPOILERS)",
+        "region": null
+    },
+    "13292176-1": {
+        "title": "Star Trek: Discovery Season 3 Explained",
+        "region": null
+    },
+    "13292902-1": {
+        "title": "NFL Week 1 Recap, Mets Sold and special guest Pete Klein, 1e9 Sports",
+        "region": null
+    },
+    "13293018-1": {
+        "title": "NFL Week 2, Bengals @ Browns and special guest Donny Goertz",
+        "region": null
+    },
+    "13293046-1": {
+        "title": "NFL Week 3 Recap, NBA Playoffs, NHL Stanley Cup Finals and guest Steve Shiffman",
+        "region": null
+    },
+    "13293050-1": {
+        "title": "NFL Week 3, NBA Playoffs, Stanley Cup Finals, MLB Playoff Race and guest Josh Fisher",
+        "region": null
+    },
+    "13293066-1": {
+        "title": "NFL Week 3, NBA & NHL Finals, MLB Wild Card Playoffs and special guest Larry Long Jr",
+        "region": null
+    },
+    "13340812-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "13375842-1": {
+        "title": "NFL Week 8 Thursday Night Football TV Ratings ARE TRASH! MASSIVE DROP From 2019!",
+        "region": null
+    },
+    "13424160-1": {
+        "title": "Star Trek: Nemesis",
+        "region": null
+    },
+    "13464920-1": {
+        "title": "NFL Week 9 Ratings Tank; SEC Hurting Themselves With COVID Protocols",
+        "region": null
+    },
+    "1352287-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "13526150-10": {
+        "title": "Star Trek: Discovery Logs",
+        "region": "DE"
+    },
+    "13526150-11": {
+        "title": "Star Trek: Discovery Logs",
+        "region": "US"
+    },
+    "13526150-8": {
+        "title": "Star Trek: Discovery Logs",
+        "region": "AU"
+    },
+    "13526150-9": {
+        "title": "Star Trek: Discovery Logs",
+        "region": "CA"
+    },
+    "1358888-1": {
+        "title": "Star Trek: Chains of Betrayal",
+        "region": null
+    },
+    "1358888-2": {
+        "title": "Star Trek: Chains of Betrayal",
+        "region": "CA"
+    },
+    "13596268-1": {
+        "title": "Star Trek: How EVERY Captain Became Captain",
+        "region": null
+    },
+    "13624624-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "13624624-2": {
+        "title": "The Wire",
+        "region": "AU"
+    },
+    "13624624-3": {
+        "title": "The Wire",
+        "region": "DE"
+    },
+    "13624624-4": {
+        "title": "The Wire",
+        "region": "GB"
+    },
+    "13624624-5": {
+        "title": "The Wire",
+        "region": "SI"
+    },
+    "13624624-6": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "1368195-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "13692666-1": {
+        "title": "The Expanse",
+        "region": null
+    },
+    "13701750-1": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": null
+    },
+    "13701750-2": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "AU"
+    },
+    "13701750-3": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "CA"
+    },
+    "13701750-4": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "CA"
+    },
+    "13701750-5": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "DE"
+    },
+    "13701750-6": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "EC"
+    },
+    "13701750-7": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "GB"
+    },
+    "13701750-8": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "JP"
+    },
+    "13701750-9": {
+        "title": "Star Trek: The Section 31 Files",
+        "region": "US"
+    },
+    "13797290-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "13813454-1": {
+        "title": "Star Trek: 10 Secrets Of The Enterprise NX-01 You Need To Know ft. Doug Drexler",
+        "region": null
+    },
+    "13820958-1": {
+        "title": "Star Trek: The True Nature of the Nexus",
+        "region": null
+    },
+    "13906402-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "13918516-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "13918516-2": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "1394315-4": {
+        "title": "Star Trek: La reuni\u00f3n de los capitanes",
+        "region": "ES"
+    },
+    "1394315-5": {
+        "title": "Star Trek: Summit",
+        "region": null
+    },
+    "1397079-1": {
+        "title": "Star Trek: Phoenix - No Other Medicine",
+        "region": null
+    },
+    "1397079-3": {
+        "title": "Star Trek: Phoenix",
+        "region": "US"
+    },
+    "1397079-4": {
+        "title": "Star Trek: Phoenix - No Other Medicine",
+        "region": "US"
+    },
+    "13983914-1": {
+        "title": "NFL Week 7",
+        "region": null
+    },
+    "13996380-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "13996380-2": {
+        "title": "Deadwood",
+        "region": "US"
+    },
+    "14034906-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About General Chang",
+        "region": null
+    },
+    "14047654-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "14047654-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "1408101-17": {
+        "title": "Star Trek: En la oscuridad",
+        "region": "AR"
+    },
+    "1408101-18": {
+        "title": "Star Trek: En la oscuridad",
+        "region": "CL"
+    },
+    "1408101-19": {
+        "title": "Star Trek: En la oscuridad",
+        "region": "ES"
+    },
+    "1408101-20": {
+        "title": "Star Trek: En la oscuridad",
+        "region": "MX"
+    },
+    "1408101-21": {
+        "title": "Star Trek: En la oscuridad",
+        "region": "PE"
+    },
+    "1408101-26": {
+        "title": "Star Trek: Do temnoty",
+        "region": "CZ"
+    },
+    "1408101-27": {
+        "title": "Star Trek: Do temnoty",
+        "region": "SK"
+    },
+    "1408101-28": {
+        "title": "Star Trek: Into Darkness",
+        "region": "DE"
+    },
+    "1408101-29": {
+        "title": "Star Trek: Into Darkness",
+        "region": "NL"
+    },
+    "1408101-43": {
+        "title": "Star Trek: Ch\u00ecm Trong B\u00f3ng T\u1ed1i",
+        "region": "VN"
+    },
+    "1408101-44": {
+        "title": "Star Trek: \u00cen \u00eentuneric",
+        "region": "RO"
+    },
+    "1408101-45": {
+        "title": "Star Trek: Otse pimedusse",
+        "region": "EE"
+    },
+    "1408101-46": {
+        "title": "Star Trek: Vers les t\u00e9n\u00e8bres",
+        "region": "CA"
+    },
+    "14087848-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "14096990-3": {
+        "title": "Star Trek: The Tour",
+        "region": "US"
+    },
+    "14186274-1": {
+        "title": "Star Trek: Picard - SDCC Trailer Reaction!!",
+        "region": null
+    },
+    "14362308-1": {
+        "title": "Star Trek: 10 Secrets Of The Next Generation Uniforms You Need To Know",
+        "region": null
+    },
+    "1437765-1": {
+        "title": "Star Trek: Behind the Screen",
+        "region": null
+    },
+    "1448116-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "14532384-1": {
+        "title": "Star Trek: Kobayashi Maru",
+        "region": null
+    },
+    "14532384-2": {
+        "title": "Star Trek: Kobayashi Maru",
+        "region": "US"
+    },
+    "1461428-1": {
+        "title": "Star Trek: Phoenix - Third Degree",
+        "region": null
+    },
+    "1461428-2": {
+        "title": "Star Trek: Phoenix - Third Degree",
+        "region": "US"
+    },
+    "1462495-1": {
+        "title": "Star Trek: Phoenix - Hollow",
+        "region": null
+    },
+    "1462495-2": {
+        "title": "Star Trek: Phoenix - Hollow",
+        "region": "US"
+    },
+    "1462496-1": {
+        "title": "Star Trek: Phoenix - Holo-Victory",
+        "region": null
+    },
+    "1462496-2": {
+        "title": "Star Trek: Phoenix - Holo-Victory",
+        "region": "US"
+    },
+    "1465626-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "14833812-1": {
+        "title": "Star Trek: Return of the Next Generation",
+        "region": null
+    },
+    "14833812-2": {
+        "title": "Star Trek: Return of the Next Generation",
+        "region": "US"
+    },
+    "1483803-2": {
+        "title": "Stargate: Children of the Gods",
+        "region": "NL"
+    },
+    "1483803-3": {
+        "title": "Stargate: Children of the Gods",
+        "region": "XWW"
+    },
+    "14852718-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "15023492-1": {
+        "title": "Star Trek: Ranking The 100th Episodes",
+        "region": null
+    },
+    "15139712-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "15139712-2": {
+        "title": "Rome",
+        "region": "FR"
+    },
+    "15145290-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "15145290-2": {
+        "title": "Rome",
+        "region": "FR"
+    },
+    "15155188-1": {
+        "title": "Star Trek: 10 Starfleet Jobs You Won't Believe Exist",
+        "region": null
+    },
+    "15179428-1": {
+        "title": "Stargate: 10 Behind The Scenes Secrets About Children Of The Gods",
+        "region": null
+    },
+    "15180046-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "15185328-1": {
+        "title": "Star Trek: 10 Things You Never Knew About Worf",
+        "region": null
+    },
+    "15263514-1": {
+        "title": "Star Trek: Lower Decks, Big Brother & More",
+        "region": null
+    },
+    "1531877-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "15380196-1": {
+        "title": "NFL Week 3 - Cardinals vs Bills Full Game - Simulation Nation",
+        "region": null
+    },
+    "15381912-1": {
+        "title": "NFL Week 13 - Washington Redskins vs Arizona Cardinals - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15381978-1": {
+        "title": "NFL Week 5 - Tennessee Titans vs Miami Dolphins - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15382248-1": {
+        "title": "NFL Week 15 - San Francisco 49ers vs Atlanta Falcons - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15382258-1": {
+        "title": "NFL Week 13 - Denver Broncos vs Jacksonville Jaguars - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15494374-1": {
+        "title": "NFL Week 4 - Kansas City Chiefs vs Pittsburgh Steelers - Full Game -Simulation Nation",
+        "region": null
+    },
+    "15494410-1": {
+        "title": "NFL Week 5 - New York Jets vs Pittsburgh Steelers - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15494452-1": {
+        "title": "NFL Week 11 - Pittsburgh Steelers vs Cleveland Browns - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15494482-1": {
+        "title": "NFL Week 12 - Pittsburgh Steelers vs Indianapolis Colts - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15494492-1": {
+        "title": "NFL Week 14 - Pittsburgh Steelers vs Buffalo Bills - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15494500-1": {
+        "title": "NFL Week 15 - Pittsburgh Steelers vs Cincinnati Bengals - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15494504-1": {
+        "title": "NFL Week 17 - Cleveland Browns vs Pittsburgh Steelers - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15494730-1": {
+        "title": "NFL Week 6 - Baltimore Ravens vs New York Giants - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15499504-1": {
+        "title": "NFL Week 6 - Denver Broncos vs San Diego Chargers - Full Game - Simulation Nation",
+        "region": null
+    },
+    "15540144-1": {
+        "title": "NFL Week 3 - Tom Brady Drama, People HATE Colin Kaepernick, The Ryder Cup Is AWESOME",
+        "region": null
+    },
+    "1554346-1": {
+        "title": "Star Trek: Behind the Screen 2",
+        "region": null
+    },
+    "15559828-1": {
+        "title": "NFL Week 4",
+        "region": null
+    },
+    "1556226-1": {
+        "title": "Star Trek: A New Vision",
+        "region": null
+    },
+    "1556226-2": {
+        "title": "Star Trek: A New Vision",
+        "region": "US"
+    },
+    "1556226-3": {
+        "title": "Star Trek: Una nueva visi\u00f3n",
+        "region": "ES"
+    },
+    "1556227-1": {
+        "title": "Star Trek: Aliens",
+        "region": null
+    },
+    "1556227-2": {
+        "title": "Star Trek: Aliens",
+        "region": "US"
+    },
+    "1556228-1": {
+        "title": "Star Trek: Ben Burtt & the Sounds of Star Trek",
+        "region": null
+    },
+    "1556228-2": {
+        "title": "Star Trek: Ben Burtt & the Sounds of Star Trek",
+        "region": "US"
+    },
+    "1556228-3": {
+        "title": "Star Trek: Ben Burtt y los sonidos de Star Trek",
+        "region": "ES"
+    },
+    "1556229-1": {
+        "title": "Star Trek: Casting",
+        "region": null
+    },
+    "1556229-2": {
+        "title": "Star Trek: Casting",
+        "region": "US"
+    },
+    "1556229-3": {
+        "title": "Star Trek: Reparto",
+        "region": "ES"
+    },
+    "1556230-1": {
+        "title": "Star Trek: Planets",
+        "region": null
+    },
+    "1556230-2": {
+        "title": "Star Trek: Planetas",
+        "region": "ES"
+    },
+    "1556230-3": {
+        "title": "Star Trek: Planets",
+        "region": "US"
+    },
+    "1556231-1": {
+        "title": "Star Trek: Props & Costumes",
+        "region": null
+    },
+    "1556231-2": {
+        "title": "Star Trek: Props & Costumes",
+        "region": "US"
+    },
+    "1556231-3": {
+        "title": "Star Trek: Utensilios y vestuario",
+        "region": "ES"
+    },
+    "1556232-1": {
+        "title": "Star Trek: Score",
+        "region": null
+    },
+    "1556232-2": {
+        "title": "Star Trek: Banda sonora",
+        "region": "ES"
+    },
+    "1556232-3": {
+        "title": "Star Trek: Score",
+        "region": "US"
+    },
+    "1556233-1": {
+        "title": "Star Trek: Starships",
+        "region": null
+    },
+    "1556233-2": {
+        "title": "Star Trek: Naves espaciales",
+        "region": "ES"
+    },
+    "1556233-3": {
+        "title": "Star Trek: Starships",
+        "region": "US"
+    },
+    "1556234-1": {
+        "title": "Star Trek: To Boldly Go",
+        "region": null
+    },
+    "1556234-2": {
+        "title": "Star Trek: Vamos con audacia",
+        "region": "ES"
+    },
+    "1556234-3": {
+        "title": "Star Trek: To Boldly Go",
+        "region": "US"
+    },
+    "1559323-1": {
+        "title": "Star Trek: Gene Rodenberry's Vision",
+        "region": null
+    },
+    "1559323-2": {
+        "title": "Star Trek: Gene Rodenberry's Vision",
+        "region": "US"
+    },
+    "1559323-3": {
+        "title": "Star Trek: La visi\u00f3n de Gene Roddenberry",
+        "region": "ES"
+    },
+    "1570097-1": {
+        "title": "Star Trek: The Gag Reel",
+        "region": null
+    },
+    "1570097-2": {
+        "title": "Star Trek: The Gag Reel",
+        "region": "US"
+    },
+    "1579689-4": {
+        "title": "Rome",
+        "region": "FR"
+    },
+    "1586068-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1603839-1": {
+        "title": "Star Trek: Phoenix - Fractured Logic",
+        "region": null
+    },
+    "1603839-2": {
+        "title": "Star Trek: Phoenix - Fractured Logic",
+        "region": "US"
+    },
+    "16043740-1": {
+        "title": "NFL Week 10",
+        "region": null
+    },
+    "16115776-1": {
+        "title": "NFL Week 6",
+        "region": null
+    },
+    "16115820-1": {
+        "title": "NFL Week 7",
+        "region": null
+    },
+    "16384968-1": {
+        "title": "Star Trek: Resurgence",
+        "region": null
+    },
+    "16384968-2": {
+        "title": "Star Trek: Resurgence",
+        "region": "US"
+    },
+    "16386358-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "16419012-1": {
+        "title": "Star Trek: 10 Secrets of the Romulan Warbird You Need to Know",
+        "region": null
+    },
+    "1643891-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "16793594-1": {
+        "title": "NFL Week 16",
+        "region": null
+    },
+    "1696239-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "16969532-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "1698804-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1701268-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "1704271-1": {
+        "title": "Star Trek: Phoenix - Cloak & Dagger Part I",
+        "region": null
+    },
+    "1704271-2": {
+        "title": "Star Trek: Phoenix - Cloak & Dagger Part I",
+        "region": "US"
+    },
+    "1710646-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1718535-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "17277930-1": {
+        "title": "NFL Week 3 - Washington Redskins vs New York Giants - Full Game - Simulation Nation",
+        "region": null
+    },
+    "17277948-1": {
+        "title": "NFL Week 3 - Cleveland Browns vs Miami Dolphins - Full Game - Simulation Nation",
+        "region": null
+    },
+    "17277970-1": {
+        "title": "NFL Week 3 - Detroit Lions vs Green Bay Packers - Full Game - Simulation Nation",
+        "region": null
+    },
+    "17277974-1": {
+        "title": "NFL Week 3 - Denver Broncos vs Cincinnati Bengals - Full Game - Simulation Nation",
+        "region": null
+    },
+    "17277992-1": {
+        "title": "NFL Week 3 - Minnesota Vikings vs Carolina Panthers - Full Game - Simulation Nation",
+        "region": null
+    },
+    "17278010-1": {
+        "title": "NFL Week 3 - New York Jets vs Kansas City Chiefs - Full Game - Simulation Nation",
+        "region": null
+    },
+    "17278022-1": {
+        "title": "NFL Week 3 - San Francisco 49ers vs Seattle Seahawks - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17278030-1": {
+        "title": "NFL Week 3 - San Diego Chargers vs Indianapolis Colts - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17278040-1": {
+        "title": "NFL Week 3 - Atlanta Falcons vs New Orleans Saints - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17490680-1": {
+        "title": "Star Trek: Prodigy, Scary Twilight Zone Episodes & More",
+        "region": null
+    },
+    "17490730-1": {
+        "title": "Star Trek: Discovery, Sonequa Martin-Green & More",
+        "region": null
+    },
+    "1776302-1": {
+        "title": "Star Trek: First Contact",
+        "region": null
+    },
+    "1776302-2": {
+        "title": "Star Trek: First Contact",
+        "region": "US"
+    },
+    "17940158-1": {
+        "title": "NFL Week 4 - New York Giants vs Minnesota Vikings - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940168-1": {
+        "title": "NFL Week 4 - New Orleans Saints vs San Diego Chargers - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940172-1": {
+        "title": "NFL Week 4 - Los Angeles Rams vs Arizona Cardinals - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940176-1": {
+        "title": "NFL Week 4 - Denver Broncos vs Tampa Bay Buccaneers - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940178-1": {
+        "title": "NFL Week 4 - Detroit Lions vs Chicago Bears - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940182-1": {
+        "title": "NFL Week 4 - Carolina Panthers vs Atlanta Falcons - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940186-1": {
+        "title": "NFL Week 4 - Seattle Seahawks vs New York Jets - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940190-1": {
+        "title": "NFL Week 4 - Indianapolis Colts vs Jacksonville Jaguars - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940194-1": {
+        "title": "NFL Week 4 - Tennessee Titans vs Houston Texans - Full Game -Simulation Nation",
+        "region": null
+    },
+    "17940198-1": {
+        "title": "NFL Week 4 - Cleveland Browns vs Washington Redskins - Full Game -Simulation Nation",
+        "region": null
+    },
+    "18080366-1": {
+        "title": "Star Trek: The Motion Picture",
+        "region": null
+    },
+    "18278902-1": {
+        "title": "NFL Week 5 - New York Giants vs Green Bay Packers - Full Game - Simulation Nation",
+        "region": null
+    },
+    "18278906-1": {
+        "title": "NFL Week 5 - Buffalo Bills vs Los Angeles Rams - Full Game - Simulation Nation",
+        "region": null
+    },
+    "18278910-1": {
+        "title": "NFL Week 5 - Atlanta Falcons vs Denver Broncos - Full Game - Simulation Nation",
+        "region": null
+    },
+    "18278916-1": {
+        "title": "NFL Week 5 - Houston Texans vs Minnesota Vikings - Full Game - Simulation Nation",
+        "region": null
+    },
+    "18278920-1": {
+        "title": "NFL Week 5 - Chicago Bears vs Indianapolis Colts - Full Game - Simulation Nation",
+        "region": null
+    },
+    "18278924-1": {
+        "title": "NFL Week 5 - Philadelphia Eagles vs Detroit Lions - Full Game - Simulation Nation",
+        "region": null
+    },
+    "18278926-1": {
+        "title": "NFL Week 5 - Arizona Cardinals vs San Francisco 49ers - Full Game - Simulation Nation",
+        "region": null
+    },
+    "18376120-1": {
+        "title": "Star Trek: Picard",
+        "region": null
+    },
+    "18394260-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1843668-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1855356-1": {
+        "title": "Star Trek: Conquest",
+        "region": null
+    },
+    "1855356-2": {
+        "title": "Star Trek: Conquest",
+        "region": "US"
+    },
+    "18558000-1": {
+        "title": "Star Trek: Picard Season 2, Episode 1",
+        "region": null
+    },
+    "1877986-1": {
+        "title": "Star Trek: The Motion Picture: Parts 1-3",
+        "region": null
+    },
+    "1891018-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "1891018-2": {
+        "title": "Deadwood",
+        "region": "US"
+    },
+    "18967196-1": {
+        "title": "Star Trek: 10 Starfleet Decisions with the Most Devastating Consequences",
+        "region": null
+    },
+    "18968754-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "18973690-1": {
+        "title": "Star Trek: Picard Season 2, Episodes 2 and 3",
+        "region": null
+    },
+    "1899688-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1909344-1": {
+        "title": "Star Trek: The Kobayashi Alternative",
+        "region": null
+    },
+    "1909344-2": {
+        "title": "Star Trek: The Kobayashi Alternative",
+        "region": "US"
+    },
+    "1909345-1": {
+        "title": "Star Trek: The Promethean Prophecy",
+        "region": null
+    },
+    "1909345-2": {
+        "title": "Star Trek: The Promethean Prophecy",
+        "region": "US"
+    },
+    "1937415-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "1937415-2": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "19381260-1": {
+        "title": "Star Trek: Picard Season 2, Episodes 4 and 5",
+        "region": null
+    },
+    "19488150-3": {
+        "title": "Star Trek: Prodigy - Supernova",
+        "region": "US"
+    },
+    "19488150-4": {
+        "title": "Star Trek: Prodigy Supernova",
+        "region": "US"
+    },
+    "1975073-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "1977920-1": {
+        "title": "Star Trek: The Next Generation - A XXX Parody",
+        "region": null
+    },
+    "1977920-3": {
+        "title": "Star Trek: The Next Generation - A XXX Parody",
+        "region": "US"
+    },
+    "1977921-1": {
+        "title": "Star Trek: Federation One",
+        "region": null
+    },
+    "1977921-2": {
+        "title": "Star Trek: Federation One",
+        "region": "BR"
+    },
+    "1977921-3": {
+        "title": "Star Trek: Federation One",
+        "region": "CA"
+    },
+    "1977921-4": {
+        "title": "Star Trek: Federation One",
+        "region": "US"
+    },
+    "19815162-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "19815162-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "19887126-1": {
+        "title": "Star Trek: Picard Season 2, Episodes 6, 7, 8, and 9",
+        "region": null
+    },
+    "2006574-1": {
+        "title": "Star Trek: Henglaar, M.D.",
+        "region": null
+    },
+    "2006574-2": {
+        "title": "Star Trek: Henglaar, M.D.",
+        "region": "US"
+    },
+    "2012239-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "20189962-1": {
+        "title": "Star Trek: Strange New Worlds \"JANUARY 6TH STARTED WW3\"! Another DOA WOKE Spin Off!",
+        "region": null
+    },
+    "20243224-1": {
+        "title": "Star Trek: Picard Season 2, Episode 10",
+        "region": null
+    },
+    "20244160-1": {
+        "title": "Star Trek: The Next Generation\/X-Men: Planet X",
+        "region": null
+    },
+    "2028239-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "2072794-1": {
+        "title": "Star Trek: Generations",
+        "region": null
+    },
+    "2074442-1": {
+        "title": "Star Trek: Odyssey",
+        "region": null
+    },
+    "2074442-2": {
+        "title": "Star Trek: Odyssey",
+        "region": "BR"
+    },
+    "2074442-3": {
+        "title": "Star Trek: Odyssey",
+        "region": "CA"
+    },
+    "2074442-4": {
+        "title": "Star Trek: Odyssey",
+        "region": "DE"
+    },
+    "2074442-5": {
+        "title": "Star Trek: Odyssey",
+        "region": "EC"
+    },
+    "2074442-6": {
+        "title": "Star Trek: Odyssey",
+        "region": "IT"
+    },
+    "2074442-7": {
+        "title": "Star Trek: Odyssey",
+        "region": "JP"
+    },
+    "2074442-8": {
+        "title": "Star Trek: Odyssey",
+        "region": "US"
+    },
+    "2088885-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2088885-2": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "2093453-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2098591-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "2099972-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "21061582-1": {
+        "title": "Star Trek: Fleet Command (Ad)",
+        "region": null
+    },
+    "21061582-2": {
+        "title": "Star Trek: Fleet Command (Ad)",
+        "region": "US"
+    },
+    "21109556-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "21113736-1": {
+        "title": "Star Trek: Did You Know",
+        "region": null
+    },
+    "21113766-1": {
+        "title": "Star Trek: Did You Know 2",
+        "region": null
+    },
+    "21113822-1": {
+        "title": "Star Trek: Even More Did You Know",
+        "region": null
+    },
+    "21113850-1": {
+        "title": "Star Trek: Do You Still Know?",
+        "region": null
+    },
+    "2120129-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2120129-2": {
+        "title": "Rome",
+        "region": "CA"
+    },
+    "21236564-1": {
+        "title": "Star Trek: The Secret Reboot",
+        "region": null
+    },
+    "21236564-2": {
+        "title": "Star Trek: The Secret Reboot",
+        "region": "US"
+    },
+    "2124622-1": {
+        "title": "Star Trek: The Motion Picture",
+        "region": null
+    },
+    "2128115-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2133944-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "21634420-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2176820-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2186095-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2186095-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "2197331-1": {
+        "title": "Star Trek: GENESIS",
+        "region": null
+    },
+    "2197331-2": {
+        "title": "Star Trek: GENESIS",
+        "region": "AU"
+    },
+    "2197331-3": {
+        "title": "Star Trek: GENESIS",
+        "region": "IT"
+    },
+    "2197331-4": {
+        "title": "Star Trek: GENESIS",
+        "region": "US"
+    },
+    "2199077-1": {
+        "title": "Star Trek: Insurrection",
+        "region": null
+    },
+    "2215532-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2215532-2": {
+        "title": "Rome",
+        "region": "CA"
+    },
+    "22167772-1": {
+        "title": "NFL Week 2 Reaction, PK Live from Buffalo for MNF + Weekend Recap",
+        "region": null
+    },
+    "22247474-1": {
+        "title": "NFL Week 3 Betting, DFS Studs & Value Plays, Division Winner Odds",
+        "region": null
+    },
+    "22410474-1": {
+        "title": "NFL Week 4 Betting, DFS Studs & Value Plays PLUS Upset PIcks",
+        "region": null
+    },
+    "22474856-1": {
+        "title": "NFL Week 1: Ed Reed on Bills Defense",
+        "region": null
+    },
+    "22474900-1": {
+        "title": "NFL Week 2: Ed Reed on Patriots Defense",
+        "region": null
+    },
+    "22504102-1": {
+        "title": "NFL Week 5 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "2270116-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "23118632-1": {
+        "title": "Star Trek: Picard Trailer #1 - First Thoughts",
+        "region": null
+    },
+    "23127154-1": {
+        "title": "NFL Week 6 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "23127166-1": {
+        "title": "NFL Week 7 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "23127190-1": {
+        "title": "NFL Week 8 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "2316298-1": {
+        "title": "Star Trek: Excalibur",
+        "region": null
+    },
+    "2316298-2": {
+        "title": "Star Trek: Excalibur",
+        "region": "US"
+    },
+    "23252406-1": {
+        "title": "NFL Week 9 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "2329627-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "2342408-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2354558-1": {
+        "title": "Star Trek: Reunion",
+        "region": null
+    },
+    "2354558-2": {
+        "title": "Star Trek: Reunion",
+        "region": "GB"
+    },
+    "23573094-1": {
+        "title": "NFL Week 10 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "23666480-1": {
+        "title": "Star Trek: Prodigy - Die Helden",
+        "region": null
+    },
+    "23666480-2": {
+        "title": "Star Trek: Prodigy - Die Helden",
+        "region": "DE"
+    },
+    "23729148-1": {
+        "title": "NFL Week 11 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "23790676-1": {
+        "title": "NFL Week 12 Betting, Thanksgiving Game Picks, PLUS Upset Options",
+        "region": null
+    },
+    "2387761-24": {
+        "title": "Breaking Bad",
+        "region": "EG"
+    },
+    "23897574-1": {
+        "title": "NFL Week 13 Betting, DFS Studs & Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "2392094-1": {
+        "title": "Star Trek: Deep Space Nine - Crossroads of Time",
+        "region": null
+    },
+    "2392094-2": {
+        "title": "Star Trek: Deep Space Nine - Crossroads of Time",
+        "region": "US"
+    },
+    "23942080-1": {
+        "title": "Star Trek: Beyond Movie Review - RTMM",
+        "region": null
+    },
+    "24175296-1": {
+        "title": "NFL Week 14 Betting, DFS Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "24221706-1": {
+        "title": "Star Trek: Bedlam on the Bridge",
+        "region": null
+    },
+    "24240048-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Dr Leonard 'Bones' McCoy",
+        "region": null
+    },
+    "2447594-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "24509192-1": {
+        "title": "NFL Week 15 Betting, DFS Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "24824706-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "2501548-1": {
+        "title": "Star Trek: Voyager - The Arcade Game",
+        "region": null
+    },
+    "2501548-2": {
+        "title": "Star Trek: Voyager - The Arcade Game",
+        "region": "US"
+    },
+    "2508946-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2512472-1": {
+        "title": "Star Trek: Osiris",
+        "region": null
+    },
+    "2512472-2": {
+        "title": "Star Trek: Osiris",
+        "region": "US"
+    },
+    "25382516-1": {
+        "title": "NFL Week 17 Betting, DFS Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "25397560-1": {
+        "title": "NFL Week 16 Betting, DFS Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "25431306-1": {
+        "title": "NFL Week 18 Betting, DFS Value Plays PLUS Upset Picks",
+        "region": null
+    },
+    "2567488-2": {
+        "title": "Stargate: Unleashed",
+        "region": "FR"
+    },
+    "2567488-3": {
+        "title": "Stargate: Unleashed",
+        "region": "NL"
+    },
+    "2567488-4": {
+        "title": "Stargate: Unleashed",
+        "region": "XWW"
+    },
+    "2567488-6": {
+        "title": "Stargate: Command",
+        "region": "XWW"
+    },
+    "2567488-7": {
+        "title": "Stargate: Teal'c's Revenge",
+        "region": "XWW"
+    },
+    "25812264-1": {
+        "title": "Star Trek: Beam Me Up, Hottie!",
+        "region": null
+    },
+    "2621446-1": {
+        "title": "Star Trek: Renegades",
+        "region": null
+    },
+    "2621446-10": {
+        "title": "Star Trek: Renegades",
+        "region": "NL"
+    },
+    "2621446-11": {
+        "title": "Star Trek: Renegades",
+        "region": "PH"
+    },
+    "2621446-12": {
+        "title": "Star Trek: Renegades",
+        "region": "SG"
+    },
+    "2621446-13": {
+        "title": "Star Trek: Renegades",
+        "region": "US"
+    },
+    "2621446-14": {
+        "title": "Star Trek: Renegades",
+        "region": "ZA"
+    },
+    "2621446-15": {
+        "title": "Star Trek: K\u1ebb Ph\u1ea3n B\u1ed9i",
+        "region": "VN"
+    },
+    "2621446-16": {
+        "title": "Star Trek: Renegados",
+        "region": "ES"
+    },
+    "2621446-2": {
+        "title": "Star Trek: Renegades",
+        "region": "AU"
+    },
+    "2621446-3": {
+        "title": "Star Trek: Renegades",
+        "region": "CA"
+    },
+    "2621446-4": {
+        "title": "Star Trek: Renegades",
+        "region": "CA"
+    },
+    "2621446-5": {
+        "title": "Star Trek: Renegades",
+        "region": "DE"
+    },
+    "2621446-6": {
+        "title": "Star Trek: Renegades",
+        "region": "EC"
+    },
+    "2621446-7": {
+        "title": "Star Trek: Renegades",
+        "region": "GB"
+    },
+    "2621446-8": {
+        "title": "Star Trek: Renegades",
+        "region": "IT"
+    },
+    "2621446-9": {
+        "title": "Star Trek: Renegades",
+        "region": "JP"
+    },
+    "26563941-1": {
+        "title": "Star Trek: Strange New Worlds Inside the Series",
+        "region": null
+    },
+    "26563941-2": {
+        "title": "Star Trek: Strange New Worlds Inside the Series",
+        "region": "US"
+    },
+    "2660888-15": {
+        "title": "Star Trek: Beyond",
+        "region": "IT"
+    },
+    "2660888-16": {
+        "title": "Star Trek: Beyond",
+        "region": "NL"
+    },
+    "2660888-17": {
+        "title": "Star Trek: Beyond",
+        "region": "US"
+    },
+    "2660888-18": {
+        "title": "Star Trek: Do nezn\u00e1ma",
+        "region": "CZ"
+    },
+    "2660888-19": {
+        "title": "Star Trek: Do nezn\u00e1ma",
+        "region": "SK"
+    },
+    "2660888-30": {
+        "title": "Star Trek: Al\u00e9m do Universo",
+        "region": "PT"
+    },
+    "2660888-31": {
+        "title": "Star Trek: Into Oblivion",
+        "region": "XWW"
+    },
+    "2660888-32": {
+        "title": "Star Trek: Izvan granica",
+        "region": "RS"
+    },
+    "2660888-33": {
+        "title": "Star Trek: Kh\u00f4ng Gi\u1edbi H\u1ea1n",
+        "region": "VN"
+    },
+    "2660888-34": {
+        "title": "Star Trek: M\u00e1s all\u00e1",
+        "region": "ES"
+    },
+    "2660888-35": {
+        "title": "Star Trek: Mindenen t\u00fal",
+        "region": "HU"
+    },
+    "2660888-36": {
+        "title": "Star Trek: Sem Fronteiras",
+        "region": "BR"
+    },
+    "2660888-37": {
+        "title": "Star Trek: Sin l\u00edmites",
+        "region": "UY"
+    },
+    "2660888-38": {
+        "title": "Star Trek: Sin L\u00edmites",
+        "region": "CL"
+    },
+    "2660888-39": {
+        "title": "Star Trek: W nieznane",
+        "region": "PL"
+    },
+    "2666064-1": {
+        "title": "Star Trek: Fleet Captains",
+        "region": null
+    },
+    "26754269-1": {
+        "title": "Star Trek: Picard Season 3, Episode 1",
+        "region": null
+    },
+    "26898672-1": {
+        "title": "Star Trek: Picard Season 3 Episode 2 - Angry Review",
+        "region": null
+    },
+    "26920247-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2700916-3": {
+        "title": "Star Trek: Specter",
+        "region": "US"
+    },
+    "27034337-1": {
+        "title": "Star Trek: Picard: The Final Mission",
+        "region": null
+    },
+    "27034337-2": {
+        "title": "Star Trek: Picard: The Final Mission",
+        "region": "US"
+    },
+    "27077804-1": {
+        "title": "Star Trek: Picard Season 3, Episodes 2, 3, and 4",
+        "region": null
+    },
+    "27196928-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Ro Laren",
+        "region": null
+    },
+    "27435384-1": {
+        "title": "Star Trek: Picard Season 3, Episodes 5, 6, and 7",
+        "region": null
+    },
+    "27592157-1": {
+        "title": "Star Trek: Picard - Season 3 - Review",
+        "region": null
+    },
+    "27597658-1": {
+        "title": "Star Trek: Picard Season 3, Episodes 8, 9, and 10",
+        "region": null
+    },
+    "27610815-1": {
+        "title": "Star Trek: Picard Kept Its TNG Crew Alive For One Bold Reason",
+        "region": null
+    },
+    "27627729-1": {
+        "title": "Star Trek: Picard: The IMAX Live Series Finale Event",
+        "region": null
+    },
+    "27627729-2": {
+        "title": "Star Trek: Picard: The IMAX Live Series Finale Event",
+        "region": "US"
+    },
+    "27635010-1": {
+        "title": "Star Trek: Nimoy's Spock Returns in Roddenberry Archive Short Film",
+        "region": null
+    },
+    "27710986-1": {
+        "title": "Star Trek: 10 Secrets of the Q Continuum",
+        "region": null
+    },
+    "27724595-1": {
+        "title": "Star Trek: Endgame - Reality Vs. Fiction",
+        "region": null
+    },
+    "2777500-1": {
+        "title": "Star Trek: The Helena Chronicles",
+        "region": null
+    },
+    "2777500-2": {
+        "title": "Star Trek: The Helena Chronicles",
+        "region": "US"
+    },
+    "2779140-1": {
+        "title": "Star Trek: Intrepid",
+        "region": null
+    },
+    "2779140-2": {
+        "title": "Star Trek: Intrepid",
+        "region": "GB"
+    },
+    "27944739-1": {
+        "title": "Star Trek: Legacy - Return the Sisko",
+        "region": null
+    },
+    "27957978-1": {
+        "title": "Star Trek: 10 Times Canon Got in the Way",
+        "region": null
+    },
+    "28079070-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "28079070-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "28080668-1": {
+        "title": "Star Trek: 10 Worst Holodeck Episodes",
+        "region": null
+    },
+    "28097295-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Jean-Luc Picard",
+        "region": null
+    },
+    "28134265-1": {
+        "title": "Star Trek: Into Darkness A XXX Parody",
+        "region": null
+    },
+    "28225053-1": {
+        "title": "Star Trek: 10 Times Voyager Could Have Gone Home",
+        "region": null
+    },
+    "28225205-1": {
+        "title": "Star Trek: 10 Things You Should Know Before Apply to Starfleet Academy",
+        "region": null
+    },
+    "2823184-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "2823184-2": {
+        "title": "Rome",
+        "region": "BR"
+    },
+    "2823184-3": {
+        "title": "Rome",
+        "region": "IN"
+    },
+    "2823184-4": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "28267985-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Andorians",
+        "region": null
+    },
+    "2827010-1": {
+        "title": "Star Trek: The Next Generation - Regeneration: Engaging the Borg",
+        "region": null
+    },
+    "2827010-2": {
+        "title": "Star Trek: The Next Generation - Regeneration: Engaging the Borg",
+        "region": "FR"
+    },
+    "2827010-3": {
+        "title": "Star Trek: The Next Generation - Regeneration: Engaging the Borg",
+        "region": "US"
+    },
+    "2827024-1": {
+        "title": "Star Trek: The Next Generation - Inside the Writer's Room",
+        "region": null
+    },
+    "2827024-2": {
+        "title": "Star Trek: The Next Generation - Inside the Writer's Room",
+        "region": "GB"
+    },
+    "2827024-3": {
+        "title": "Star Trek: The Next Generation - Inside the Writer's Room",
+        "region": "US"
+    },
+    "28279046-1": {
+        "title": "Star Trek: 10 Classified Starfleet Secrets",
+        "region": null
+    },
+    "28298209-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "28433496-1": {
+        "title": "Star Trek: Every Captain Ranked Worst to Best (2023)",
+        "region": null
+    },
+    "28620488-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Kira Nerys",
+        "region": null
+    },
+    "28636153-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "28645963-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Thy'lek Shran",
+        "region": null
+    },
+    "28647602-1": {
+        "title": "Star Trek: The Next Animation",
+        "region": null
+    },
+    "28682790-1": {
+        "title": "Star Trek: 10 Top Secret Artefacts at Daystrom Station",
+        "region": null
+    },
+    "28688748-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "28703323-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Vulcans",
+        "region": null
+    },
+    "28787952-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About the Guardian of Forever",
+        "region": null
+    },
+    "2880448-4": {
+        "title": "Star Trek: The Next Generation Untitled Documentary",
+        "region": null
+    },
+    "28821308-1": {
+        "title": "Star Trek: Strange New Worlds A XXX Parody",
+        "region": null
+    },
+    "29033858-2": {
+        "title": "Star Trek: Infinite",
+        "region": "US"
+    },
+    "29064560-1": {
+        "title": "Star Trek: Very Short Treks",
+        "region": null
+    },
+    "29064560-2": {
+        "title": "Star Trek: Very Short Treks",
+        "region": "AU"
+    },
+    "29064560-3": {
+        "title": "Star Trek: Very Short Treks",
+        "region": "CA"
+    },
+    "29064560-4": {
+        "title": "Star Trek: Very Short Treks",
+        "region": "DE"
+    },
+    "29064560-5": {
+        "title": "Star Trek: Very Short Treks",
+        "region": "EC"
+    },
+    "29064560-6": {
+        "title": "Star Trek: Very Short Treks",
+        "region": "GB"
+    },
+    "29064560-7": {
+        "title": "Star Trek: Very Short Treks",
+        "region": "JP"
+    },
+    "29117360-1": {
+        "title": "Star Trek: The Original Series Retrospective\/Review",
+        "region": null
+    },
+    "29117368-1": {
+        "title": "Star Trek: The Motion Picture Retrospective\/Review",
+        "region": null
+    },
+    "29117949-1": {
+        "title": "Star Trek: The Next Generation Retrospective\/Review",
+        "region": null
+    },
+    "29117958-1": {
+        "title": "Star Trek: Generations Retrospective\/Review",
+        "region": null
+    },
+    "29118116-1": {
+        "title": "Star Trek: Deep Space Nine Retrospective\/Review",
+        "region": null
+    },
+    "29118150-1": {
+        "title": "Star Trek: Nemesis Retrospective\/Review",
+        "region": null
+    },
+    "29118156-1": {
+        "title": "Star Trek: Enterprise Retrospective\/Review",
+        "region": null
+    },
+    "29136948-1": {
+        "title": "Star Trek: Strange New Worlds: Episode One Review",
+        "region": null
+    },
+    "29194543-1": {
+        "title": "Star Trek: Strange New Worlds: Children of The Comet Review",
+        "region": null
+    },
+    "2927680-1": {
+        "title": "Star Trek: Deception",
+        "region": null
+    },
+    "2927680-2": {
+        "title": "Star Trek: Deception",
+        "region": "GB"
+    },
+    "2928446-1": {
+        "title": "Star Trek: Secrets of the Universe",
+        "region": null
+    },
+    "2928446-3": {
+        "title": "Star Trek: Secrets of the Universe",
+        "region": "US"
+    },
+    "2931468-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "29429672-1": {
+        "title": "Star Trek: 10 Worlds You Must Visit",
+        "region": null
+    },
+    "2944016-1": {
+        "title": "Star Trek: The Next Generation\/X-Men #1",
+        "region": null
+    },
+    "29475761-1": {
+        "title": "Star Trek: Prodigy Season 2 Launches On Netflix 2024 #SAVEDStarTrekProdigy",
+        "region": null
+    },
+    "29571116-1": {
+        "title": "Star Trek: The Next Generation Viewers Choice Marathon",
+        "region": null
+    },
+    "29571116-2": {
+        "title": "Star Trek: The Next Generation Viewers Choice Marathon",
+        "region": "US"
+    },
+    "29594560-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Janice Rand",
+        "region": null
+    },
+    "2977544-1": {
+        "title": "Star Trek: Three Picture Saga",
+        "region": null
+    },
+    "2977544-2": {
+        "title": "Star Trek: Three Picture Saga",
+        "region": "US"
+    },
+    "29883294-1": {
+        "title": "Star Trek: 10 Secrets About the USS Enterprise-F You Need to Know",
+        "region": null
+    },
+    "29923288-1": {
+        "title": "Star Trek: Strange New Worlds | Official Trailer | Paramount+ | Reaction!",
+        "region": null
+    },
+    "30137008-1": {
+        "title": "Star Trek: 10 Worlds You Will Never Visit",
+        "region": null
+    },
+    "30185815-1": {
+        "title": "Star Trek: 10 Biggest Takeaways from Patrick Stewart's Memoir (And 1 That Wasn't)",
+        "region": null
+    },
+    "30207483-1": {
+        "title": "Star Trek: Shattered Universe, Culdcept, American Idol, and More",
+        "region": null
+    },
+    "30208303-1": {
+        "title": "Star Trek: 10 Most Mind-Bending Spatial Anomalies",
+        "region": null
+    },
+    "30217778-1": {
+        "title": "Star Trek: The One With Giant Spock",
+        "region": null
+    },
+    "30223108-1": {
+        "title": "Star Trek: Shore Leave",
+        "region": null
+    },
+    "30223161-1": {
+        "title": "Star Trek: Turnabout Intruder",
+        "region": null
+    },
+    "30260928-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "30260928-2": {
+        "title": "The Wire",
+        "region": "AU"
+    },
+    "30274039-1": {
+        "title": "Star Trek: The Old Generation",
+        "region": null
+    },
+    "30470155-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About B'elanna Torres",
+        "region": null
+    },
+    "30475805-1": {
+        "title": "Star Trek: 10 Alien Species You've Probably Forgotten About",
+        "region": null
+    },
+    "30475821-1": {
+        "title": "Star Trek: 10 Characters with the Most Appearances",
+        "region": null
+    },
+    "30581507-1": {
+        "title": "Star Trek: 10 Times Captain Janeway Went Full Badass",
+        "region": null
+    },
+    "3060318-1": {
+        "title": "Star Trek: The Next Generation - Survive and Suceed: An Empire at War",
+        "region": null
+    },
+    "3060318-2": {
+        "title": "Star Trek: The Next Generation - Survive and Suceed: An Empire at War",
+        "region": "DE"
+    },
+    "3060318-3": {
+        "title": "Star Trek: The Next Generation - Survive and Suceed: An Empire at War",
+        "region": "US"
+    },
+    "3075216-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "3075216-2": {
+        "title": "Breaking Bad",
+        "region": "US"
+    },
+    "30789303-1": {
+        "title": "Star Trek: Legacy (Ft. Commander Holly)",
+        "region": null
+    },
+    "30797450-1": {
+        "title": "Star Trek: Deep Space Nine - A Woman's Trek - Nana Visitor Interview",
+        "region": null
+    },
+    "30798102-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Phasers",
+        "region": null
+    },
+    "30809252-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Dax",
+        "region": null
+    },
+    "3088530-1": {
+        "title": "Star Trek: Invincible",
+        "region": null
+    },
+    "3088530-2": {
+        "title": "Star Trek: Invincible",
+        "region": "GB"
+    },
+    "30984076-1": {
+        "title": "Star Trek: 10 Worlds We Should Probably Check On",
+        "region": null
+    },
+    "3105216-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "31066845-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Jonathan Archer",
+        "region": null
+    },
+    "31145305-1": {
+        "title": "Star Trek: 10 Weirdest Holodeck Episodes",
+        "region": null
+    },
+    "3120406-1": {
+        "title": "Star Trek: Enterprise - In Conversation - The First Crew",
+        "region": null
+    },
+    "3120406-2": {
+        "title": "Star Trek: Enterprise - In Conversation - The First Crew",
+        "region": "US"
+    },
+    "3120434-1": {
+        "title": "Star Trek: Enterprise - Uncharted Territory",
+        "region": null
+    },
+    "3120434-2": {
+        "title": "Star Trek: Enterprise - Uncharted Territory",
+        "region": "GB"
+    },
+    "3120434-3": {
+        "title": "Star Trek: Enterprise - Uncharted Territory",
+        "region": "US"
+    },
+    "3122952-1": {
+        "title": "Star Trek: Origins",
+        "region": null
+    },
+    "3122952-2": {
+        "title": "Star Trek: Origins",
+        "region": "US"
+    },
+    "31241252-1": {
+        "title": "Star Trek: The Next Generation",
+        "region": null
+    },
+    "3129166-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "31434400-1": {
+        "title": "Star Trek: 10 Things You Didn't Know About Tricorders",
+        "region": null
+    },
+    "31530715-1": {
+        "title": "Star Trek: Strange New Worlds: Spock Amok Review",
+        "region": null
+    },
+    "31540775-1": {
+        "title": "Star Trek: 10 Terrible Ways to Time Travel",
+        "region": null
+    },
+    "31645742-1": {
+        "title": "Star Trek: 10 Episodes That Wasted an Incredible Premise",
+        "region": null
+    },
+    "31691533-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "31691866-1": {
+        "title": "Star Trek: Picard Season 2, Anniversary Celebration & More",
+        "region": null
+    },
+    "31727807-1": {
+        "title": "Star Trek: 10 Characters Who Must Return (2024)",
+        "region": null
+    },
+    "31779512-1": {
+        "title": "Star Trek: 11-ish Times Voyager Lost a Shuttle",
+        "region": null
+    },
+    "31807494-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "31807494-2": {
+        "title": "Breaking Bad",
+        "region": "BE"
+    },
+    "31862180-1": {
+        "title": "Star Trek: Strange New Worlds: \"Subspace Rhapsody\" Sing-Along",
+        "region": null
+    },
+    "3188624-1": {
+        "title": "Star Trek: The Next Generation - Future's Past",
+        "region": null
+    },
+    "3188624-3": {
+        "title": "Star Trek: The Next Generation - Echoes from the Past",
+        "region": "US"
+    },
+    "3188624-4": {
+        "title": "Star Trek: The Next Generation - Future's Past",
+        "region": "US"
+    },
+    "31945277-1": {
+        "title": "Star Trek: Discovery - Inside the Final Season",
+        "region": null
+    },
+    "31945277-2": {
+        "title": "Star Trek: Discovery - Inside the Final Season",
+        "region": "US"
+    },
+    "32058073-1": {
+        "title": "Star Trek: 10 First Contacts We Need to See",
+        "region": null
+    },
+    "32065830-1": {
+        "title": "Star Trek: Best Episodes From Each of the 11 series",
+        "region": null
+    },
+    "32127840-1": {
+        "title": "Star Trek: Into Darkness is a Terrible Movie",
+        "region": null
+    },
+    "3230854-1": {
+        "title": "The Expanse",
+        "region": null
+    },
+    "3230854-10": {
+        "title": "The Expanse",
+        "region": "EG"
+    },
+    "3230854-11": {
+        "title": "The Expanse",
+        "region": "ES"
+    },
+    "3230854-12": {
+        "title": "The Expanse",
+        "region": "FR"
+    },
+    "3230854-13": {
+        "title": "The Expanse",
+        "region": "GB"
+    },
+    "3230854-14": {
+        "title": "The Expanse",
+        "region": "HK"
+    },
+    "3230854-15": {
+        "title": "The Expanse",
+        "region": "ID"
+    },
+    "3230854-16": {
+        "title": "The Expanse",
+        "region": "IL"
+    },
+    "3230854-17": {
+        "title": "The Expanse",
+        "region": "IN"
+    },
+    "3230854-18": {
+        "title": "The Expanse",
+        "region": "IN"
+    },
+    "3230854-19": {
+        "title": "The Expanse",
+        "region": "IT"
+    },
+    "3230854-2": {
+        "title": "The Expanse",
+        "region": "AE"
+    },
+    "3230854-20": {
+        "title": "The Expanse",
+        "region": "MX"
+    },
+    "3230854-21": {
+        "title": "The Expanse",
+        "region": "NL"
+    },
+    "3230854-22": {
+        "title": "The Expanse",
+        "region": "PH"
+    },
+    "3230854-23": {
+        "title": "The Expanse",
+        "region": "PL"
+    },
+    "3230854-24": {
+        "title": "The Expanse",
+        "region": "SE"
+    },
+    "3230854-25": {
+        "title": "The Expanse",
+        "region": "SG"
+    },
+    "3230854-26": {
+        "title": "The Expanse",
+        "region": "TH"
+    },
+    "3230854-27": {
+        "title": "The Expanse",
+        "region": "TR"
+    },
+    "3230854-28": {
+        "title": "The Expanse",
+        "region": "US"
+    },
+    "3230854-29": {
+        "title": "The Expanse",
+        "region": "ZA"
+    },
+    "3230854-3": {
+        "title": "The Expanse",
+        "region": "AR"
+    },
+    "3230854-4": {
+        "title": "The Expanse",
+        "region": "AU"
+    },
+    "3230854-5": {
+        "title": "The Expanse",
+        "region": "BR"
+    },
+    "3230854-6": {
+        "title": "The Expanse",
+        "region": "CA"
+    },
+    "3230854-7": {
+        "title": "The Expanse",
+        "region": "CA"
+    },
+    "3230854-8": {
+        "title": "The Expanse",
+        "region": "DE"
+    },
+    "3230854-9": {
+        "title": "The Expanse",
+        "region": "EC"
+    },
+    "32362132-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "32362132-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "3238226-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3238226-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "32523920-1": {
+        "title": "Star Trek: 10 Times You Asked 'What Were They Thinking?!'",
+        "region": null
+    },
+    "3258012-1": {
+        "title": "Star Trek: Starfleet Academy Starship Bridge Simulator",
+        "region": null
+    },
+    "3258012-2": {
+        "title": "Star Trek: Starfleet Academy Starship Bridge Simulator",
+        "region": "US"
+    },
+    "3258050-1": {
+        "title": "Star Trek: The Next Generation",
+        "region": null
+    },
+    "3258050-2": {
+        "title": "Star Trek: The Next Generation",
+        "region": "US"
+    },
+    "32747892-1": {
+        "title": "Star Trek: 10 Characters That Should Teach in Starfleet Academy",
+        "region": null
+    },
+    "32755624-1": {
+        "title": "Star Trek: 10 Secrets About the USS Discovery-A You Need to Know",
+        "region": null
+    },
+    "32889679-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3293100-1": {
+        "title": "Star Trek: Captain's Chair",
+        "region": null
+    },
+    "3293100-2": {
+        "title": "Star Trek: Captain's Chair",
+        "region": "US"
+    },
+    "33032386-1": {
+        "title": "Star Trek: Turnabout Intruder",
+        "region": null
+    },
+    "3350150-1": {
+        "title": "Star Trek: From One Generation to the Next",
+        "region": null
+    },
+    "3350150-2": {
+        "title": "Star Trek: From One Generation to the Next",
+        "region": "US"
+    },
+    "3374642-1": {
+        "title": "Star Trek: The Next Generation #2",
+        "region": null
+    },
+    "3410762-1": {
+        "title": "Star Trek: USS PAN",
+        "region": null
+    },
+    "3410762-2": {
+        "title": "Star Trek: USS PAN",
+        "region": "US"
+    },
+    "3422862-1": {
+        "title": "Star Trek: Trexels (IOS)",
+        "region": null
+    },
+    "3445408-1": {
+        "title": "Star Trek: Enterprise - In a Time of War",
+        "region": null
+    },
+    "3445408-2": {
+        "title": "Star Trek: Enterprise - In a Time of War",
+        "region": "DE"
+    },
+    "3445408-3": {
+        "title": "Star Trek: Enterprise - In a Time of War",
+        "region": "FR"
+    },
+    "3445408-4": {
+        "title": "Star Trek: Enterprise - In a Time of War",
+        "region": "GB"
+    },
+    "3445408-5": {
+        "title": "Star Trek: Enterprise - In a Time of War",
+        "region": "IT"
+    },
+    "3445408-6": {
+        "title": "Star Trek: Enterprise - In a Time of War",
+        "region": "US"
+    },
+    "3445422-1": {
+        "title": "Star Trek: Enterprise - Temporal Cold War: Declassified",
+        "region": null
+    },
+    "3445422-2": {
+        "title": "Star Trek: Enterprise - Temporal Cold War: Declassified",
+        "region": "DE"
+    },
+    "3445422-3": {
+        "title": "Star Trek: Enterprise - Temporal Cold War: Declassified",
+        "region": "US"
+    },
+    "3478640-1": {
+        "title": "Star Trek: Generations",
+        "region": null
+    },
+    "3572740-4": {
+        "title": "Star Trek: Prelude to Axanar",
+        "region": null
+    },
+    "3575352-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3578756-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "3582676-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3582676-2": {
+        "title": "Rome",
+        "region": "IT"
+    },
+    "3582676-3": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "3613638-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3651516-4": {
+        "title": "Star Trek: 25th Anniversary (Gameboy)",
+        "region": "US"
+    },
+    "3699148-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "3729940-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3815866-1": {
+        "title": "Star Trek: The Next Generation - The Privilege of Rank: Making Chain of Command",
+        "region": null
+    },
+    "3815866-2": {
+        "title": "Star Trek: The Next Generation - The Privilege of Rank: Making Chain of Command",
+        "region": "US"
+    },
+    "3854562-1": {
+        "title": "Star Trek: Horizon",
+        "region": null
+    },
+    "3854562-2": {
+        "title": "Star Trek: Horizon",
+        "region": "AU"
+    },
+    "3854562-3": {
+        "title": "Star Trek: Horizon",
+        "region": "GB"
+    },
+    "3854562-4": {
+        "title": "Star Trek: Horizon",
+        "region": "US"
+    },
+    "3854562-5": {
+        "title": "Star Trek: Horizonte",
+        "region": "ES"
+    },
+    "3864062-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "3904048-1": {
+        "title": "Star Trek: First Contact",
+        "region": null
+    },
+    "3950168-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3952814-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "3956242-3": {
+        "title": "Star Trek: Ambush",
+        "region": null
+    },
+    "3957640-1": {
+        "title": "Star Trek: Durandal",
+        "region": null
+    },
+    "3957640-2": {
+        "title": "Star Trek: Durandal",
+        "region": "US"
+    },
+    "3968196-1": {
+        "title": "Star Trek: Temporal Anomaly",
+        "region": null
+    },
+    "3968196-2": {
+        "title": "Star Trek: Temporal Anomaly",
+        "region": "GB"
+    },
+    "3968196-3": {
+        "title": "Star Trek: Temporal Anomaly",
+        "region": "IT"
+    },
+    "3991184-1": {
+        "title": "Star Trek: Elokomin",
+        "region": null
+    },
+    "3991184-2": {
+        "title": "Star Trek: Elokomin",
+        "region": "US"
+    },
+    "4021218-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "4081130-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "4111020-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "4119736-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "4119736-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "4154074-6": {
+        "title": "Star Trek: DC",
+        "region": "US"
+    },
+    "4225298-1": {
+        "title": "Star Trek: The Next Generation - The Sky's the Limit - The Eclipse of Star Trek: The Next Generation",
+        "region": null
+    },
+    "4225298-2": {
+        "title": "Star Trek: The Next Generation - The Sky's the Limit - The Eclipse of Star Trek: The Next Generation",
+        "region": "GB"
+    },
+    "4225298-3": {
+        "title": "Star Trek: The Next Generation - The Sky's the Limit - The Eclipse of Star Trek: The Next Generation",
+        "region": "US"
+    },
+    "4225342-1": {
+        "title": "Star Trek: The Next Generation - The Unknown Possibilities of Existence: Making All Good Things...",
+        "region": null
+    },
+    "4225342-2": {
+        "title": "Star Trek: The Next Generation - The Unknown Possibilities of Existence: Making All Good Things...",
+        "region": "US"
+    },
+    "4245114-1": {
+        "title": "Star Trek: The Movie, Review",
+        "region": null
+    },
+    "4245728-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "4262080-1": {
+        "title": "Star Trek: Return of the Cytrons",
+        "region": null
+    },
+    "4262080-2": {
+        "title": "Star Trek: Return of the Cytrons",
+        "region": "US"
+    },
+    "4352436-1": {
+        "title": "Star Trek: Nature's Hunger",
+        "region": null
+    },
+    "4352436-2": {
+        "title": "Star Trek: Nature's Hunger",
+        "region": "US"
+    },
+    "4435214-1": {
+        "title": "Star Trek: Natures Hunger",
+        "region": null
+    },
+    "4435214-3": {
+        "title": "Star Trek: Natures Hunger",
+        "region": "US"
+    },
+    "4459160-1": {
+        "title": "Star Trek: Voyager Cake",
+        "region": null
+    },
+    "4484406-1": {
+        "title": "Star Trek: Unity",
+        "region": null
+    },
+    "4484406-2": {
+        "title": "Star Trek: Unity",
+        "region": "AU"
+    },
+    "4484406-3": {
+        "title": "Star Trek: Unity",
+        "region": "GB"
+    },
+    "4484406-4": {
+        "title": "Star Trek: Unity",
+        "region": "IT"
+    },
+    "4565640-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "4565640-2": {
+        "title": "The Wire",
+        "region": "GB"
+    },
+    "4566960-1": {
+        "title": "Star Trek: The Next Generation\/Doctor Who: Assimilation Squared #1-8",
+        "region": null
+    },
+    "4653252-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "4669408-1": {
+        "title": "Star Trek: Captain Pike",
+        "region": null
+    },
+    "4669408-2": {
+        "title": "Star Trek: Captain Pike",
+        "region": "CA"
+    },
+    "4669408-3": {
+        "title": "Star Trek: Captain Pike",
+        "region": "DE"
+    },
+    "4669408-4": {
+        "title": "Star Trek: Captain Pike",
+        "region": "GB"
+    },
+    "4669408-5": {
+        "title": "Star Trek: Captain Pike",
+        "region": "US"
+    },
+    "4669408-6": {
+        "title": "Star Trek: Capit\u00e1n Pike",
+        "region": "ES"
+    },
+    "4761536-1": {
+        "title": "Star Trek: The Next Generation - Klingon Honor Guard",
+        "region": null
+    },
+    "4761536-3": {
+        "title": "Star Trek: The Next Generation - Klingon Honor Guard",
+        "region": "US"
+    },
+    "4908938-1": {
+        "title": "Star Trek: Outlaws",
+        "region": null
+    },
+    "4908938-2": {
+        "title": "Star Trek: Outlaws",
+        "region": "US"
+    },
+    "4943998-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "4943998-2": {
+        "title": "Deadwood",
+        "region": "AU"
+    },
+    "4943998-3": {
+        "title": "Deadwood",
+        "region": "BR"
+    },
+    "4943998-4": {
+        "title": "Deadwood",
+        "region": "CA"
+    },
+    "4943998-5": {
+        "title": "Deadwood",
+        "region": "CA"
+    },
+    "4943998-6": {
+        "title": "Deadwood",
+        "region": "GB"
+    },
+    "4943998-7": {
+        "title": "Deadwood",
+        "region": "MX"
+    },
+    "4943998-8": {
+        "title": "Deadwood",
+        "region": "TR"
+    },
+    "5022534-1": {
+        "title": "Star Trek: Eye of the Tempest",
+        "region": null
+    },
+    "5022534-2": {
+        "title": "Star Trek: Eye of the Tempest",
+        "region": "US"
+    },
+    "5034278-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "5074816-1": {
+        "title": "Star Trek: The Next Penetration - A Gangbang Parody",
+        "region": null
+    },
+    "5076538-1": {
+        "title": "Stargate: Linea di confine",
+        "region": null
+    },
+    "5090138-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "5171438-1": {
+        "title": "Star Trek: Discovery",
+        "region": null
+    },
+    "5171438-10": {
+        "title": "Star Trek: Discovery",
+        "region": "EC"
+    },
+    "5171438-11": {
+        "title": "Star Trek: Discovery",
+        "region": "EG"
+    },
+    "5171438-12": {
+        "title": "Star Trek: Discovery",
+        "region": "ES"
+    },
+    "5171438-13": {
+        "title": "Star Trek: Discovery",
+        "region": "FR"
+    },
+    "5171438-14": {
+        "title": "Star Trek: Discovery",
+        "region": "GB"
+    },
+    "5171438-15": {
+        "title": "Star Trek: Discovery",
+        "region": "HK"
+    },
+    "5171438-16": {
+        "title": "Star Trek: Discovery",
+        "region": "HU"
+    },
+    "5171438-17": {
+        "title": "Star Trek: Discovery",
+        "region": "ID"
+    },
+    "5171438-18": {
+        "title": "Star Trek: Discovery",
+        "region": "IN"
+    },
+    "5171438-19": {
+        "title": "Star Trek: Discovery",
+        "region": "IN"
+    },
+    "5171438-2": {
+        "title": "Star Trek: Discovery",
+        "region": "AE"
+    },
+    "5171438-20": {
+        "title": "Star Trek: Discovery",
+        "region": "IT"
+    },
+    "5171438-21": {
+        "title": "Star Trek: Discovery",
+        "region": "KR"
+    },
+    "5171438-22": {
+        "title": "Star Trek: Discovery",
+        "region": "MX"
+    },
+    "5171438-23": {
+        "title": "Star Trek: Discovery",
+        "region": "NL"
+    },
+    "5171438-24": {
+        "title": "Star Trek: Discovery",
+        "region": "PH"
+    },
+    "5171438-25": {
+        "title": "Star Trek: Discovery",
+        "region": "PL"
+    },
+    "5171438-26": {
+        "title": "Star Trek: Discovery",
+        "region": "PT"
+    },
+    "5171438-27": {
+        "title": "Star Trek: Discovery",
+        "region": "SE"
+    },
+    "5171438-28": {
+        "title": "Star Trek: Discovery",
+        "region": "SG"
+    },
+    "5171438-29": {
+        "title": "Star Trek: Discovery",
+        "region": "SK"
+    },
+    "5171438-3": {
+        "title": "Star Trek: Discovery",
+        "region": "AR"
+    },
+    "5171438-30": {
+        "title": "Star Trek: Discovery",
+        "region": "TH"
+    },
+    "5171438-31": {
+        "title": "Star Trek: Discovery",
+        "region": "TR"
+    },
+    "5171438-32": {
+        "title": "Star Trek: Discovery",
+        "region": "US"
+    },
+    "5171438-33": {
+        "title": "Star Trek: Discovery",
+        "region": "ZA"
+    },
+    "5171438-34": {
+        "title": "Star Trek: H\u00e0nh Tr\u00ecnh Kh\u00e1m Ph\u00e1",
+        "region": "VN"
+    },
+    "5171438-4": {
+        "title": "Star Trek: Discovery",
+        "region": "AU"
+    },
+    "5171438-5": {
+        "title": "Star Trek: Discovery",
+        "region": "BR"
+    },
+    "5171438-6": {
+        "title": "Star Trek: Discovery",
+        "region": "CA"
+    },
+    "5171438-7": {
+        "title": "Star Trek: Discovery",
+        "region": "CA"
+    },
+    "5171438-8": {
+        "title": "Star Trek: Discovery",
+        "region": "CZ"
+    },
+    "5171438-9": {
+        "title": "Star Trek: Discovery",
+        "region": "DE"
+    },
+    "5206652-1": {
+        "title": "Star Trek: Hidden Identities",
+        "region": null
+    },
+    "5206652-2": {
+        "title": "Star Trek: Hidden Identities",
+        "region": "JP"
+    },
+    "5237540-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "5270848-1": {
+        "title": "Star Trek: Progeny",
+        "region": null
+    },
+    "5270848-10": {
+        "title": "Star Trek: Progenie",
+        "region": "ES"
+    },
+    "5270848-2": {
+        "title": "Star Trek: Progeny",
+        "region": "AU"
+    },
+    "5270848-3": {
+        "title": "Star Trek: Progeny",
+        "region": "CA"
+    },
+    "5270848-4": {
+        "title": "Star Trek: Progeny",
+        "region": "DE"
+    },
+    "5270848-5": {
+        "title": "Star Trek: Progeny",
+        "region": "EC"
+    },
+    "5270848-6": {
+        "title": "Star Trek: Progeny",
+        "region": "GB"
+    },
+    "5270848-7": {
+        "title": "Star Trek: Progeny",
+        "region": "IT"
+    },
+    "5270848-8": {
+        "title": "Star Trek: Progeny",
+        "region": "SE"
+    },
+    "5270848-9": {
+        "title": "Star Trek: Progeny",
+        "region": "US"
+    },
+    "5290244-1": {
+        "title": "Star Trek: Absolution",
+        "region": null
+    },
+    "5290244-2": {
+        "title": "Star Trek: Absolution",
+        "region": "GB"
+    },
+    "5290244-3": {
+        "title": "Star Trek: Absolution",
+        "region": "US"
+    },
+    "5319740-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "5319740-2": {
+        "title": "Rome",
+        "region": "AU"
+    },
+    "5344694-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "5440758-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "5466104-1": {
+        "title": "Stargate: History Made",
+        "region": null
+    },
+    "5466104-2": {
+        "title": "Stargate: History Made",
+        "region": "US"
+    },
+    "5466636-1": {
+        "title": "Star Trek: The Next Generation #3",
+        "region": null
+    },
+    "5653718-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "5667190-1": {
+        "title": "Star Trek: Revenge",
+        "region": null
+    },
+    "5667190-3": {
+        "title": "Star Trek: Revenge",
+        "region": "GB"
+    },
+    "5741202-1": {
+        "title": "Star Trek: Deep Space 9 #1",
+        "region": null
+    },
+    "5767350-1": {
+        "title": "Star Trek: Beyond",
+        "region": null
+    },
+    "5830578-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "5830578-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "5851562-10": {
+        "title": "Star Trek: Renegades",
+        "region": "XWW"
+    },
+    "5885084-1": {
+        "title": "Star Trek: Voyager #1",
+        "region": null
+    },
+    "6032980-1": {
+        "title": "Star Trek: The Cage",
+        "region": null
+    },
+    "6051204-1": {
+        "title": "Star Trek: The Journey to the Silver Screen",
+        "region": null
+    },
+    "6051204-2": {
+        "title": "Star Trek: The Journey to the Silver Screen",
+        "region": "CA"
+    },
+    "6051204-3": {
+        "title": "Star Trek: The Journey to the Silver Screen",
+        "region": "GB"
+    },
+    "6051204-4": {
+        "title": "Star Trek: The Journey to the Silver Screen",
+        "region": "US"
+    },
+    "6111852-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "6144072-1": {
+        "title": "Star Trek: Generations\/The Swan Princess\/Miracle on 34th Street\/The Professional\/To Live",
+        "region": null
+    },
+    "6165610-1": {
+        "title": "Star Trek: First Contact\/Shine\/Jingle All the Way\/Sling Blade\/Microcosmos",
+        "region": null
+    },
+    "6169646-1": {
+        "title": "Star Trek: Generations - Beyond the Nexus",
+        "region": null
+    },
+    "6169646-2": {
+        "title": "Star Trek: Generations - Beyond the Nexus",
+        "region": "CA"
+    },
+    "6169646-3": {
+        "title": "Star Trek: Generations - Beyond the Nexus",
+        "region": "US"
+    },
+    "6176208-1": {
+        "title": "Star Trek: Insurrection\/Jack Frost\/Shakespeare in Love\/Psycho\/The General",
+        "region": null
+    },
+    "6196558-1": {
+        "title": "Star Trek: The Next Generation Cast Reunion",
+        "region": null
+    },
+    "6285008-1": {
+        "title": "Star Trek: 25th Anniversary (PC)",
+        "region": null
+    },
+    "6285552-1": {
+        "title": "Star Trek: Inside the Roddenberry Vault",
+        "region": null
+    },
+    "6285552-2": {
+        "title": "Star Trek: Inside the Roddenberry Vault",
+        "region": "GB"
+    },
+    "6285552-3": {
+        "title": "Star Trek: Inside the Roddenberry Vault",
+        "region": "US"
+    },
+    "6304602-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "6304602-2": {
+        "title": "Rome",
+        "region": "US"
+    },
+    "6364978-1": {
+        "title": "Star Trek: Discovery & Poison Ivy",
+        "region": null
+    },
+    "6418180-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "6426774-1": {
+        "title": "Star Trek: Survivor",
+        "region": null
+    },
+    "6426774-2": {
+        "title": "Star Trek: Survivor",
+        "region": "US"
+    },
+    "6437424-1": {
+        "title": "Star Trek: Generations Review",
+        "region": null
+    },
+    "6437424-2": {
+        "title": "Star Trek: Generations Review",
+        "region": "US"
+    },
+    "6437492-1": {
+        "title": "Star Trek: First Contact Review",
+        "region": null
+    },
+    "6437492-2": {
+        "title": "Star Trek: First Contact Review",
+        "region": "US"
+    },
+    "6437652-1": {
+        "title": "Star Trek: Nemesis Review",
+        "region": null
+    },
+    "6437652-2": {
+        "title": "Star Trek: Nemesis Review",
+        "region": "US"
+    },
+    "6502382-1": {
+        "title": "Star Trek: Bed, Bath & Beyond",
+        "region": null
+    },
+    "6502382-2": {
+        "title": "Star Trek: Bed, Bath & Beyond",
+        "region": "US"
+    },
+    "6550980-1": {
+        "title": "Star Trek: Alien Domain",
+        "region": null
+    },
+    "6669198-1": {
+        "title": "The Sopranos",
+        "region": null
+    },
+    "6674594-1": {
+        "title": "Star Trek: Into Darkness 3D (2013) Movie Review",
+        "region": null
+    },
+    "6699564-1": {
+        "title": "Star Trek: Five-Year Mission",
+        "region": null
+    },
+    "6700660-1": {
+        "title": "Star Trek: The Motion Picture\/Teenage Catgirls in Heat",
+        "region": null
+    },
+    "6949164-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "6990654-1": {
+        "title": "Star Trek: The Next Generation - The Transinium Challenge",
+        "region": null
+    },
+    "6990654-2": {
+        "title": "Star Trek: The Next Generation - The Transinium Challenge",
+        "region": "US"
+    },
+    "6992964-1": {
+        "title": "Star Trek: 8 Things Which Annoy Red Cynic",
+        "region": null
+    },
+    "7017416-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "7017416-2": {
+        "title": "Breaking Bad",
+        "region": "GB"
+    },
+    "7045088-1": {
+        "title": "Star Trek: Beyond\/Lights Out\/Captain Fantastic",
+        "region": null
+    },
+    "7161862-19": {
+        "title": "Stargate: Origins",
+        "region": "NL"
+    },
+    "7161862-20": {
+        "title": "Stargate: Origins",
+        "region": "XWW"
+    },
+    "7182634-1": {
+        "title": "Star Trek: Into Barkness",
+        "region": null
+    },
+    "7221330-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "7264946-1": {
+        "title": "Star Trek: The Paradise Makers",
+        "region": null
+    },
+    "7264946-2": {
+        "title": "Star Trek: The Paradise Makers",
+        "region": "US"
+    },
+    "7277162-1": {
+        "title": "Star Trek: Starship Creator",
+        "region": null
+    },
+    "7277162-3": {
+        "title": "Star Trek: Starship Creator Deluxe",
+        "region": "US"
+    },
+    "7309442-1": {
+        "title": "Star Trek: Antyllus",
+        "region": null
+    },
+    "7309462-1": {
+        "title": "Star Trek: Reliant",
+        "region": null
+    },
+    "7309462-2": {
+        "title": "Star Trek: Reliant",
+        "region": "CA"
+    },
+    "7317086-1": {
+        "title": "Star Trek: Nemesis",
+        "region": null
+    },
+    "7326872-3": {
+        "title": "Star Trek: Retribution",
+        "region": "US"
+    },
+    "7354414-1": {
+        "title": "Star Trek: The Romulan Wars",
+        "region": null
+    },
+    "7354414-2": {
+        "title": "Star Trek: The Romulan Wars",
+        "region": "IT"
+    },
+    "7354414-3": {
+        "title": "Star Trek: The Romulan Wars",
+        "region": "US"
+    },
+    "7413840-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "7423198-3": {
+        "title": "Star Trek: After Trek",
+        "region": null
+    },
+    "7427982-1": {
+        "title": "Star Trek: The Next Generation",
+        "region": null
+    },
+    "7455864-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "7517708-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "7517708-2": {
+        "title": "Rome",
+        "region": "GB"
+    },
+    "7557776-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "7754916-1": {
+        "title": "Star Trek: The Mirror Frontier",
+        "region": null
+    },
+    "7754916-2": {
+        "title": "Star Trek: The Mirror Frontier",
+        "region": "US"
+    },
+    "7840490-1": {
+        "title": "Star Trek: Bridge Crew",
+        "region": null
+    },
+    "7840490-2": {
+        "title": "Star Trek: Bridge Crew",
+        "region": "US"
+    },
+    "7885758-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "7925546-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "8027214-1": {
+        "title": "Star Trek: The Hand of Fate - Geek Card Revoked",
+        "region": null
+    },
+    "8074810-1": {
+        "title": "Star Trek: The Next Generation",
+        "region": null
+    },
+    "8267062-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "8505840-1": {
+        "title": "Deadwood",
+        "region": null
+    },
+    "8505840-2": {
+        "title": "Deadwood",
+        "region": "GB"
+    },
+    "8505840-3": {
+        "title": "Deadwood",
+        "region": "US"
+    },
+    "8534022-1": {
+        "title": "The Expanse",
+        "region": null
+    },
+    "8569026-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "8569044-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "8610868-1": {
+        "title": "Star Trek: The Ghetto Situation",
+        "region": null
+    },
+    "8610868-2": {
+        "title": "Star Trek: The Ghetto Situation",
+        "region": "US"
+    },
+    "8622160-1": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": null
+    },
+    "8622160-10": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "JP"
+    },
+    "8622160-11": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "MX"
+    },
+    "8622160-12": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "US"
+    },
+    "8622160-2": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "AU"
+    },
+    "8622160-3": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "BR"
+    },
+    "8622160-4": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "CA"
+    },
+    "8622160-5": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "DE"
+    },
+    "8622160-6": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "ES"
+    },
+    "8622160-7": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "FR"
+    },
+    "8622160-8": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "GB"
+    },
+    "8622160-9": {
+        "title": "Star Trek: Starfleet Academy",
+        "region": "IT"
+    },
+    "8628440-1": {
+        "title": "Star Trek: Starship Creator Warp 2",
+        "region": null
+    },
+    "8649510-1": {
+        "title": "Star Trek: The Ghetto Situation",
+        "region": null
+    },
+    "8649510-2": {
+        "title": "Star Trek: The Ghetto Situation",
+        "region": "US"
+    },
+    "8783548-1": {
+        "title": "Star Trek: Inspiring Culture and Technology",
+        "region": null
+    },
+    "8783548-2": {
+        "title": "Star Trek: Inspiring Culture and Technology",
+        "region": "US"
+    },
+    "8806524-1": {
+        "title": "Star Trek: Picard",
+        "region": null
+    },
+    "8806524-10": {
+        "title": "Star Trek: Picard",
+        "region": "EG"
+    },
+    "8806524-11": {
+        "title": "Star Trek: Picard",
+        "region": "ES"
+    },
+    "8806524-12": {
+        "title": "Star Trek: Picard",
+        "region": "FR"
+    },
+    "8806524-13": {
+        "title": "Star Trek: Picard",
+        "region": "GB"
+    },
+    "8806524-14": {
+        "title": "Star Trek: Picard",
+        "region": "HK"
+    },
+    "8806524-15": {
+        "title": "Star Trek: Picard",
+        "region": "ID"
+    },
+    "8806524-16": {
+        "title": "Star Trek: Picard",
+        "region": "IL"
+    },
+    "8806524-17": {
+        "title": "Star Trek: Picard",
+        "region": "IN"
+    },
+    "8806524-18": {
+        "title": "Star Trek: Picard",
+        "region": "IN"
+    },
+    "8806524-19": {
+        "title": "Star Trek: Picard",
+        "region": "IT"
+    },
+    "8806524-2": {
+        "title": "Star Trek: Picard",
+        "region": "AE"
+    },
+    "8806524-20": {
+        "title": "Star Trek: Picard",
+        "region": "JP"
+    },
+    "8806524-21": {
+        "title": "Star Trek: Picard",
+        "region": "KR"
+    },
+    "8806524-22": {
+        "title": "Star Trek: Picard",
+        "region": "MX"
+    },
+    "8806524-23": {
+        "title": "Star Trek: Picard",
+        "region": "NL"
+    },
+    "8806524-24": {
+        "title": "Star Trek: Picard",
+        "region": "PH"
+    },
+    "8806524-25": {
+        "title": "Star Trek: Picard",
+        "region": "PL"
+    },
+    "8806524-26": {
+        "title": "Star Trek: Picard",
+        "region": "SE"
+    },
+    "8806524-27": {
+        "title": "Star Trek: Picard",
+        "region": "SG"
+    },
+    "8806524-28": {
+        "title": "Star Trek: Picard",
+        "region": "TH"
+    },
+    "8806524-29": {
+        "title": "Star Trek: Picard",
+        "region": "TR"
+    },
+    "8806524-3": {
+        "title": "Star Trek: Picard",
+        "region": "AR"
+    },
+    "8806524-30": {
+        "title": "Star Trek: Picard",
+        "region": "US"
+    },
+    "8806524-31": {
+        "title": "Star Trek: Picard",
+        "region": "ZA"
+    },
+    "8806524-33": {
+        "title": "Star Trek: Captain Picard",
+        "region": "US"
+    },
+    "8806524-34": {
+        "title": "Star Trek: Destiny",
+        "region": "US"
+    },
+    "8806524-35": {
+        "title": "Star Trek: S\u1ef1 H\u1ee7y Di\u1ec7t",
+        "region": "VN"
+    },
+    "8806524-4": {
+        "title": "Star Trek: Picard",
+        "region": "AU"
+    },
+    "8806524-5": {
+        "title": "Star Trek: Picard",
+        "region": "BR"
+    },
+    "8806524-6": {
+        "title": "Star Trek: Picard",
+        "region": "CA"
+    },
+    "8806524-7": {
+        "title": "Star Trek: Picard",
+        "region": "CA"
+    },
+    "8806524-8": {
+        "title": "Star Trek: Picard",
+        "region": "DE"
+    },
+    "8806524-9": {
+        "title": "Star Trek: Picard",
+        "region": "EC"
+    },
+    "8820610-1": {
+        "title": "Star Trek: The Next Generation #4",
+        "region": null
+    },
+    "8901926-1": {
+        "title": "The Wire",
+        "region": null
+    },
+    "8901926-2": {
+        "title": "The Wire",
+        "region": "US"
+    },
+    "8959766-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "9025746-1": {
+        "title": "Star Trek: Galaxy",
+        "region": null
+    },
+    "9046084-1": {
+        "title": "Breaking Bad",
+        "region": null
+    },
+    "9059594-1": {
+        "title": "Star Trek: Short Treks",
+        "region": null
+    },
+    "9059594-10": {
+        "title": "Star Trek: Short Treks",
+        "region": "GB"
+    },
+    "9059594-11": {
+        "title": "Star Trek: Short Treks",
+        "region": "HU"
+    },
+    "9059594-12": {
+        "title": "Star Trek: Short Treks",
+        "region": "IN"
+    },
+    "9059594-13": {
+        "title": "Star Trek: Short Treks",
+        "region": "IT"
+    },
+    "9059594-14": {
+        "title": "Star Trek: Short Treks",
+        "region": "MX"
+    },
+    "9059594-15": {
+        "title": "Star Trek: Short Treks",
+        "region": "NL"
+    },
+    "9059594-16": {
+        "title": "Star Trek: Short Treks",
+        "region": "PH"
+    },
+    "9059594-17": {
+        "title": "Star Trek: Short Treks",
+        "region": "PL"
+    },
+    "9059594-18": {
+        "title": "Star Trek: Short Treks",
+        "region": "SE"
+    },
+    "9059594-19": {
+        "title": "Star Trek: Short Treks",
+        "region": "SG"
+    },
+    "9059594-2": {
+        "title": "Star Trek: Short Treks",
+        "region": "AU"
+    },
+    "9059594-20": {
+        "title": "Star Trek: Short Treks",
+        "region": "US"
+    },
+    "9059594-21": {
+        "title": "Star Trek: Short Treks",
+        "region": "ZA"
+    },
+    "9059594-25": {
+        "title": "Star Trek: Very Short Treks",
+        "region": "US"
+    },
+    "9059594-3": {
+        "title": "Star Trek: Short Treks",
+        "region": "BR"
+    },
+    "9059594-4": {
+        "title": "Star Trek: Short Treks",
+        "region": "CA"
+    },
+    "9059594-5": {
+        "title": "Star Trek: Short Treks",
+        "region": "CA"
+    },
+    "9059594-6": {
+        "title": "Star Trek: Short Treks",
+        "region": "DE"
+    },
+    "9059594-7": {
+        "title": "Star Trek: Short Treks",
+        "region": "EC"
+    },
+    "9059594-8": {
+        "title": "Star Trek: Short Treks",
+        "region": "ES"
+    },
+    "9059594-9": {
+        "title": "Star Trek: Short Treks",
+        "region": "FR"
+    },
+    "9063370-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "9149834-1": {
+        "title": "Star Trek: Secret Voyage",
+        "region": null
+    },
+    "9149834-2": {
+        "title": "Star Trek: Secret Voyage",
+        "region": "DE"
+    },
+    "9149834-3": {
+        "title": "Star Trek: Secret Voyage",
+        "region": "US"
+    },
+    "9184820-1": {
+        "title": "Star Trek: Lower Decks",
+        "region": null
+    },
+    "9184820-10": {
+        "title": "Star Trek: Lower Decks",
+        "region": "ES"
+    },
+    "9184820-11": {
+        "title": "Star Trek: Lower Decks",
+        "region": "FR"
+    },
+    "9184820-12": {
+        "title": "Star Trek: Lower Decks",
+        "region": "GB"
+    },
+    "9184820-13": {
+        "title": "Star Trek: Lower Decks",
+        "region": "HK"
+    },
+    "9184820-14": {
+        "title": "Star Trek: Lower Decks",
+        "region": "HU"
+    },
+    "9184820-15": {
+        "title": "Star Trek: Lower Decks",
+        "region": "ID"
+    },
+    "9184820-16": {
+        "title": "Star Trek: Lower Decks",
+        "region": "IL"
+    },
+    "9184820-17": {
+        "title": "Star Trek: Lower Decks",
+        "region": "IN"
+    },
+    "9184820-18": {
+        "title": "Star Trek: Lower Decks",
+        "region": "IN"
+    },
+    "9184820-19": {
+        "title": "Star Trek: Lower Decks",
+        "region": "IT"
+    },
+    "9184820-2": {
+        "title": "Star Trek: Lower Decks",
+        "region": "AE"
+    },
+    "9184820-20": {
+        "title": "Star Trek: Lower Decks",
+        "region": "KR"
+    },
+    "9184820-21": {
+        "title": "Star Trek: Lower Decks",
+        "region": "MX"
+    },
+    "9184820-22": {
+        "title": "Star Trek: Lower Decks",
+        "region": "NL"
+    },
+    "9184820-23": {
+        "title": "Star Trek: Lower Decks",
+        "region": "PH"
+    },
+    "9184820-24": {
+        "title": "Star Trek: Lower Decks",
+        "region": "PL"
+    },
+    "9184820-25": {
+        "title": "Star Trek: Lower Decks",
+        "region": "SE"
+    },
+    "9184820-26": {
+        "title": "Star Trek: Lower Decks",
+        "region": "SG"
+    },
+    "9184820-27": {
+        "title": "Star Trek: Lower Decks",
+        "region": "TH"
+    },
+    "9184820-28": {
+        "title": "Star Trek: Lower Decks",
+        "region": "TR"
+    },
+    "9184820-29": {
+        "title": "Star Trek: Lower Decks",
+        "region": "US"
+    },
+    "9184820-3": {
+        "title": "Star Trek: Lower Decks",
+        "region": "AR"
+    },
+    "9184820-30": {
+        "title": "Star Trek: Lower Decks",
+        "region": "ZA"
+    },
+    "9184820-4": {
+        "title": "Star Trek: Lower Decks",
+        "region": "AU"
+    },
+    "9184820-5": {
+        "title": "Star Trek: Lower Decks",
+        "region": "BR"
+    },
+    "9184820-6": {
+        "title": "Star Trek: Lower Decks",
+        "region": "CA"
+    },
+    "9184820-7": {
+        "title": "Star Trek: Lower Decks",
+        "region": "CA"
+    },
+    "9184820-8": {
+        "title": "Star Trek: Lower Decks",
+        "region": "DE"
+    },
+    "9184820-9": {
+        "title": "Star Trek: Lower Decks",
+        "region": "EC"
+    },
+    "9304146-1": {
+        "title": "Star Trek: The Motion Picture",
+        "region": null
+    },
+    "9489598-20": {
+        "title": "The Sopranos",
+        "region": "GB"
+    },
+    "9531080-1": {
+        "title": "Stargate: Base Gamma",
+        "region": null
+    },
+    "9531080-2": {
+        "title": "Stargate: Base Gamma",
+        "region": "AU"
+    },
+    "9531080-3": {
+        "title": "Stargate: Base Gamma",
+        "region": "BR"
+    },
+    "9531080-4": {
+        "title": "Stargate: Base Gamma",
+        "region": "FR"
+    },
+    "9531080-5": {
+        "title": "Stargate: Base Gamma",
+        "region": "GB"
+    },
+    "9531080-6": {
+        "title": "Stargate: Base Gamma",
+        "region": "US"
+    },
+    "9603060-1": {
+        "title": "Star Trek: Section 31",
+        "region": null
+    },
+    "9603060-2": {
+        "title": "Star Trek: Section 31",
+        "region": "CA"
+    },
+    "9603060-3": {
+        "title": "Star Trek: Section 31",
+        "region": "GB"
+    },
+    "9603060-4": {
+        "title": "Star Trek: Section 31",
+        "region": "US"
+    },
+    "9729080-1": {
+        "title": "Star Trek: The Motion Picture",
+        "region": null
+    },
+    "9753990-1": {
+        "title": "Star Trek: First Frontier",
+        "region": null
+    },
+    "9753990-7": {
+        "title": "Star Trek: First Frontier",
+        "region": "DE"
+    },
+    "9795876-1": {
+        "title": "Star Trek: Prodigy",
+        "region": null
+    },
+    "9795876-10": {
+        "title": "Star Trek: Prodigy",
+        "region": "ES"
+    },
+    "9795876-11": {
+        "title": "Star Trek: Prodigy",
+        "region": "FR"
+    },
+    "9795876-12": {
+        "title": "Star Trek: Prodigy",
+        "region": "GB"
+    },
+    "9795876-13": {
+        "title": "Star Trek: Prodigy",
+        "region": "HK"
+    },
+    "9795876-14": {
+        "title": "Star Trek: Prodigy",
+        "region": "ID"
+    },
+    "9795876-15": {
+        "title": "Star Trek: Prodigy",
+        "region": "IL"
+    },
+    "9795876-16": {
+        "title": "Star Trek: Prodigy",
+        "region": "IN"
+    },
+    "9795876-17": {
+        "title": "Star Trek: Prodigy",
+        "region": "IN"
+    },
+    "9795876-18": {
+        "title": "Star Trek: Prodigy",
+        "region": "IT"
+    },
+    "9795876-19": {
+        "title": "Star Trek: Prodigy",
+        "region": "JP"
+    },
+    "9795876-2": {
+        "title": "Star Trek: Prodigy",
+        "region": "AE"
+    },
+    "9795876-20": {
+        "title": "Star Trek: Prodigy",
+        "region": "KR"
+    },
+    "9795876-21": {
+        "title": "Star Trek: Prodigy",
+        "region": "MX"
+    },
+    "9795876-22": {
+        "title": "Star Trek: Prodigy",
+        "region": "NL"
+    },
+    "9795876-23": {
+        "title": "Star Trek: Prodigy",
+        "region": "PH"
+    },
+    "9795876-24": {
+        "title": "Star Trek: Prodigy",
+        "region": "PL"
+    },
+    "9795876-25": {
+        "title": "Star Trek: Prodigy",
+        "region": "SE"
+    },
+    "9795876-26": {
+        "title": "Star Trek: Prodigy",
+        "region": "SG"
+    },
+    "9795876-27": {
+        "title": "Star Trek: Prodigy",
+        "region": "TH"
+    },
+    "9795876-28": {
+        "title": "Star Trek: Prodigy",
+        "region": "TR"
+    },
+    "9795876-29": {
+        "title": "Star Trek: Prodigy",
+        "region": "US"
+    },
+    "9795876-3": {
+        "title": "Star Trek: Prodigy",
+        "region": "AU"
+    },
+    "9795876-30": {
+        "title": "Star Trek: Prodigy",
+        "region": "ZA"
+    },
+    "9795876-31": {
+        "title": "Star Trek: Protogwiazda",
+        "region": "PL"
+    },
+    "9795876-32": {
+        "title": "Star Trek: Protostar",
+        "region": "HU"
+    },
+    "9795876-4": {
+        "title": "Star Trek: Prodigy",
+        "region": "BR"
+    },
+    "9795876-5": {
+        "title": "Star Trek: Prodigy",
+        "region": "CA"
+    },
+    "9795876-6": {
+        "title": "Star Trek: Prodigy",
+        "region": "CA"
+    },
+    "9795876-7": {
+        "title": "Star Trek: Prodigy",
+        "region": "DE"
+    },
+    "9795876-8": {
+        "title": "Star Trek: Prodigy",
+        "region": "EC"
+    },
+    "9795876-9": {
+        "title": "Star Trek: Prodigy",
+        "region": "EG"
+    },
+    "9837260-1": {
+        "title": "Star Trek: Phaser Strike",
+        "region": null
+    },
+    "9837260-6": {
+        "title": "Star Trek: Phaser Strike",
+        "region": "US"
+    },
+    "9837344-1": {
+        "title": "Star Trek: The Motion Picture",
+        "region": null
+    },
+    "9837560-1": {
+        "title": "Star Trek: Adversaries",
+        "region": null
+    },
+    "9841858-1": {
+        "title": "Rome",
+        "region": null
+    },
+    "9868138-1": {
+        "title": "Star Trek: K'Ehleyr Away Team",
+        "region": null
+    },
+    "9868138-2": {
+        "title": "Star Trek: K'Ehleyr Away Team",
+        "region": "DE"
+    },
+    "9869228-1": {
+        "title": "Star Trek: Dark Horizon",
+        "region": null
+    },
+    "9869228-2": {
+        "title": "Star Trek: Dark Horizon",
+        "region": "DE"
+    },
+    "9869228-3": {
+        "title": "Star Trek: Dark Horizon",
+        "region": "US"
+    },
+    "9870502-1": {
+        "title": "Star Trek: The Infinite Chain",
+        "region": null
+    },
+    "9870502-2": {
+        "title": "Star Trek: The Infinite Chain",
+        "region": "US"
+    },
+    "9874290-1": {
+        "title": "Star Trek: Incident at Beta 9",
+        "region": null
+    },
+    "9874290-2": {
+        "title": "Star Trek: Incident at Beta 9",
+        "region": "US"
+    },
+    "9876412-1": {
+        "title": "Star Trek: The Final Darkness",
+        "region": null
+    },
+    "9876412-2": {
+        "title": "Star Trek: The Final Darkness",
+        "region": "GB"
+    },
+    "9876412-3": {
+        "title": "Star Trek: The Final Darkness",
+        "region": "US"
+    },
+    "9881050-1": {
+        "title": "Star Trek: Explorer",
+        "region": null
+    },
+    "9881050-2": {
+        "title": "Star Trek: Explorer",
+        "region": "DE"
+    },
+    "9881570-1": {
+        "title": "Star Trek: Eagle",
+        "region": null
+    },
+    "9881570-2": {
+        "title": "Star Trek: Eagle",
+        "region": "US"
+    },
+    "9887162-1": {
+        "title": "Star Trek: Euderion",
+        "region": null
+    },
+    "9887162-2": {
+        "title": "Star Trek: Euderion",
+        "region": "DE"
+    },
+    "9904298-1": {
+        "title": "Star Trek: Enterprise E",
+        "region": null
+    },
+    "9904298-2": {
+        "title": "Star Trek: Enterprise E",
+        "region": "AU"
+    },
+    "9904298-3": {
+        "title": "Star Trek: Enterprise E",
+        "region": "CA"
+    },
+    "9904298-4": {
+        "title": "Star Trek: Enterprise E",
+        "region": "DE"
+    },
+    "9904298-5": {
+        "title": "Star Trek: Enterprise E",
+        "region": "GB"
+    },
+    "9904298-6": {
+        "title": "Star Trek: Enterprise E",
+        "region": "IT"
+    },
+    "9904298-7": {
+        "title": "Star Trek: Enterprise E",
+        "region": "US"
+    }
+}
