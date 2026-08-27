@@ -9,6 +9,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
+use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -45,6 +46,7 @@ final class Fuzzer
 
         $started = hrtime(true);
         $steps = 0;
+        $crossSlotSteps = 0;
         /** @var array<string, array{count: int, replies: array<string, int>, exceptions: array<string, int>}> $results */
         $results = [];
 
@@ -78,6 +80,12 @@ final class Fuzzer
                 }
                 if ($operations === []) {
                     throw new \LogicException('An eligible command has no executable operation');
+                }
+
+                /* Decide how this command's generated keys map onto cluster
+                   hash slots before it builds any arguments. */
+                if ($arguments->beginCommand($command) === SlotPolicy::CrossSlot) {
+                    $crossSlotSteps++;
                 }
 
                 $name = $command->name();
@@ -119,6 +127,7 @@ final class Fuzzer
             array_values($registry->names()),
             $this->environment($clients),
             $configuration->jsonSerialize(),
+            $crossSlotSteps,
         );
     }
 
@@ -142,7 +151,8 @@ final class Fuzzer
             ->setMaxLen($configuration->maxLength)
             ->setMaxKeys($configuration->maxKeysPerCommand)
             ->setMaxPrefixLen($configuration->maxPrefixLength)
-            ->setWrongtype($configuration->wrongTypeChance);
+            ->setWrongtype($configuration->wrongTypeChance)
+            ->setCrossSlot($configuration->crossSlotChance);
     }
 
     private function withinLimits(int $steps, int $started, RunConfiguration $configuration): bool

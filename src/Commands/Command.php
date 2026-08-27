@@ -30,6 +30,11 @@ abstract class Command implements HasWeight {
     public const LOCAL        = (1 << 15);
     public const CRASH        = (1 << 16);
 
+    /* The client (not the server) splits this command across cluster nodes by
+     * key slot, so generated keys are allowed to span slots.  See
+     * SlotPolicy and FuzzConfig::beginStep(). */
+    public const CROSSSLOT    = (1 << 17);
+
     public const STRING = 'string';
     public const INT    = 'int';
     public const FLOAT  = 'float';
@@ -112,6 +117,7 @@ abstract class Command implements HasWeight {
             'scan'         => self::SCAN,
             'local'        => self::LOCAL,
             'crash'        => self::CRASH,
+            'crossslot'    => self::CROSSSLOT,
             default        => 0
         };
     }

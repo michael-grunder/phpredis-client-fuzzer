@@ -22,6 +22,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public int $maxKeysPerCommand = 10,
         public int $maxPrefixLength = 0,
         public float $wrongTypeChance = 0.0,
+        public float $crossSlotChance = 0.0,
         public array $commands = [],
         public array $weights = [],
         public bool $raw = false,
@@ -50,6 +51,9 @@ final readonly class RunConfiguration implements \JsonSerializable
         if ($wrongTypeChance < 0.0 || $wrongTypeChance > 1.0) {
             throw new \InvalidArgumentException('wrongTypeChance must be between 0 and 1');
         }
+        if ($crossSlotChance < 0.0 || $crossSlotChance > 1.0) {
+            throw new \InvalidArgumentException('crossSlotChance must be between 0 and 1');
+        }
         foreach ($weights as $name => $weight) {
             if ($name === '' || $weight < 0.0) {
                 throw new \InvalidArgumentException('Weights require a name and a non-negative value');
@@ -72,6 +76,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'maxKeysPerCommand' => $this->maxKeysPerCommand,
             'maxPrefixLength' => $this->maxPrefixLength,
             'wrongTypeChance' => $this->wrongTypeChance,
+            'crossSlotChance' => $this->crossSlotChance,
             'commands' => $this->commands,
             'weights' => $this->weights,
             'raw' => $this->raw,

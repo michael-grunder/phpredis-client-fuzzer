@@ -17,7 +17,9 @@ class del extends VarKeyCommand {
     }
 
     public function flags(): int {
-        return Command::WRITE | Command::DELETE | self::INVALIDATING;
+        /* PhpRedis and Relay split DEL across cluster nodes by slot */
+        return Command::WRITE | Command::DELETE | self::INVALIDATING |
+               self::CROSSSLOT;
     }
 
     protected function takesArray(): bool {

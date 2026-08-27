@@ -18,7 +18,7 @@ final class Application
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
-        'wrongtype-chance', 'script-log',
+        'wrongtype-chance', 'crossslot-chance', 'script-log',
     ];
 
     private const FLAG_OPTIONS = [
@@ -89,6 +89,7 @@ final class Application
                 maxKeysPerCommand: $this->integer($options, 'max-command-keys', 10),
                 maxPrefixLength: $this->integer($options, 'max-prefix-length', 0),
                 wrongTypeChance: $this->number($options, 'wrongtype-chance', 0.0),
+                crossSlotChance: $this->number($options, 'crossslot-chance', 0.0),
                 commands: $this->csv($this->string($options, 'commands', '')),
                 weights: $this->weights($options['weight'] ?? []),
                 raw: isset($options['raw']),
@@ -288,7 +289,10 @@ Run configuration:
   --max-length=N             Maximum generated string length (default: 32)
   --max-command-keys=N       Maximum keys in one command (default: 10)
   --max-prefix-length=N      Maximum random prefix length (default: 0)
-  --wrongtype-chance=N       Probability from 0 to 1 (default: 0)
+  --wrongtype-chance=N       Probability from 0 to 1 of using a wrong key type (default: 0)
+  --crossslot-chance=N       Probability from 0 to 1 that a single-slot command
+                             gets keys in different cluster slots, forcing a
+                             CROSSSLOT error (cluster only, default: 0)
   --script-log=FILE          Write an executable PHP reproduction script
   --raw                      Enable raw-protocol command paths
   --include-blocking         Enable blocking commands

@@ -204,6 +204,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `maxKeysPerCommand` | `10` | Maximum generated keys for multi-key commands |
 | `maxPrefixLength` | `0` | Maximum randomized client prefix length; `0` disables |
 | `wrongTypeChance` | `0.0` | Chance from `0.0` to `1.0` of selecting a wrong key type |
+| `crossSlotChance` | `0.0` | Chance from `0.0` to `1.0` of forcing a `CROSSSLOT` error; cluster only |
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `weights` | `[]` | Command or flag weights |
 | `raw` | `false` | Enable raw-protocol paths and raw commands |
@@ -225,9 +226,9 @@ Command filters are case-insensitive:
 - Positive filters are ORed, then negative filters are removed.
 
 Supported flags are `read`, `write`, `delete`, `flush`, `blocking`, `cached`,
-`invalidating`, `expire`, `raw`, `select`, `admin`, `scan`, `local`, and
-`crash`. Safety category switches are applied after name filters, so explicitly
-naming `flushall` still requires `includeFlush: true`.
+`invalidating`, `expire`, `raw`, `select`, `admin`, `scan`, `local`, `crash`,
+and `crossslot`. Safety category switches are applied after name filters, so
+explicitly naming `flushall` still requires `includeFlush: true`.
 
 Weights use command names or flags:
 
@@ -241,6 +242,110 @@ $configuration = new RunConfiguration(
     ],
 );
 ```
+
+## Cluster hash slots and `crossSlotChance`
+
+### The mechanism
+
+Generated cluster keys carry a hash tag, so the tag alone decides the slot:
+
+```
+string:{7}:42
+       ^^^ only this is hashed to a slot
+```
+
+Redis rejects a multi-key command whose keys live in different slots with
+`CROSSSLOT Keys in request don't hash to the same slot`, so a fuzzer that
+scattered keys at random would spend most of its cluster budget getting that
+one error back instead of exercising real command paths.
+
+The fuzzer therefore opens a *slot scope* for each step, before the selected
+command builds any arguments, and every key generated inside that step follows
+one policy (`Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy`):
+
+| Policy | Applies to | Generated keys |
+| --- | --- | --- |
+| `SameSlot` | commands Redis requires to be single-slot | share one random hash tag |
+| `Unconstrained` | commands flagged `Command::CROSSSLOT` | each picks its own random tag |
+| `CrossSlot` | a single-slot command that lost the `crossSlotChance` roll | rotate through distinct tags |
+
+`Command::CROSSSLOT` marks the commands PhpRedis and Relay split across cluster
+nodes by slot themselves, rather than handing straight to one node: `DEL`,
+`MGET`, `MSET`, `MSETNX`, and `UNLINK`. Those five are deliberately given
+mixed-slot key sets, because the per-node splitting and reply-reassembly code
+is the interesting target. Every other multi-key command stays inside a single
+slot by default. Select them with the `@crossslot` filter:
+
+```bash
+bin/phpredis-fuzz --client=redis-cluster --seeds=127.0.0.1:7000 --commands=@crossslot
+```
+
+The scope is opened by the runner, so an embedded caller driving commands
+directly should call `FuzzConfig::beginCommand($command)` once per command to
+get the same behavior. Without it every key picks its own tag
+(`Unconstrained`), which is the pre-existing behavior.
+
+Hash tags come from the `shards` setting: `shards: 16` means keys are spread
+over 16 distinct tags. It is a *tag* count, not a count of cluster nodes; the
+cluster maps those tags onto however many nodes it has.
+
+### Tuning the knob
+
+`crossSlotChance` is the probability that a single-slot command is deliberately
+handed keys in different slots anyway, which makes the server return
+`CROSSSLOT`. The point is the client-side cleanup path after a partially built
+multi-node command fails — rarely hit in normal use, and a good place for leaks
+and dangling state.
+
+It behaves like `wrongTypeChance`: a float from `0.0` to `1.0`, rolled once per
+step, and out-of-range values are clamped by `FuzzConfig::setCrossSlot()`
+(`RunConfiguration` rejects them outright instead).
+
+```php
+$configuration = new RunConfiguration(
+    maxSteps: 100000,
+    crossSlotChance: 0.05,
+);
+```
+
+```bash
+bin/phpredis-fuzz --client=redis-cluster --seeds=127.0.0.1:7000 \
+    --crossslot-chance=0.05 --steps=100000
+```
+
+Guidance for choosing a value:
+
+- `0.0` (default) — no forced errors. Use for throughput runs and whenever the
+  target is not a cluster.
+- `0.01` to `0.05` — a normal mixed run. Most steps still do real work, and
+  error handling gets exercised steadily over a long run.
+- `0.1` to `0.25` — leak hunting under Valgrind or ASan, or reproducing a
+  suspected cleanup bug. Expect a large share of replies to be errors.
+- `1.0` — every multi-key single-slot command errors. Useful only with a narrow
+  `commands` filter to isolate one command's failure path.
+
+Two settings interact with it:
+
+- `crossSlotChance` only has an effect when a cluster client is in the run and
+  `shards` is greater than `1`. A single shard cannot produce two slots, and in
+  standalone runs the roll is skipped entirely.
+- `maxKeysPerCommand` sets how many keys a scattered command spreads over. When
+  it exceeds `shards`, the rotation wraps and reuses tags; the command still
+  spans several slots and still errors.
+
+The result reports how often the roll actually fired, so a run can be checked
+against the configured rate:
+
+```json
+{
+    "steps": 100000,
+    "cross_slot_steps": 4983
+}
+```
+
+Note that this counts steps *selected* for scattering. Commands taking a single
+key produce a valid request regardless, so the number of `CROSSSLOT` errors
+returned is lower than this count.
 
 The runner seeds PHP's process-global Mersenne Twister because the extracted
 command implementations use `rand()`/`mt_rand()`. The selected seed and concrete

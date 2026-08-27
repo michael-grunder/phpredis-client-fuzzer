@@ -76,6 +76,7 @@ final class FuzzerEndpoint
             maxKeysPerCommand: $this->configuration->maxKeysPerCommand,
             maxPrefixLength: $this->configuration->maxPrefixLength,
             wrongTypeChance: $this->configuration->wrongTypeChance,
+            crossSlotChance: $this->configuration->crossSlotChance,
             commands: $commands,
             weights: $this->configuration->weights,
             raw: $this->configuration->raw,

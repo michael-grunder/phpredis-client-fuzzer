@@ -22,6 +22,7 @@ final readonly class FuzzResult implements \JsonSerializable
         public array $selectedCommands,
         public array $environment,
         public array $configuration,
+        public int $crossSlotSteps = 0,
     ) {
     }
 
@@ -31,6 +32,7 @@ final readonly class FuzzResult implements \JsonSerializable
         return [
             'seed' => $this->seed,
             'steps' => $this->steps,
+            'cross_slot_steps' => $this->crossSlotSteps,
             'elapsed_seconds' => $this->elapsedSeconds,
             'selected_commands' => $this->selectedCommands,
             'environment' => $this->environment,

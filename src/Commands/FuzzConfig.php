@@ -43,8 +43,15 @@ class FuzzConfig {
     private int $expire_min     =      1;
     private int $expire_max     =   1000;
     private float $wrongtype    =    0.0;
+    private float $crossslot    =    0.0;
 
     private int $databases = 16;
+
+    /* Slot scope for the command currently generating arguments.  See
+       beginStep() for how these are chosen and what they mean. */
+    private SlotPolicy $slot_policy = SlotPolicy::Unconstrained;
+    private int $slot_tag = 0;
+    private int $slot_cursor = 0;
 
     protected function serializerEnabled(Redis|RedisCluster|Relay|Cluster $client): bool {
         return $client->getOption(Redis::OPT_SERIALIZER) !== Redis::SERIALIZER_NONE;
@@ -152,6 +159,55 @@ class FuzzConfig {
         return $this;
     }
 
+    /**
+     * Probability (0 to 1) that a command Redis requires to be single-slot is
+     * instead handed keys in distinct slots, forcing a CROSSSLOT error.  Only
+     * meaningful for cluster clients with more than one shard.
+     */
+    public function setCrossSlot(float $chance): self {
+        if ($chance < 0.0)
+            $chance = 0.0;
+        else if ($chance > 1.0)
+            $chance = 1.0;
+
+        $this->crossslot = $chance;
+        return $this;
+    }
+
+    /**
+     * Open a key-generation scope for one command and pick how its keys are
+     * spread over cluster hash slots.
+     *
+     * Call this once before a command builds its arguments.  Until it is
+     * called (or when generating keys outside of a command) each key picks its
+     * own random tag, which is what SlotPolicy::Unconstrained does.
+     */
+    public function beginCommand(Command $command): SlotPolicy {
+        return $this->beginStep(($command->flags() & Command::CROSSSLOT) !== 0);
+    }
+
+    /**
+     * @param bool $crossslot_capable True when the *client* splits the command
+     *                                across nodes by slot, so mixed-slot keys
+     *                                are valid input rather than an error.
+     */
+    public function beginStep(bool $crossslot_capable): SlotPolicy {
+        $this->slot_tag = rand() % $this->shards;
+        $this->slot_cursor = 0;
+
+        $this->slot_policy = match (true) {
+            $crossslot_capable => SlotPolicy::Unconstrained,
+            $this->cluster && $this->pctChance($this->crossslot) => SlotPolicy::CrossSlot,
+            default => SlotPolicy::SameSlot,
+        };
+
+        return $this->slot_policy;
+    }
+
+    public function slotPolicy(): SlotPolicy {
+        return $this->slot_policy;
+    }
+
     public function getCmdMaxKeys(): int {
         return $this->cmd_max_keys;
     }
@@ -237,11 +293,22 @@ class FuzzConfig {
         return (mt_rand() / mt_getrandmax()) < $chance;
     }
 
+    /* Hash tag for the next generated key, honoring the active slot scope.
+       CrossSlot walks distinct tags so a key set genuinely spans slots instead
+       of colliding on one by chance. */
+    private function nextShard(): int {
+        return match ($this->slot_policy) {
+            SlotPolicy::SameSlot      => $this->slot_tag,
+            SlotPolicy::CrossSlot     => ($this->slot_tag + $this->slot_cursor++) % $this->shards,
+            SlotPolicy::Unconstrained => rand() % $this->shards,
+        };
+    }
+
     public function getRandomKey(string $type, ?int $shard = null): string {
         if ($type == Command::ANY || $this->pctChance($this->wrongtype))
             $type = $this->getRandomType();
 
-        $shard ??= rand() % $this->shards;
+        $shard ??= $this->nextShard();
 
         return $this->getKey($type, $shard, rand(0, $this->keys - 1));
     }

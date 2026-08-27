@@ -68,6 +68,12 @@ applicable flags. In particular, mark blocking, local, raw, admin, flush, and
 deliberately crashing commands accurately because these flags enforce default
 safety gates.
 
+Set `Command::CROSSSLOT` only on commands the clients themselves split across
+cluster nodes by key slot (currently `DEL`, `MGET`, `MSET`, `MSETNX`, and
+`UNLINK`). The flag relaxes the single-slot key generation in
+`FuzzConfig::beginStep()`, so marking a command that Redis actually requires to
+be single-slot turns its steps into permanent `CROSSSLOT` errors.
+
 Implement the applicable surfaces:
 
 - `FuzzInterface` for normal client methods
