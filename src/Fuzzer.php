@@ -153,7 +153,12 @@ final class Fuzzer
             $crossSlotSteps,
             $commandWarnings,
             $caughtDiagnostic,
-            (new ProblematicCommandDetector())->detect($results, $falseReplyClients, $serverCommands),
+            (new ProblematicCommandDetector())->detect(
+                $results,
+                $falseReplyClients,
+                $serverCommands,
+                $registry,
+            ),
         );
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
+use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
 use Mgrunder\PhpredisCommandFuzzer\ProblematicCommandDetector;
 use PHPUnit\Framework\TestCase;
 
@@ -23,6 +24,7 @@ final class ProblematicCommandDetectorTest extends TestCase
                 $results,
                 ['get' => [10 => true], 'set' => [10 => true]],
                 [10 => ServerCommands::fromNames(['get', 'set'])],
+                new Registry(),
             ),
         );
     }
@@ -38,6 +40,7 @@ final class ProblematicCommandDetectorTest extends TestCase
                 10 => ServerCommands::fromNames(['delex']),
                 20 => ServerCommands::fromNames(['get']),
             ],
+            new Registry(),
         ));
     }
 
@@ -49,6 +52,7 @@ final class ProblematicCommandDetectorTest extends TestCase
             $results,
             ['get' => [10 => true]],
             [10 => null],
+            new Registry(),
         ));
     }
 
@@ -66,7 +70,23 @@ final class ProblematicCommandDetectorTest extends TestCase
             $results,
             $clients,
             [10 => ServerCommands::fromNames(array_keys($results))],
+            new Registry(),
         ));
+    }
+
+    public function testResolvesCommandsByTheirExposedNames(): void
+    {
+        $results = $this->results(['echo' => ['false' => 1]]);
+
+        self::assertSame(
+            ['echo' => ['executions' => 1, 'false_replies' => 1]],
+            (new ProblematicCommandDetector())->detect(
+                $results,
+                ['echo' => [10 => true]],
+                [10 => ServerCommands::fromNames(['echo'])],
+                new Registry(),
+            ),
+        );
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer;
 
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
 use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
 
 /** @internal */
@@ -20,17 +21,23 @@ final class ProblematicCommandDetector
         array $results,
         array $falseReplyClients,
         array $serverCommands,
+        Registry $registry,
     ): array {
         $problematic = [];
         foreach ($results as $name => $statistics) {
-            /* False is a documented terminal reply for the cursor-based scan
-               APIs, so executing them still counts as useful reply coverage. */
-            if ((Command::object($name)->flags() & Command::SCAN) !== 0) {
+            if ($statistics['replies'] === []
+                || array_keys($statistics['replies']) !== ['false']) {
                 continue;
             }
 
-            if ($statistics['replies'] === []
-                || array_keys($statistics['replies']) !== ['false']) {
+            $command = $registry->get($name);
+            if ($command === null) {
+                throw new \LogicException("Result command is missing from registry: {$name}");
+            }
+
+            /* False is a documented terminal reply for the cursor-based scan
+               APIs, so executing them still counts as useful reply coverage. */
+            if (($command->flags() & Command::SCAN) !== 0) {
                 continue;
             }
 
