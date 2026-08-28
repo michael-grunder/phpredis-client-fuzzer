@@ -9,6 +9,7 @@ use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
+use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
 
@@ -72,11 +73,24 @@ final class Application
                 ? [$username, $password]
                 : $password;
 
+            // Resolve the seed before anything random so that "pick a setting
+            // for me" options are reproducible along with the command stream.
+            // Fuzzer::run() re-seeds with the same value, so a run that chooses
+            // its settings randomly executes the same commands as one given
+            // those settings by name.
+            $seed = $options->optionalInteger('seed') ?? random_int(0, PHP_INT_MAX);
+            mt_srand($seed);
+
             $relayCluster = new RelayClusterOptions(
-                failover: $options->nullableString('relay-failover'),
-                distribute: $options->nullableString('relay-distribute'),
+                failover: $this->choice($options, 'relay-failover', OptionChoices::relayFailover(), 'failover'),
+                distribute: $this->choice($options, 'relay-distribute', OptionChoices::relayDistribute(), 'distribute'),
                 nodeReadTimeout: $options->optionalNumber('relay-node-read-timeout'),
-                multikeyReordering: $options->nullableString('relay-multikey-reordering'),
+                multikeyReordering: $this->choice(
+                    $options,
+                    'relay-multikey-reordering',
+                    OptionChoices::relayMultikeyReordering(),
+                    'multikey reordering',
+                ),
             );
 
             if (!$relayCluster->isEmpty() && !in_array(ClientType::RelayCluster, $clientTypes, true)) {
@@ -84,6 +98,17 @@ final class Application
                     'The --relay-* cluster options require --client=relay-cluster',
                 );
             }
+
+            $serializer = OptionChoices::resolve(
+                $options->string('serializer', 'none'),
+                OptionChoices::SERIALIZER,
+                'serializer',
+            );
+            $compression = OptionChoices::resolve(
+                $options->string('compression', 'none'),
+                OptionChoices::COMPRESSION,
+                'compression',
+            );
 
             $factory = new ClientFactory();
             $clients = [];
@@ -97,8 +122,8 @@ final class Application
                     readTimeout: $options->number('read-timeout', 1.0),
                     auth: $auth,
                     prefix: $options->string('prefix', ''),
-                    serializer: $options->string('serializer', 'none'),
-                    compression: $options->string('compression', 'none'),
+                    serializer: $serializer,
+                    compression: $compression,
                     relayCompatibility: !$options->has('no-relay-compatibility'),
                     relayCluster: $type === ClientType::RelayCluster
                         ? $relayCluster
@@ -110,7 +135,7 @@ final class Application
             $result = (new Fuzzer())->run($clients, new RunConfiguration(
                 maxSteps: $options->integer('steps', 100),
                 maxSeconds: $options->number('seconds', 0.0),
-                seed: $options->optionalInteger('seed'),
+                seed: $seed,
                 keys: $options->integer('keys', 100),
                 shards: $options->integer('shards', 16),
                 members: $options->integer('members', 10),
@@ -158,6 +183,19 @@ final class Application
     }
 
     /**
+     * Reads an optional value option that names one of a fixed set of
+     * settings, expanding the random sentinel into a concrete name.
+     *
+     * @param array<string, string> $choices Setting name to constant.
+     */
+    private function choice(Options $options, string $name, array $choices, string $kind): ?string
+    {
+        $value = $options->nullableString($name);
+
+        return $value === null ? null : OptionChoices::resolve($value, $choices, $kind);
+    }
+
+    /**
      * @param list<string> $values
      * @return array<string, float>
      */
@@ -194,22 +232,25 @@ Clients and connection:
   --password=PASS            Password
   --timeout=SECONDS          Connect timeout (default: 1)
   --read-timeout=SECONDS     Read timeout (default: 1)
-  --serializer=NAME          none, php, igbinary, msgpack, json
-  --compression=NAME         none, lzf, zstd, lz4
+  --serializer=NAME          none, php, igbinary, msgpack, json, or random
+  --compression=NAME         none, lzf, zstd, lz4, or random
   --prefix=PREFIX            Client key prefix
   --no-relay-compatibility   Disable Relay PhpRedis compatibility
 
 Relay cluster options (relay-cluster only; each is verified via setOption()):
   --relay-failover=MODE      Cluster::OPT_FAILOVER retry strategy:
-                             none, primary, random_replica, replicas, all
+                             none, primary, random_replica, replicas, all,
+                             or random
   --relay-distribute=MODE    Cluster::OPT_DISTRIBUTE readonly distribution:
-                             none, random, random_replica, replicas, all
+                             none, random, random_replica, replicas, all;
+                             use any to choose a mode at random, since random
+                             is itself a distribution mode
   --relay-node-read-timeout=SECONDS
                              Cluster::OPT_NODE_READ_TIMEOUT per-node read
                              timeout override; 0 disables the override
   --relay-multikey-reordering=MODE
                              Cluster::OPT_MULTIKEY_REORDERING slot grouping:
-                             none, reads, writes, all
+                             none, reads, writes, all, or random
 
 Run configuration:
   --steps=N                  Maximum executed operations (default: 100)
@@ -240,6 +281,13 @@ Run configuration:
   --include-crashing         Enable deliberately process-crashing commands
   --verbose                  Log command execution to stderr
   --help                     Show this help without connecting to Redis
+
+Choosing a setting at random:
+  Options with a fixed list of values also accept random (or any, which never
+  collides with a value named random). One supported value is picked before
+  the run using the same seed as the workload, so repeating the run with the
+  reported --seed reproduces both the chosen settings and the commands. Values
+  the loaded extension does not support are never picked.
 
 The target is mutated. Use only an explicitly selected disposable Redis instance.
 HELP;

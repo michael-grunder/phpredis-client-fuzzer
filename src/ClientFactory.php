@@ -79,23 +79,12 @@ final class ClientFactory
 
     private function serializer(string $name): int
     {
-        return $this->namedConstant($name, [
-            'none' => 'Redis::SERIALIZER_NONE',
-            'php' => 'Redis::SERIALIZER_PHP',
-            'igbinary' => 'Redis::SERIALIZER_IGBINARY',
-            'msgpack' => 'Redis::SERIALIZER_MSGPACK',
-            'json' => 'Redis::SERIALIZER_JSON',
-        ], 'serializer');
+        return $this->namedConstant($name, OptionChoices::SERIALIZER, 'serializer');
     }
 
     private function compression(string $name): int
     {
-        return $this->namedConstant($name, [
-            'none' => 'Redis::COMPRESSION_NONE',
-            'lzf' => 'Redis::COMPRESSION_LZF',
-            'zstd' => 'Redis::COMPRESSION_ZSTD',
-            'lz4' => 'Redis::COMPRESSION_LZ4',
-        ], 'compression');
+        return $this->namedConstant($name, OptionChoices::COMPRESSION, 'compression');
     }
 
     /** @param array<string, string> $constants */

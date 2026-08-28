@@ -111,6 +111,39 @@ vendor/bin/phpredis-fuzz \
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
 
+### Choosing a setting at random
+
+Options with a fixed list of values also accept `random`, which picks one of
+the values that the loaded extensions actually support:
+
+| Option | Values |
+| --- | --- |
+| `--serializer` | `none`, `php`, `igbinary`, `msgpack`, `json` |
+| `--compression` | `none`, `lzf`, `zstd`, `lz4` |
+| `--relay-failover` | `none`, `primary`, `random_replica`, `replicas`, `all` |
+| `--relay-distribute` | `none`, `random`, `random_replica`, `replicas`, `all` |
+| `--relay-multikey-reordering` | `none`, `reads`, `writes`, `all` |
+
+`any` is a synonym for `random` and is the form to use with
+`--relay-distribute`, where `random` is itself a distribution mode and keeps
+its literal meaning.
+
+The choice is made from the run's seed before any client is created, so the
+same `--seed` selects the same settings and the same command stream:
+
+```bash
+# Reproducible: both runs pick the same serializer and compressor
+vendor/bin/phpredis-fuzz --serializer=random --compression=random --seed=123456
+
+# The generated seed is reported in the result; re-run with it to reproduce
+vendor/bin/phpredis-fuzz --serializer=random --steps=500
+```
+
+The selected values are reported under `environment.clients[]` in the JSON
+output. A value whose extension constant the loaded build does not define, such
+as `igbinary` without igbinary support, is never picked; naming it explicitly
+still fails the run.
+
 Use `--output=json` (the default) for the complete machine-readable report,
 including the seed, PHP/client versions, client classes and topology, effective
 configuration, elapsed time, selected commands, reply-type counts, captured PHP
@@ -298,6 +331,10 @@ $cluster = (new ClientFactory())->create(new ClientConfiguration(
 | `distribute` | `Cluster::OPT_DISTRIBUTE` | `none`, `random`, `random_replica`, `replicas`, `all` |
 | `nodeReadTimeout` | `Cluster::OPT_NODE_READ_TIMEOUT` | Seconds; `0.0` disables the override |
 | `multikeyReordering` | `Cluster::OPT_MULTIKEY_REORDERING` | `none`, `reads`, `writes`, `all` |
+
+`RelayClusterOptions` takes concrete mode names only. The CLI expands `random`
+and `any` into a mode before constructing it; in-process callers that want the
+same behavior can call `OptionChoices::resolve()` after seeding `mt_srand()`.
 
 Each option is applied with `setOption()` and the return value is checked, so a
 Relay build that does not understand an option fails the run instead of leaving
