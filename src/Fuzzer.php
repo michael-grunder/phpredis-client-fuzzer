@@ -10,6 +10,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
 use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
+use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -23,6 +24,7 @@ final class Fuzzer
     public function run(array $clients, RunConfiguration $configuration = new RunConfiguration()): FuzzResult
     {
         $clients = $this->normalizeClients($clients);
+        $serverCommands = $this->serverCommands($clients);
 
         $seed = $configuration->seed ?? random_int(0, PHP_INT_MAX);
         mt_srand($seed);
@@ -49,6 +51,8 @@ final class Fuzzer
         $crossSlotSteps = 0;
         /** @var array<string, array{count: int, replies: array<string, int>, exceptions: array<string, int>}> $results */
         $results = [];
+        /** @var array<string, array<int, true>> $falseReplyClients */
+        $falseReplyClients = [];
 
         $scriptLogging = $configuration->scriptLog !== null;
         if ($scriptLogging) {
@@ -107,6 +111,9 @@ final class Fuzzer
                     }
                     $type = $this->replyType($reply);
                     $results[$name]['replies'][$type] = ($results[$name]['replies'][$type] ?? 0) + 1;
+                    if ($reply === false) {
+                        $falseReplyClients[$name][spl_object_id($client)] = true;
+                    }
                 } catch (\Throwable $throwable) {
                     $exception = $throwable::class . ': ' . $throwable->getMessage();
                     $results[$name]['exceptions'][$exception] = ($results[$name]['exceptions'][$exception] ?? 0) + 1;
@@ -146,7 +153,30 @@ final class Fuzzer
             $crossSlotSteps,
             $commandWarnings,
             $caughtDiagnostic,
+            (new ProblematicCommandDetector())->detect($results, $falseReplyClients, $serverCommands),
         );
+    }
+
+    /**
+     * Read server capabilities without using them to filter the workload. A
+     * failed lookup leaves that client's false-only commands unclassified
+     * rather than risking a false positive.
+     *
+     * @param non-empty-list<Redis|RedisCluster|Relay|Cluster> $clients
+     * @return array<int, ServerCommands|null>
+     */
+    private function serverCommands(array $clients): array
+    {
+        $commands = [];
+        foreach ($clients as $client) {
+            try {
+                $commands[spl_object_id($client)] = ServerCommands::fromClient($client);
+            } catch (\Throwable) {
+                $commands[spl_object_id($client)] = null;
+            }
+        }
+
+        return $commands;
     }
 
     private function matchesCatch(string $diagnostic, ?string $search): bool

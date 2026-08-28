@@ -28,7 +28,9 @@ final readonly class ServerCommands
      */
     public static function fromClient(Redis|RedisCluster|Relay|Cluster $client): self
     {
-        $reply = $client->rawCommand('command');
+        $reply = $client instanceof RedisCluster || $client instanceof Cluster
+            ? $client->rawCommand('phpredis-command-fuzzer:command-table', 'command')
+            : $client->rawCommand('command');
         if (!is_array($reply) || $reply === []) {
             throw new \RuntimeException('The server returned no COMMAND output');
         }

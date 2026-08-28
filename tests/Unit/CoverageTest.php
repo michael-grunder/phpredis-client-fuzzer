@@ -32,6 +32,35 @@ final class CoverageTest extends TestCase
         self::assertSame($rows->names, $flat->names);
     }
 
+    public function testServerCommandsRoutesClusterRawCommandThroughAKey(): void
+    {
+        $client = new class extends \RedisCluster {
+            /** @var list<mixed> */
+            public array $arguments = [];
+
+            public function __construct()
+            {
+            }
+
+            /** @param array<mixed>|string $keyOrAddress */
+            public function rawCommand(array|string $keyOrAddress, string $command, mixed ...$args): mixed
+            {
+                $this->arguments = [$keyOrAddress, $command];
+                foreach ($args as $arg) {
+                    $this->arguments[] = $arg;
+                }
+
+                return [['get']];
+            }
+        };
+
+        self::assertSame(['get'], ServerCommands::fromClient($client)->names);
+        self::assertSame(
+            ['phpredis-command-fuzzer:command-table', 'command'],
+            $client->arguments,
+        );
+    }
+
     public function testServerCommandsRejectsMalformedReplies(): void
     {
         $this->expectException(\UnexpectedValueException::class);

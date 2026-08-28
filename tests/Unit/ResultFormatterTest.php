@@ -28,6 +28,7 @@ final class ResultFormatterTest extends TestCase
             'environment',
             'configuration',
             'commands',
+            'problematic_commands',
             'warnings',
             'caught_diagnostic',
         ], array_keys($result->jsonSerialize()));
@@ -42,6 +43,7 @@ final class ResultFormatterTest extends TestCase
         self::assertStringContainsString('Warnings:                 2 (1 unique)', $output);
         self::assertStringContainsString('Exceptions:               2 (1 unique)', $output);
         self::assertStringNotContainsString('Per-command results', $output);
+        self::assertStringNotContainsString('Problematic commands', $output);
         self::assertStringNotContainsString('bad warning', $output);
     }
 
@@ -51,9 +53,14 @@ final class ResultFormatterTest extends TestCase
 
         self::assertStringContainsString('Per-command results', $output);
         self::assertMatchesRegularExpression('/get\s+3\s+string: 3\s+2\s+0/', $output);
-        self::assertMatchesRegularExpression('/set\s+2\s+true: 1\s+0\s+2/', $output);
+        self::assertMatchesRegularExpression('/set\s+2\s+false: 1\s+0\s+2/', $output);
         self::assertStringContainsString('warning x2: PHP Warning: bad warning', $output);
         self::assertStringContainsString('exception x2: RuntimeException: broken', $output);
+        self::assertStringContainsString(
+            'Problematic commands (server-supported commands with only false replies)',
+            $output,
+        );
+        self::assertStringContainsString('set: 2 executed, 1 false reply', $output);
     }
 
     public function testOutputModeRejectsUnknownValues(): void
@@ -73,7 +80,7 @@ final class ResultFormatterTest extends TestCase
             commands: [
                 'set' => [
                     'count' => 2,
-                    'replies' => ['true' => 1],
+                    'replies' => ['false' => 1],
                     'exceptions' => ['RuntimeException: broken' => 2],
                 ],
                 'get' => [
@@ -89,6 +96,9 @@ final class ResultFormatterTest extends TestCase
             crossSlotSteps: 0,
             commandWarnings: ['get' => ['PHP Warning: bad warning' => 2]],
             caughtDiagnostic: 'RuntimeException: broken',
+            problematicCommands: [
+                'set' => ['executions' => 2, 'false_replies' => 1],
+            ],
         );
     }
 }

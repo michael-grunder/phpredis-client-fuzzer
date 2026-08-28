@@ -48,6 +48,31 @@ final class FuzzerTest extends TestCase
         self::assertSame(\Redis::class, $client['class'] ?? null);
     }
 
+    public function testFalseOnlyUnsupportedCommandIsExecutedButNotProblematic(): void
+    {
+        $result = (new Fuzzer())->run(
+            [$this->falseGetClient(false)],
+            new RunConfiguration(maxSteps: 3, seed: 42, commands: ['get']),
+        );
+
+        self::assertSame(3, $result->commands['get']['count']);
+        self::assertSame(['false' => 3], $result->commands['get']['replies']);
+        self::assertSame([], $result->problematicCommands);
+    }
+
+    public function testFalseOnlyServerSupportedCommandIsProblematic(): void
+    {
+        $result = (new Fuzzer())->run(
+            [$this->falseGetClient(true)],
+            new RunConfiguration(maxSteps: 3, seed: 42, commands: ['get']),
+        );
+
+        self::assertSame(
+            ['get' => ['executions' => 3, 'false_replies' => 3]],
+            $result->problematicCommands,
+        );
+    }
+
     public function testCatchPatternStopsAfterAMatchingWarning(): void
     {
         $errorReporting = error_reporting(E_ALL);
@@ -106,5 +131,44 @@ final class FuzzerTest extends TestCase
             ['RuntimeException: Special exception to catch' => 1],
             $result->commands['isconnected']['exceptions'],
         );
+    }
+
+    private function falseGetClient(bool $supportsGet): \Redis
+    {
+        return new class ($supportsGet) extends \Redis {
+            public function __construct(private bool $supportsGet)
+            {
+            }
+
+            public function rawCommand(string $command, mixed ...$args): mixed
+            {
+                return [[$this->supportsGet ? 'get' : 'set']];
+            }
+
+            public function get(string $key): mixed
+            {
+                return false;
+            }
+
+            public function getLastError(): ?string
+            {
+                return null;
+            }
+
+            public function getHost(): string
+            {
+                return 'test';
+            }
+
+            public function getPort(): int
+            {
+                return 0;
+            }
+
+            public function getOption(int $option): mixed
+            {
+                return 0;
+            }
+        };
     }
 }

@@ -114,9 +114,14 @@ help path does not connect to Redis.
 Use `--output=json` (the default) for the complete machine-readable report,
 including the seed, PHP/client versions, client classes and topology, effective
 configuration, elapsed time, selected commands, reply-type counts, captured PHP
-warnings, and thrown exceptions. `--output=simple` prints only concise overall
-statistics. `--output=detailed` adds an aligned per-command table and groups the
-full warning and exception messages under the command that produced them.
+warnings, thrown exceptions, and `problematic_commands`: commands whose observed
+replies were exclusively `false` even though each server involved reports the
+command in `COMMAND`. Commands absent from the server are still executed to test
+the client's unsupported-command handling, but are excluded from that list.
+`--output=simple` prints only concise overall statistics. `--output=detailed`
+adds an aligned per-command table, a dedicated problematic-command section, and
+groups the full warning and exception messages under the command that produced
+them.
 `--script-log` writes an executable PHP reproduction script containing the
 concrete generated calls. `--catch=STRING` stops the workload as soon as a
 captured warning or exception contains `STRING`, using a case-insensitive

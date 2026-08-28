@@ -17,6 +17,7 @@ final class ResultFormatter
         $output = $this->summary($result);
         if ($mode === OutputMode::Detailed) {
             $output .= "\n" . $this->commandTable($result);
+            $output .= "\n" . $this->problematicCommands($result);
             $details = $this->issueDetails($result);
             if ($details !== '') {
                 $output .= "\n" . $details;
@@ -24,6 +25,26 @@ final class ResultFormatter
         }
 
         return $output;
+    }
+
+    private function problematicCommands(FuzzResult $result): string
+    {
+        $lines = ['Problematic commands (server-supported commands with only false replies)'];
+        if ($result->problematicCommands === []) {
+            $lines[] = '  None';
+        } else {
+            foreach ($result->problematicCommands as $command => $statistics) {
+                $lines[] = sprintf(
+                    '  %s: %d executed, %d false %s',
+                    $command,
+                    $statistics['executions'],
+                    $statistics['false_replies'],
+                    $statistics['false_replies'] === 1 ? 'reply' : 'replies',
+                );
+            }
+        }
+
+        return implode("\n", $lines) . "\n";
     }
 
     private function summary(FuzzResult $result): string
