@@ -118,6 +118,9 @@ warnings, thrown exceptions, and `problematic_commands`: commands whose observed
 replies were exclusively `false` even though each server involved reports the
 command in `COMMAND`. Commands absent from the server are still executed to test
 the client's unsupported-command handling, but are excluded from that list.
+Cursor-based scan commands are also excluded because `false` is a valid terminal
+reply for those client APIs; their replies remain included in the per-command
+statistics.
 `--output=simple` prints only concise overall statistics. `--output=detailed`
 adds an aligned per-command table, a dedicated problematic-command section, and
 groups the full warning and exception messages under the command that produced

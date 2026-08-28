@@ -52,6 +52,23 @@ final class ProblematicCommandDetectorTest extends TestCase
         ));
     }
 
+    public function testExcludesCursorBasedScanCommands(): void
+    {
+        $results = $this->results([
+            'scan' => ['false' => 2],
+            'hscan' => ['false' => 2],
+            'sscan' => ['false' => 2],
+            'zscan' => ['false' => 2],
+        ]);
+        $clients = array_fill_keys(array_keys($results), [10 => true]);
+
+        self::assertSame([], (new ProblematicCommandDetector())->detect(
+            $results,
+            $clients,
+            [10 => ServerCommands::fromNames(array_keys($results))],
+        ));
+    }
+
     /**
      * @param array<string, array<string, int>> $replies
      * @return array<string, array{count: int, replies: array<string, int>, exceptions: array<string, int>}>

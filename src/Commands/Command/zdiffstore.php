@@ -13,8 +13,6 @@ use Redis;
 use RedisCluster;
 
 class zdiffstore extends Command implements FuzzInterface, FuzzRawInterface {
-    private const DSTKEY = 'zset-dst';
-
     public function type(): string {
         return self::ZSET;
     }
@@ -26,18 +24,21 @@ class zdiffstore extends Command implements FuzzInterface, FuzzRawInterface {
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,
                          FuzzConfig $config): mixed
     {
+        $dst = 'dst-' . $config->getRandomKey($this->type());
+
         return $this->exec(
-            $client, self::DSTKEY, $config->getRandomKeys($this->type())
+            $client, $dst, $config->getRandomKeys($this->type())
         );
     }
 
     public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
                             FuzzConfig $config): mixed
     {
+        $dst = 'dst-' . $config->getRandomKey($this->type());
         $keys = $config->getRandomKeys($this->type());
 
         return $this->execRaw(
-            $client, self::DSTKEY, count($keys), ...$keys
+            $client, $dst, count($keys), ...$keys
         );
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer;
 
+use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
 
 /** @internal */
@@ -22,6 +23,12 @@ final class ProblematicCommandDetector
     ): array {
         $problematic = [];
         foreach ($results as $name => $statistics) {
+            /* False is a documented terminal reply for the cursor-based scan
+               APIs, so executing them still counts as useful reply coverage. */
+            if ((Command::object($name)->flags() & Command::SCAN) !== 0) {
+                continue;
+            }
+
             if ($statistics['replies'] === []
                 || array_keys($statistics['replies']) !== ['false']) {
                 continue;

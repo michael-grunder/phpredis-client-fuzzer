@@ -45,6 +45,7 @@ class ScriptLogger {
     private $objects = [];
 
     private int $counter = 1;
+    private int $reference_counter = 1;
 
     private bool $try_catch = false;
 
@@ -300,13 +301,35 @@ class ScriptLogger {
     public function logCommand(Redis|RedisCluster|Relay|Cluster $client,
                                string $cmd, array $args): void
     {
+        $this->writeCommand($client, $cmd, $args);
+    }
+
+    /**
+     * @param array<mixed> $args
+     */
+    private function writeCommand(Redis|RedisCluster|Relay|Cluster $client,
+                                  string $cmd, array $args,
+                                  ?int $reference_index = null): void
+    {
         $hash = spl_object_hash($client);
         if ( ! isset($this->objects[$hash]))
             $this->initObject($client);
 
+        $reference = null;
+        if ($reference_index !== null) {
+            if (!array_key_exists($reference_index, $args)) {
+                throw new \OutOfBoundsException('Reference argument is missing');
+            }
+            $reference = sprintf('$phpredisFuzzReference%d', $this->reference_counter++);
+            fprintf($this->fp, "%s = %s;\n", $reference,
+                    $this->varExport($args[$reference_index]));
+        }
+
         $code_args = [];
-        foreach ($args as $arg) {
-            if ($arg instanceOf ScriptArg) {
+        foreach ($args as $index => $arg) {
+            if ($index === $reference_index) {
+                $code_args[] = $reference;
+            } else if ($arg instanceOf ScriptArg) {
                 $code_args[] = $arg->code();
             } else {
                 $code_args[] = $this->varExport($arg);
@@ -356,5 +379,21 @@ class ScriptLogger {
             return;
 
         self::$instance->logCommand($client, $cmd, $args);
+    }
+
+    /**
+     * Log a command argument through a generated variable so the reproduction
+     * remains valid when that argument must be passed by reference.
+     *
+     * @param array<mixed> $args
+     */
+    public static function logReference(Redis|RedisCluster|Relay|Cluster $client,
+                                        string $cmd, array $args,
+                                        int $reference_index): void
+    {
+        if (self::$instance === null)
+            return;
+
+        self::$instance->writeCommand($client, $cmd, $args, $reference_index);
     }
 }
