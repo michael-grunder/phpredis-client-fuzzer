@@ -270,8 +270,8 @@ Run configuration:
                              gets keys in different cluster slots, forcing a
                              CROSSSLOT error (cluster only, default: 0)
   --script-log=FILE          Write an executable PHP reproduction script
-  --catch=STRING             Stop after a warning or exception contains STRING
-                             (case-insensitive; exits nonzero after normal output)
+  --catch=STRING             Stop after a Redis error, warning, or exception
+                             contains STRING (case-insensitive; exits nonzero)
   --output=MODE              json, simple, or detailed (default: json)
   --raw                      Enable raw-protocol command paths
   --include-blocking         Enable blocking commands

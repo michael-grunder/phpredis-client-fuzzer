@@ -64,6 +64,11 @@ abstract class Command implements HasWeight {
 
     private static ?WarningCollector $warningCollector = null;
 
+    /** @var list<string> */
+    private static array $invocationRedisErrors = [];
+
+    private static bool $capturingInvocation = false;
+
     public function weight(): float {
         return $this->weight;
     }
@@ -263,6 +268,20 @@ abstract class Command implements HasWeight {
         return $warnings;
     }
 
+    public static function beginInvocation(): void {
+        self::$invocationRedisErrors = [];
+        self::$capturingInvocation = true;
+    }
+
+    /** @return list<string> */
+    public static function finishInvocationRedisErrors(): array {
+        $errors = self::$invocationRedisErrors;
+        self::$invocationRedisErrors = [];
+        self::$capturingInvocation = false;
+
+        return $errors;
+    }
+
     private function isSilentRedisError(string $e): bool {
         $patterns = [
             'no such key',
@@ -281,18 +300,23 @@ abstract class Command implements HasWeight {
     protected function logRedisError(Redis|RedisCluster|Relay|Cluster $client, mixed ...$args): void {
         $error = $client->getLastError();
 
-        assert($error != NULL);
-
-        if ($this->isSilentRedisError($error))
+        if ($error === null || $error === '')
             return;
 
-        Log::info("Redis error:" . $error,[
-            'server' => $this->clientServerInfo($client),
-            'cmd'  => $this->name(),
-            'args' => $args,
-        ]);
+        if (self::$capturingInvocation)
+            self::$invocationRedisErrors[] = $error;
 
-        $client->clearLastError();
+        try {
+            if (!$this->isSilentRedisError($error)) {
+                Log::info("Redis error:" . $error,[
+                    'server' => $this->clientServerInfo($client),
+                    'cmd'  => $this->name(),
+                    'args' => $args,
+                ]);
+            }
+        } finally {
+            $client->clearLastError();
+        }
     }
 
     /**
@@ -327,9 +351,6 @@ abstract class Command implements HasWeight {
 
         $result = $this->cmd($client, $this->name(), ...$args);
 
-        if ($client->getLastError())
-            $this->logRedisError($client, ...$args);
-
         return $result;
     }
 
@@ -344,28 +365,27 @@ abstract class Command implements HasWeight {
     final public function cmd(Redis|RedisCluster|Relay|Cluster $client,
                               string $cmd, mixed ...$args): mixed
     {
-        try {
-            ScriptLogger::log($client, $cmd, $args);
+        ScriptLogger::log($client, $cmd, $args);
 
-            foreach ($args as $i => $arg) {
-                if ($arg instanceof ScriptArg)
-                    $args[$i] = $arg->value();
-            }
-
-            $result = $client->{$cmd}(...$args);
-            if ($client->getLastError())
-                $this->logRedisError($client, ...$args);
-
-            return $result;
-        } catch (\Exception $ex) {
-            Log::debug("Error executing command: {$this->name()}", [
-                'server' => $this->clientServerInfo($client),
-                'args' => $args,
-                'error' => $ex->getMessage()
-            ]);
-
-            return false;
+        foreach ($args as $i => $arg) {
+            if ($arg instanceof ScriptArg)
+                $args[$i] = $arg->value();
         }
+
+        try {
+            $result = $client->{$cmd}(...$args);
+        } catch (\Throwable $throwable) {
+            /* Do not let diagnostics hide the exception thrown by the client. */
+            try {
+                $this->logRedisError($client, ...$args);
+            } catch (\Throwable) {
+            }
+            throw $throwable;
+        }
+
+        $this->logRedisError($client, ...$args);
+
+        return $result;
     }
 
     protected function isCluster(Redis|RedisCluster|Relay|Cluster $client): bool {

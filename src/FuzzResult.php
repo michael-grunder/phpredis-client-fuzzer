@@ -14,6 +14,7 @@ final readonly class FuzzResult implements \JsonSerializable
      * @param array<string, mixed> $configuration
      * @param array<string, array<string, int>> $commandWarnings
      * @param array<string, array{executions: int, false_replies: int}> $problematicCommands
+     * @param list<InvocationOutcome> $outcomes
      */
     public function __construct(
         public int $seed,
@@ -28,6 +29,7 @@ final readonly class FuzzResult implements \JsonSerializable
         public array $commandWarnings = [],
         public ?string $caughtDiagnostic = null,
         public array $problematicCommands = [],
+        public array $outcomes = [],
     ) {
     }
 
@@ -43,6 +45,7 @@ final readonly class FuzzResult implements \JsonSerializable
             'environment' => $this->environment,
             'configuration' => $this->configuration,
             'commands' => $this->commands,
+            'outcomes' => $this->outcomes,
             'problematic_commands' => $this->problematicCommands,
             'warnings' => $this->warnings,
             'caught_diagnostic' => $this->caughtDiagnostic,

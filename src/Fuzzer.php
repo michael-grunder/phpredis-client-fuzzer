@@ -53,6 +53,13 @@ final class Fuzzer
         $results = [];
         /** @var array<string, array<int, true>> $falseReplyClients */
         $falseReplyClients = [];
+        /** @var list<InvocationOutcome> $outcomes */
+        $outcomes = [];
+        /** @var array<int, int> $clientIndexes */
+        $clientIndexes = [];
+        foreach ($clients as $index => $runClient) {
+            $clientIndexes[spl_object_id($runClient)] ??= $index;
+        }
 
         $scriptLogging = $configuration->scriptLog !== null;
         if ($scriptLogging) {
@@ -90,7 +97,8 @@ final class Fuzzer
 
                 /* Decide how this command's generated keys map onto cluster
                    hash slots before it builds any arguments. */
-                if ($arguments->beginCommand($command) === SlotPolicy::CrossSlot) {
+                $slotPolicy = $arguments->beginCommand($command);
+                if ($slotPolicy === SlotPolicy::CrossSlot) {
                     $crossSlotSteps++;
                 }
 
@@ -99,9 +107,18 @@ final class Fuzzer
                 $results[$name]['count']++;
                 $steps++;
 
+                Command::setCapturedWarningCommand($name);
+                Command::beginInvocation();
+                $warningsBefore = Command::capturedWarnings();
+                $modeBefore = $this->clientMode($client);
+                $invocationStarted = hrtime(true);
+                $operation = $operations[array_rand($operations)];
+                $replyType = null;
+                $replySummary = null;
+                $exceptionDetails = null;
+                $redisErrors = [];
+                $invocationWarnings = [];
                 try {
-                    Command::setCapturedWarningCommand($name);
-                    $operation = $operations[array_rand($operations)];
                     if ($operation === 'raw' && $command instanceof FuzzRawInterface) {
                         $reply = $command->fuzzRaw($client, $arguments);
                     } elseif ($command instanceof FuzzInterface) {
@@ -109,23 +126,68 @@ final class Fuzzer
                     } else {
                         throw new \LogicException('Selected operation is not implemented by the command');
                     }
-                    $type = $this->replyType($reply);
-                    $results[$name]['replies'][$type] = ($results[$name]['replies'][$type] ?? 0) + 1;
+                    $replyType = $this->replyType($reply);
+                    $replySummary = $this->summarizeReply($reply);
+                    $results[$name]['replies'][$replyType] = ($results[$name]['replies'][$replyType] ?? 0) + 1;
                     if ($reply === false) {
                         $falseReplyClients[$name][spl_object_id($client)] = true;
                     }
                 } catch (\Throwable $throwable) {
                     $exception = $throwable::class . ': ' . $throwable->getMessage();
                     $results[$name]['exceptions'][$exception] = ($results[$name]['exceptions'][$exception] ?? 0) + 1;
+                    $exceptionDetails = [
+                        'class' => $throwable::class,
+                        'message' => $throwable->getMessage(),
+                        'code' => $throwable->getCode(),
+                    ];
                     if ($this->matchesCatch($exception, $configuration->catchPattern)) {
                         $caughtDiagnostic = $exception;
                     }
                 } finally {
+                    $duration = (hrtime(true) - $invocationStarted) / 1e9;
+                    $redisErrors = Command::finishInvocationRedisErrors();
+                    $invocationWarnings = $this->warningDifference(
+                        $warningsBefore,
+                        Command::capturedWarnings(),
+                    );
+                    $clientIndex = $clientIndexes[spl_object_id($client)];
+                    $outcomes[] = new InvocationOutcome(
+                        sequence: $steps,
+                        command: $name,
+                        variant: null,
+                        clientId: $client::class . '#' . $clientIndex,
+                        clientIndex: $clientIndex,
+                        clientClass: $client::class,
+                        operation: $operation === 'raw' ? 'raw' : 'normal',
+                        replyType: $replyType,
+                        reply: $replySummary,
+                        redisErrors: $redisErrors,
+                        warnings: $invocationWarnings,
+                        exception: $exceptionDetails,
+                        durationSeconds: $duration,
+                        modeBefore: $modeBefore,
+                        modeAfter: $this->clientMode($client),
+                        slotPolicy: $slotPolicy->value,
+                    );
                     Command::setCapturedWarningCommand(null);
                 }
 
+                if ($caughtDiagnostic === null) {
+                    foreach ($redisErrors as $redisError) {
+                        $diagnostic = 'Redis error: ' . $redisError;
+                        if ($this->matchesCatch($diagnostic, $configuration->catchPattern)) {
+                            $caughtDiagnostic = $diagnostic;
+                            break;
+                        }
+                    }
+                }
                 if ($caughtDiagnostic === null && $configuration->catchPattern !== null) {
-                    $caughtDiagnostic = Command::matchingCapturedWarning($configuration->catchPattern);
+                    foreach (array_keys($invocationWarnings) as $warning) {
+                        if ($this->matchesCatch($warning, $configuration->catchPattern)) {
+                            $caughtDiagnostic = $warning;
+                            break;
+                        }
+                    }
                 }
                 if ($caughtDiagnostic !== null) {
                     break;
@@ -159,6 +221,7 @@ final class Fuzzer
                 $serverCommands,
                 $registry,
             ),
+            $outcomes,
         );
     }
 
@@ -248,6 +311,98 @@ final class Fuzzer
             is_array($reply) => 'array',
             default => get_debug_type($reply),
         };
+    }
+
+    /**
+     * Keep reports JSON-safe and bounded even when a client returns binary or
+     * deeply nested data.
+     *
+     * @return array<string, mixed>
+     */
+    private function summarizeReply(mixed $reply, int $depth = 0): array
+    {
+        if ($reply === null || is_bool($reply) || is_int($reply)) {
+            return ['type' => get_debug_type($reply), 'value' => $reply];
+        }
+        if (is_float($reply)) {
+            return [
+                'type' => 'float',
+                'value' => is_finite($reply) ? $reply : (string) $reply,
+            ];
+        }
+        if (is_string($reply)) {
+            $previewLength = 96;
+
+            return [
+                'type' => 'string',
+                'length' => strlen($reply),
+                'preview_base64' => base64_encode(substr($reply, 0, $previewLength)),
+                'truncated' => strlen($reply) > $previewLength,
+                'sha256' => hash('sha256', $reply),
+            ];
+        }
+        if (is_array($reply)) {
+            $summary = [
+                'type' => 'array',
+                'count' => count($reply),
+                'truncated' => count($reply) > 16 || $depth >= 3,
+                'entries' => [],
+            ];
+            if ($depth >= 3) {
+                return $summary;
+            }
+            $index = 0;
+            foreach ($reply as $key => $value) {
+                if ($index++ >= 16) {
+                    break;
+                }
+                $summary['entries'][] = [
+                    'key' => $key,
+                    'value' => $this->summarizeReply($value, $depth + 1),
+                ];
+            }
+
+            return $summary;
+        }
+        if (is_object($reply)) {
+            return ['type' => 'object', 'class' => $reply::class];
+        }
+        if (is_resource($reply)) {
+            return ['type' => 'resource', 'resource_type' => get_resource_type($reply)];
+        }
+
+        return ['type' => get_debug_type($reply)];
+    }
+
+    /**
+     * @param array<string, int> $before
+     * @param array<string, int> $after
+     * @return array<string, int>
+     */
+    private function warningDifference(array $before, array $after): array
+    {
+        $difference = [];
+        foreach ($after as $warning => $count) {
+            $added = $count - ($before[$warning] ?? 0);
+            if ($added > 0) {
+                $difference[$warning] = $added;
+            }
+        }
+
+        return $difference;
+    }
+
+    private function clientMode(Redis|RedisCluster|Relay|Cluster $client): ?int
+    {
+        try {
+            $mode = $client instanceof Relay || $client instanceof Cluster
+                ? $client->getMode(true)
+                : $client->getMode();
+
+            return $mode;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

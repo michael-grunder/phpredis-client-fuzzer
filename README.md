@@ -72,9 +72,16 @@ echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
 The same call accepts a mixed client list, for example `[$redis, $relay]`. A
 command runs only on a selected client that exposes the normal method or can
 execute that command through its raw-protocol implementation.
-`FuzzResult::$commandWarnings` exposes captured warning counts keyed first by
-command for custom text renderers; JSON serialization retains the existing
-aggregate `warnings` field and report shape.
+`FuzzResult::$outcomes` contains one `InvocationOutcome` for every scheduled
+step. Each outcome attributes the command, client index/class, normal or raw
+operation, reply, Redis errors, PHP warnings, exception, duration, client mode,
+and slot policy. `variant` is currently `null` until commands expose the named
+cases described in the robustness plan.
+
+Reply values are safe to persist in JSON: strings use a base64 preview plus a
+SHA-256 digest, while arrays are depth- and item-limited. Aggregate command
+counts remain available in `FuzzResult::$commands`, and
+`FuzzResult::$commandWarnings` exposes warning counts keyed by command.
 
 ## CLI
 
@@ -146,8 +153,9 @@ still fails the run.
 
 Use `--output=json` (the default) for the complete machine-readable report,
 including the seed, PHP/client versions, client classes and topology, effective
-configuration, elapsed time, selected commands, reply-type counts, captured PHP
-warnings, thrown exceptions, and `problematic_commands`: commands whose observed
+configuration, elapsed time, selected commands, per-invocation outcomes,
+reply-type counts, Redis errors, captured PHP warnings, thrown exceptions, and
+`problematic_commands`: commands whose observed
 replies were exclusively `false` even though each server involved reports the
 command in `COMMAND`. Commands absent from the server are still executed to test
 the client's unsupported-command handling, but are excluded from that list.
@@ -156,14 +164,14 @@ reply for those client APIs; their replies remain included in the per-command
 statistics.
 `--output=simple` prints only concise overall statistics. `--output=detailed`
 adds an aligned per-command table, a dedicated problematic-command section, and
-groups the full warning and exception messages under the command that produced
-them.
+groups the full Redis error, warning, and exception messages under the command
+that produced them.
 `--script-log` writes an executable PHP reproduction script containing the
 concrete generated calls. `--catch=STRING` stops the workload as soon as a
-captured warning or exception contains `STRING`, using a case-insensitive
-search. The selected output mode is still written, including the matching
-diagnostic in `caught_diagnostic` for JSON output, and the process exits with a
-nonzero status.
+captured Redis error, PHP warning, or exception contains `STRING`, using a
+case-insensitive search. The selected output mode is still written, including
+the matching diagnostic in `caught_diagnostic` for JSON output, and the process
+exits with a nonzero status.
 
 ## Command coverage
 
@@ -385,7 +393,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `includeFlush` | `false` | Include `FLUSHDB` and `FLUSHALL` |
 | `includeCrashing` | `false` | Include deliberately crashing commands |
 | `scriptLog` | `null` | Optional executable reproduction script path |
-| `catchPattern` | `null` | Case-insensitive warning/exception substring that stops the run after a match |
+| `catchPattern` | `null` | Case-insensitive Redis error, warning, or exception substring that stops the run after a match |
 
 At least one of `maxSteps` or `maxSeconds` must be greater than zero.
 

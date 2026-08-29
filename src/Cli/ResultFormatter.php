@@ -50,6 +50,7 @@ final class ResultFormatter
     private function summary(FuzzResult $result): string
     {
         [$exceptionOccurrences, $uniqueExceptions] = $this->exceptionCounts($result);
+        [$redisErrorOccurrences, $uniqueRedisErrors] = $this->redisErrorCounts($result);
 
         return implode("\n", [
             'Fuzz run summary',
@@ -67,6 +68,12 @@ final class ResultFormatter
             ),
             sprintf(
                 '  %-25s %d (%d unique)',
+                'Redis errors:',
+                $redisErrorOccurrences,
+                $uniqueRedisErrors,
+            ),
+            sprintf(
+                '  %-25s %d (%d unique)',
                 'Exceptions:',
                 $exceptionOccurrences,
                 $uniqueExceptions,
@@ -79,6 +86,7 @@ final class ResultFormatter
     {
         $rows = [];
         $commands = $result->commands;
+        $redisErrors = $this->redisErrorsByCommand($result);
         ksort($commands);
 
         foreach ($commands as $command => $statistics) {
@@ -91,11 +99,12 @@ final class ResultFormatter
                 (string) $statistics['count'],
                 $replies === [] ? '-' : implode(', ', $replies),
                 (string) array_sum($result->commandWarnings[$command] ?? []),
+                (string) array_sum($redisErrors[$command] ?? []),
                 (string) array_sum($statistics['exceptions']),
             ];
         }
 
-        $headings = ['COMMAND', 'EXECUTED', 'REPLIES', 'WARNINGS', 'EXCEPTIONS'];
+        $headings = ['COMMAND', 'EXECUTED', 'REPLIES', 'WARNINGS', 'REDIS ERRORS', 'EXCEPTIONS'];
         $widths = array_map('strlen', $headings);
         foreach ($rows as $row) {
             foreach ($row as $index => $value) {
@@ -131,8 +140,10 @@ final class ResultFormatter
 
     private function issueDetails(FuzzResult $result): string
     {
+        $redisErrors = $this->redisErrorsByCommand($result);
         $commands = array_unique([
             ...array_keys($result->commandWarnings),
+            ...array_keys($redisErrors),
             ...array_keys($result->commands),
         ]);
         sort($commands);
@@ -140,15 +151,19 @@ final class ResultFormatter
         $lines = [];
         foreach ($commands as $command) {
             $warnings = $result->commandWarnings[$command] ?? [];
+            $commandRedisErrors = $redisErrors[$command] ?? [];
             $exceptions = $result->commands[$command]['exceptions'] ?? [];
-            if ($warnings === [] && $exceptions === []) {
+            if ($warnings === [] && $commandRedisErrors === [] && $exceptions === []) {
                 continue;
             }
 
-            $lines[] = $lines === [] ? 'Warnings and exceptions' : '';
+            $lines[] = $lines === [] ? 'Warnings, Redis errors, and exceptions' : '';
             $lines[] = "  {$command}";
             foreach ($warnings as $message => $count) {
                 $lines[] = "    warning x{$count}: {$message}";
+            }
+            foreach ($commandRedisErrors as $message => $count) {
+                $lines[] = "    Redis error x{$count}: {$message}";
             }
             foreach ($exceptions as $message => $count) {
                 $lines[] = "    exception x{$count}: {$message}";
@@ -171,5 +186,35 @@ final class ResultFormatter
         }
 
         return [$occurrences, count($unique)];
+    }
+
+    /** @return array{int, int} */
+    private function redisErrorCounts(FuzzResult $result): array
+    {
+        $occurrences = 0;
+        $unique = [];
+        foreach ($result->outcomes as $outcome) {
+            $occurrences += count($outcome->redisErrors);
+            foreach ($outcome->redisErrors as $error) {
+                $unique[$error] = true;
+            }
+        }
+
+        return [$occurrences, count($unique)];
+    }
+
+    /** @return array<string, array<string, int>> */
+    private function redisErrorsByCommand(FuzzResult $result): array
+    {
+        $errors = [];
+        foreach ($result->outcomes as $outcome) {
+            foreach ($outcome->redisErrors as $error) {
+                $errors[$outcome->command] ??= [];
+                $errors[$outcome->command][$error] =
+                    ($errors[$outcome->command][$error] ?? 0) + 1;
+            }
+        }
+
+        return $errors;
     }
 }

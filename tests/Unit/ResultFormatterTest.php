@@ -7,6 +7,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 use Mgrunder\PhpredisCommandFuzzer\Cli\OutputMode;
 use Mgrunder\PhpredisCommandFuzzer\Cli\ResultFormatter;
 use Mgrunder\PhpredisCommandFuzzer\FuzzResult;
+use Mgrunder\PhpredisCommandFuzzer\InvocationOutcome;
 use PHPUnit\Framework\TestCase;
 
 final class ResultFormatterTest extends TestCase
@@ -28,6 +29,7 @@ final class ResultFormatterTest extends TestCase
             'environment',
             'configuration',
             'commands',
+            'outcomes',
             'problematic_commands',
             'warnings',
             'caught_diagnostic',
@@ -41,6 +43,7 @@ final class ResultFormatterTest extends TestCase
         self::assertStringContainsString('Commands processed:       5', $output);
         self::assertStringContainsString('Unique commands executed: 2', $output);
         self::assertStringContainsString('Warnings:                 2 (1 unique)', $output);
+        self::assertStringContainsString('Redis errors:             1 (1 unique)', $output);
         self::assertStringContainsString('Exceptions:               2 (1 unique)', $output);
         self::assertStringNotContainsString('Per-command results', $output);
         self::assertStringNotContainsString('Problematic commands', $output);
@@ -52,9 +55,10 @@ final class ResultFormatterTest extends TestCase
         $output = (new ResultFormatter())->format($this->fuzzResult(), OutputMode::Detailed);
 
         self::assertStringContainsString('Per-command results', $output);
-        self::assertMatchesRegularExpression('/get\s+3\s+string: 3\s+2\s+0/', $output);
-        self::assertMatchesRegularExpression('/set\s+2\s+false: 1\s+0\s+2/', $output);
+        self::assertMatchesRegularExpression('/get\s+3\s+string: 3\s+2\s+0\s+0/', $output);
+        self::assertMatchesRegularExpression('/set\s+2\s+false: 1\s+0\s+1\s+2/', $output);
         self::assertStringContainsString('warning x2: PHP Warning: bad warning', $output);
+        self::assertStringContainsString('Redis error x1: WRONGTYPE bad value', $output);
         self::assertStringContainsString('exception x2: RuntimeException: broken', $output);
         self::assertStringContainsString(
             'Problematic commands (server-supported commands with only false replies)',
@@ -99,6 +103,24 @@ final class ResultFormatterTest extends TestCase
             problematicCommands: [
                 'set' => ['executions' => 2, 'false_replies' => 1],
             ],
+            outcomes: [new InvocationOutcome(
+                sequence: 1,
+                command: 'set',
+                variant: null,
+                clientId: 'Redis#0',
+                clientIndex: 0,
+                clientClass: \Redis::class,
+                operation: 'normal',
+                replyType: 'false',
+                reply: ['type' => 'bool', 'value' => false],
+                redisErrors: ['WRONGTYPE bad value'],
+                warnings: [],
+                exception: null,
+                durationSeconds: 0.001,
+                modeBefore: \Redis::ATOMIC,
+                modeAfter: \Redis::ATOMIC,
+                slotPolicy: 'same-slot',
+            )],
         );
     }
 }

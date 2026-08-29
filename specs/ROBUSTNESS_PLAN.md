@@ -79,6 +79,26 @@ separate outcome categories.
 5. Make `--catch` search structured Redis errors in addition to warnings and
    exceptions.
 
+### Implementation status
+
+Implemented in the first outcome-model iteration:
+
+- `FuzzResult::$outcomes` now contains one typed `InvocationOutcome` per
+  scheduled step while retaining the aggregate command report.
+- Outcomes identify the client and normal/raw path and separately record a
+  bounded reply summary, all Redis errors observed during the invocation, PHP
+  warnings, and thrown exception details.
+- Outcomes also record elapsed time, client modes before and after, and the
+  generated key slot policy.
+- Client exceptions now reach `Fuzzer` instead of being converted to `false`.
+- Redis errors are captured before clearing, including errors intentionally
+  excluded from noisy logging, and are searched by `catchPattern`.
+- Unit coverage includes a client method that throws and a structured Redis
+  error that triggers `catchPattern`.
+
+Named variants remain `null` until the case/variant scheduler work, and proxy
+operations remain deferred to the populated-state work below.
+
 ## Priority 1: Add a true differential mode
 
 ### Problem
