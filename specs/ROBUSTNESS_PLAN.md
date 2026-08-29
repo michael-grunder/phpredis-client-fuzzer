@@ -95,6 +95,9 @@ Implemented in the first outcome-model iteration:
   excluded from noisy logging, and are searched by `catchPattern`.
 - Unit coverage includes a client method that throws and a structured Redis
   error that triggers `catchPattern`.
+- Human-readable diagnostic aggregation uses narrow regex fingerprints for
+  volatile values such as generated `NOGROUP` keys, while outcomes retain the
+  exact original diagnostic text.
 
 Named variants remain `null` until the case/variant scheduler work, and proxy
 operations remain deferred to the populated-state work below.

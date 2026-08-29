@@ -43,7 +43,7 @@ final class ResultFormatterTest extends TestCase
         self::assertStringContainsString('Commands processed:       5', $output);
         self::assertStringContainsString('Unique commands executed: 2', $output);
         self::assertStringContainsString('Warnings:                 2 (1 unique)', $output);
-        self::assertStringContainsString('Redis errors:             1 (1 unique)', $output);
+        self::assertStringContainsString('Redis errors:             3 (2 unique)', $output);
         self::assertStringContainsString('Exceptions:               2 (1 unique)', $output);
         self::assertStringNotContainsString('Per-command results', $output);
         self::assertStringNotContainsString('Problematic commands', $output);
@@ -59,6 +59,12 @@ final class ResultFormatterTest extends TestCase
         self::assertMatchesRegularExpression('/set\s+2\s+false: 1\s+0\s+1\s+2/', $output);
         self::assertStringContainsString('warning x2: PHP Warning: bad warning', $output);
         self::assertStringContainsString('Redis error x1: WRONGTYPE bad value', $output);
+        self::assertStringContainsString(
+            "Redis error x2: NOGROUP No such key '<key>' or consumer group 'fuzzer'",
+            $output,
+        );
+        self::assertStringNotContainsString('stream:{7}:55', $output);
+        self::assertStringNotContainsString('stream:{3}:48', $output);
         self::assertStringContainsString('exception x2: RuntimeException: broken', $output);
         self::assertStringContainsString(
             'Problematic commands (server-supported commands with only false replies)',
@@ -114,6 +120,44 @@ final class ResultFormatterTest extends TestCase
                 replyType: 'false',
                 reply: ['type' => 'bool', 'value' => false],
                 redisErrors: ['WRONGTYPE bad value'],
+                warnings: [],
+                exception: null,
+                durationSeconds: 0.001,
+                modeBefore: \Redis::ATOMIC,
+                modeAfter: \Redis::ATOMIC,
+                slotPolicy: 'same-slot',
+            ), new InvocationOutcome(
+                sequence: 2,
+                command: 'xpending',
+                variant: null,
+                clientId: 'Redis#0',
+                clientIndex: 0,
+                clientClass: \Redis::class,
+                operation: 'normal',
+                replyType: 'false',
+                reply: ['type' => 'bool', 'value' => false],
+                redisErrors: [
+                    "NOGROUP No such key 'stream:{7}:55' or consumer group 'fuzzer'",
+                ],
+                warnings: [],
+                exception: null,
+                durationSeconds: 0.001,
+                modeBefore: \Redis::ATOMIC,
+                modeAfter: \Redis::ATOMIC,
+                slotPolicy: 'same-slot',
+            ), new InvocationOutcome(
+                sequence: 3,
+                command: 'xpending',
+                variant: null,
+                clientId: 'Redis#0',
+                clientIndex: 0,
+                clientClass: \Redis::class,
+                operation: 'normal',
+                replyType: 'false',
+                reply: ['type' => 'bool', 'value' => false],
+                redisErrors: [
+                    "NOGROUP No such key 'stream:{3}:48' or consumer group 'fuzzer'",
+                ],
                 warnings: [],
                 exception: null,
                 durationSeconds: 0.001,

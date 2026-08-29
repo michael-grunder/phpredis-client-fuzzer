@@ -83,6 +83,14 @@ SHA-256 digest, while arrays are depth- and item-limited. Aggregate command
 counts remain available in `FuzzResult::$commands`, and
 `FuzzResult::$commandWarnings` exposes warning counts keyed by command.
 
+Human-readable summaries normalize known volatile diagnostic fields before
+counting unique messages. For example, generated stream keys in `NOGROUP`
+errors are displayed as `'<key>'`, and changing Lua hashes or source line
+numbers do not split one failure class into many rows. This affects aggregation
+only: `FuzzResult::$outcomes` retains the exact warning, Redis error, and
+exception text for reproduction. Normalization rules are deliberately narrow
+and live in `DiagnosticNormalizer`.
+
 ## CLI
 
 Composer installs `vendor/bin/phpredis-fuzz`, `vendor/bin/phpredis-fuzz-killer`,

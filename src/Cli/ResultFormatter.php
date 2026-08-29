@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Cli;
 
+use Mgrunder\PhpredisCommandFuzzer\DiagnosticNormalizer;
 use Mgrunder\PhpredisCommandFuzzer\FuzzResult;
 
 final class ResultFormatter
@@ -49,6 +50,7 @@ final class ResultFormatter
 
     private function summary(FuzzResult $result): string
     {
+        $warnings = DiagnosticNormalizer::aggregate($result->warnings);
         [$exceptionOccurrences, $uniqueExceptions] = $this->exceptionCounts($result);
         [$redisErrorOccurrences, $uniqueRedisErrors] = $this->redisErrorCounts($result);
 
@@ -63,8 +65,8 @@ final class ResultFormatter
             sprintf(
                 '  %-25s %d (%d unique)',
                 'Warnings:',
-                array_sum($result->warnings),
-                count($result->warnings),
+                array_sum($warnings),
+                count($warnings),
             ),
             sprintf(
                 '  %-25s %d (%d unique)',
@@ -150,9 +152,11 @@ final class ResultFormatter
 
         $lines = [];
         foreach ($commands as $command) {
-            $warnings = $result->commandWarnings[$command] ?? [];
+            $warnings = DiagnosticNormalizer::aggregate($result->commandWarnings[$command] ?? []);
             $commandRedisErrors = $redisErrors[$command] ?? [];
-            $exceptions = $result->commands[$command]['exceptions'] ?? [];
+            $exceptions = DiagnosticNormalizer::aggregate(
+                $result->commands[$command]['exceptions'] ?? [],
+            );
             if ($warnings === [] && $commandRedisErrors === [] && $exceptions === []) {
                 continue;
             }
@@ -181,7 +185,7 @@ final class ResultFormatter
         foreach ($result->commands as $statistics) {
             $occurrences += array_sum($statistics['exceptions']);
             foreach (array_keys($statistics['exceptions']) as $exception) {
-                $unique[$exception] = true;
+                $unique[DiagnosticNormalizer::normalize($exception)] = true;
             }
         }
 
@@ -196,7 +200,7 @@ final class ResultFormatter
         foreach ($result->outcomes as $outcome) {
             $occurrences += count($outcome->redisErrors);
             foreach ($outcome->redisErrors as $error) {
-                $unique[$error] = true;
+                $unique[DiagnosticNormalizer::normalize($error)] = true;
             }
         }
 
@@ -209,6 +213,7 @@ final class ResultFormatter
         $errors = [];
         foreach ($result->outcomes as $outcome) {
             foreach ($outcome->redisErrors as $error) {
+                $error = DiagnosticNormalizer::normalize($error);
                 $errors[$outcome->command] ??= [];
                 $errors[$outcome->command][$error] =
                     ($errors[$outcome->command][$error] ?? 0) + 1;
