@@ -15,6 +15,7 @@ final readonly class FuzzResult implements \JsonSerializable
      * @param array<string, array<string, int>> $commandWarnings
      * @param array<string, array{executions: int, false_replies: int}> $problematicCommands
      * @param list<InvocationOutcome> $outcomes
+     * @param list<DifferentialOutcome> $differentialOutcomes
      */
     public function __construct(
         public int $seed,
@@ -30,6 +31,7 @@ final readonly class FuzzResult implements \JsonSerializable
         public ?string $caughtDiagnostic = null,
         public array $problematicCommands = [],
         public array $outcomes = [],
+        public array $differentialOutcomes = [],
     ) {
     }
 
@@ -46,9 +48,21 @@ final readonly class FuzzResult implements \JsonSerializable
             'configuration' => $this->configuration,
             'commands' => $this->commands,
             'outcomes' => $this->outcomes,
+            'differential_outcomes' => $this->differentialOutcomes,
             'problematic_commands' => $this->problematicCommands,
             'warnings' => $this->warnings,
             'caught_diagnostic' => $this->caughtDiagnostic,
         ];
+    }
+
+    public function hasDifferentialDivergence(): bool
+    {
+        foreach ($this->differentialOutcomes as $outcome) {
+            if ($outcome->status === 'divergent') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

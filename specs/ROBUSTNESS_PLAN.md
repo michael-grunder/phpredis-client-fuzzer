@@ -157,6 +157,37 @@ matrix under:
 - Allow and ignore cache patterns.
 - Correct types, missing keys, partially cached values, and wrong types.
 
+### Implementation status
+
+The first differential-oracle slice is implemented as an explicit opt-in mode:
+
+- An ordered reference/Relay pair receives the same concrete generated normal
+  call for atomic commands marked `CACHED`; the normal randomized workload
+  remains unchanged when differential mode is disabled.
+- The oracle records the reference result, Relay's initial result, an immediate
+  repeat, and any bounded convergence attempts as separate structured
+  `differential_outcomes` data.
+- Results are classified as `matched`, `converged`, or `divergent`. Converged
+  mismatches retain their elapsed time and attempt count, while divergence
+  after the configured tolerance makes the CLI fail.
+- Reply values, exact Redis errors, and exception behavior are compared. Only
+  Relay's internal exception source-location suffix is ignored; same-call key
+  names and script digests are kept semantic. Exact observations and bounded
+  argument summaries remain available for diagnosis.
+- Reference-unsupported methods, nondeterministic random-member reads, and
+  cache-metadata reads are skipped until they have explicit comparators rather
+  than being reported as false divergences. Sticky pre-existing client errors
+  are cleared before each oracle observation.
+- CLI and immutable API configuration expose the mode, tolerance, and polling
+  interval; HTTP callers cannot enable or expand them beyond server-owned
+  configuration.
+
+This slice deliberately does not flush the process-wide cache before every
+read: that would destroy pending invalidation state and hide the timing race the
+tolerance is meant to classify. Deterministic populate, forced-cold, mutation,
+and post-invalidation scenarios are still required to complete the full matrix
+above.
+
 ## Priority 2: Model stateful client sequences
 
 ### Problem

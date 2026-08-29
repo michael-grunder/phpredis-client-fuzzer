@@ -3,6 +3,7 @@
 namespace Mgrunder\PhpredisCommandFuzzer\Commands;
 
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
+use Mgrunder\PhpredisCommandFuzzer\DifferentialOracle;
 use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
 use Mgrunder\PhpredisCommandFuzzer\HasWeight;
@@ -68,6 +69,8 @@ abstract class Command implements HasWeight {
     private static array $invocationRedisErrors = [];
 
     private static bool $capturingInvocation = false;
+
+    private static ?DifferentialOracle $differentialOracle = null;
 
     public function weight(): float {
         return $this->weight;
@@ -282,6 +285,10 @@ abstract class Command implements HasWeight {
         return $errors;
     }
 
+    public static function setDifferentialOracle(?DifferentialOracle $oracle): void {
+        self::$differentialOracle = $oracle;
+    }
+
     private function isSilentRedisError(string $e): bool {
         $patterns = [
             'no such key',
@@ -371,7 +378,13 @@ abstract class Command implements HasWeight {
             if ($arg instanceof ScriptArg)
                 $args[$i] = $arg->value();
         }
+        $args = array_values($args);
 
+        $oracle = self::$differentialOracle;
+        $oraclePrepared = $oracle?->prepare($this, $client, $cmd, $args) ?? false;
+        $errorOffset = count(self::$invocationRedisErrors);
+        $warningsBefore = $oraclePrepared ? self::capturedWarnings() : [];
+        $started = $oraclePrepared ? hrtime(true) : 0;
         try {
             $result = $client->{$cmd}(...$args);
         } catch (\Throwable $throwable) {
@@ -380,12 +393,53 @@ abstract class Command implements HasWeight {
                 $this->logRedisError($client, ...$args);
             } catch (\Throwable) {
             }
+            if ($oraclePrepared) {
+                $oracle->complete(
+                    $cmd,
+                    $args,
+                    false,
+                    null,
+                    array_slice(self::$invocationRedisErrors, $errorOffset),
+                    $this->warningDifference($warningsBefore, self::capturedWarnings()),
+                    $throwable,
+                    (hrtime(true) - $started) / 1e9,
+                );
+            }
             throw $throwable;
         }
 
         $this->logRedisError($client, ...$args);
+        if ($oraclePrepared) {
+            $oracle->complete(
+                $cmd,
+                $args,
+                true,
+                $result,
+                array_slice(self::$invocationRedisErrors, $errorOffset),
+                $this->warningDifference($warningsBefore, self::capturedWarnings()),
+                null,
+                (hrtime(true) - $started) / 1e9,
+            );
+        }
 
         return $result;
+    }
+
+    /**
+     * @param array<string, int> $before
+     * @param array<string, int> $after
+     * @return array<string, int>
+     */
+    private function warningDifference(array $before, array $after): array {
+        $difference = [];
+        foreach ($after as $warning => $count) {
+            $added = $count - ($before[$warning] ?? 0);
+            if ($added > 0) {
+                $difference[$warning] = $added;
+            }
+        }
+
+        return $difference;
     }
 
     protected function isCluster(Redis|RedisCluster|Relay|Cluster $client): bool {

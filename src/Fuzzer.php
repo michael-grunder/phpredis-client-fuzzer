@@ -24,6 +24,10 @@ final class Fuzzer
     public function run(array $clients, RunConfiguration $configuration = new RunConfiguration()): FuzzResult
     {
         $clients = $this->normalizeClients($clients);
+        $differentialOracle = $this->differentialOracle($clients, $configuration);
+        $executionClients = $differentialOracle === null
+            ? $clients
+            : [$differentialOracle->subject()];
         $serverCommands = $this->serverCommands($clients);
 
         $seed = $configuration->seed ?? random_int(0, PHP_INT_MAX);
@@ -31,7 +35,11 @@ final class Fuzzer
 
         $registry = (new CommandFilter())->apply(new Registry(), $configuration);
         $registry->filter(
-            fn (Command $command): bool => $this->eligibleClients($clients, $command, $configuration->raw) !== [],
+            fn (Command $command): bool => $this->eligibleClients(
+                $executionClients,
+                $command,
+                $configuration->raw,
+            ) !== [],
         );
         if (count($registry) === 0) {
             throw new \UnderflowException('None of the selected commands are supported by the supplied clients');
@@ -75,13 +83,14 @@ final class Fuzzer
         }
 
         Command::resetCapturedWarnings();
+        Command::setDifferentialOracle($differentialOracle);
         $warnings = [];
         $commandWarnings = [];
         $caughtDiagnostic = null;
         try {
             while ($this->withinLimits($steps, $started, $configuration)) {
                 $command = $selector->pick();
-                $eligible = $this->eligibleClients($clients, $command, $configuration->raw);
+                $eligible = $this->eligibleClients($executionClients, $command, $configuration->raw);
 
                 $client = $eligible[array_rand($eligible)];
                 $operations = [];
@@ -113,6 +122,11 @@ final class Fuzzer
                 $modeBefore = $this->clientMode($client);
                 $invocationStarted = hrtime(true);
                 $operation = $operations[array_rand($operations)];
+                $differentialOracle?->beginStep(
+                    $steps,
+                    $name,
+                    $operation === 'raw' ? 'raw' : 'normal',
+                );
                 $replyType = null;
                 $replySummary = null;
                 $exceptionDetails = null;
@@ -170,6 +184,7 @@ final class Fuzzer
                         slotPolicy: $slotPolicy->value,
                     );
                     Command::setCapturedWarningCommand(null);
+                    $differentialOracle?->finishStep();
                 }
 
                 if ($caughtDiagnostic === null) {
@@ -194,6 +209,7 @@ final class Fuzzer
                 }
             }
         } finally {
+            Command::setDifferentialOracle(null);
             $warnings = Command::finishCapturedWarnings();
             $commandWarnings = Command::capturedWarningsByCommand();
             if ($scriptLogging) {
@@ -222,6 +238,55 @@ final class Fuzzer
                 $registry,
             ),
             $outcomes,
+            $differentialOracle?->outcomes() ?? [],
+        );
+    }
+
+    /**
+     * Differential mode deliberately uses an ordered pair: the first client
+     * is the reference and the second is the Relay subject under test.
+     *
+     * @param non-empty-list<Redis|RedisCluster|Relay|Cluster> $clients
+     */
+    private function differentialOracle(
+        array $clients,
+        RunConfiguration $configuration,
+    ): ?DifferentialOracle {
+        if (!$configuration->differential) {
+            return null;
+        }
+        if (count($clients) !== 2) {
+            throw new \InvalidArgumentException(
+                'Differential mode requires exactly two clients: reference first, Relay subject second',
+            );
+        }
+
+        $reference = $clients[0];
+        $subject = $clients[1];
+        if (!$subject instanceof Relay && !$subject instanceof Cluster) {
+            throw new \InvalidArgumentException(
+                'The second differential client must be Relay\\Relay or Relay\\Cluster',
+            );
+        }
+        if ($reference === $subject) {
+            throw new \InvalidArgumentException('Differential clients must be distinct instances');
+        }
+
+        $referenceIsCluster = $reference instanceof RedisCluster || $reference instanceof Cluster;
+        $subjectIsCluster = $subject instanceof Cluster;
+        if ($referenceIsCluster !== $subjectIsCluster) {
+            throw new \InvalidArgumentException(
+                'Differential clients must use the same standalone or cluster topology',
+            );
+        }
+
+        return new DifferentialOracle(
+            reference: $reference,
+            subject: $subject,
+            referenceIndex: 0,
+            subjectIndex: 1,
+            toleranceMilliseconds: $configuration->differentialToleranceMs,
+            pollIntervalMilliseconds: $configuration->differentialPollIntervalMs,
         );
     }
 
@@ -302,15 +367,7 @@ final class Fuzzer
 
     private function replyType(mixed $reply): string
     {
-        return match (true) {
-            $reply === null => 'null',
-            is_bool($reply) => $reply ? 'true' : 'false',
-            is_int($reply) => 'integer',
-            is_float($reply) => 'float',
-            is_string($reply) => 'string',
-            is_array($reply) => 'array',
-            default => get_debug_type($reply),
-        };
+        return ValueSummary::type($reply);
     }
 
     /**
@@ -319,59 +376,9 @@ final class Fuzzer
      *
      * @return array<string, mixed>
      */
-    private function summarizeReply(mixed $reply, int $depth = 0): array
+    private function summarizeReply(mixed $reply): array
     {
-        if ($reply === null || is_bool($reply) || is_int($reply)) {
-            return ['type' => get_debug_type($reply), 'value' => $reply];
-        }
-        if (is_float($reply)) {
-            return [
-                'type' => 'float',
-                'value' => is_finite($reply) ? $reply : (string) $reply,
-            ];
-        }
-        if (is_string($reply)) {
-            $previewLength = 96;
-
-            return [
-                'type' => 'string',
-                'length' => strlen($reply),
-                'preview_base64' => base64_encode(substr($reply, 0, $previewLength)),
-                'truncated' => strlen($reply) > $previewLength,
-                'sha256' => hash('sha256', $reply),
-            ];
-        }
-        if (is_array($reply)) {
-            $summary = [
-                'type' => 'array',
-                'count' => count($reply),
-                'truncated' => count($reply) > 16 || $depth >= 3,
-                'entries' => [],
-            ];
-            if ($depth >= 3) {
-                return $summary;
-            }
-            $index = 0;
-            foreach ($reply as $key => $value) {
-                if ($index++ >= 16) {
-                    break;
-                }
-                $summary['entries'][] = [
-                    'key' => $key,
-                    'value' => $this->summarizeReply($value, $depth + 1),
-                ];
-            }
-
-            return $summary;
-        }
-        if (is_object($reply)) {
-            return ['type' => 'object', 'class' => $reply::class];
-        }
-        if (is_resource($reply)) {
-            return ['type' => 'resource', 'resource_type' => get_resource_type($reply)];
-        }
-
-        return ['type' => get_debug_type($reply)];
+        return ValueSummary::summarize($reply);
     }
 
     /**

@@ -86,6 +86,10 @@ final class FuzzerEndpoint
             includeFlush: $this->configuration->includeFlush,
             includeCrashing: $this->configuration->includeCrashing,
             scriptLog: $this->configuration->scriptLog,
+            catchPattern: $this->configuration->catchPattern,
+            differential: $this->configuration->differential,
+            differentialToleranceMs: $this->configuration->differentialToleranceMs,
+            differentialPollIntervalMs: $this->configuration->differentialPollIntervalMs,
         );
     }
 

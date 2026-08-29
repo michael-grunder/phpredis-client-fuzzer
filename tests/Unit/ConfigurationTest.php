@@ -39,6 +39,25 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($configuration->includeFlush);
         self::assertFalse($configuration->includeCrashing);
         self::assertNull($configuration->catchPattern);
+        self::assertFalse($configuration->differential);
+        self::assertSame(10.0, $configuration->differentialToleranceMs);
+        self::assertSame(1.0, $configuration->differentialPollIntervalMs);
+    }
+
+    public function testDifferentialTimingMustBeValid(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('differentialPollIntervalMs');
+
+        new RunConfiguration(differentialPollIntervalMs: 0.0);
+    }
+
+    public function testDifferentialTimingMustBeFinite(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('differentialToleranceMs');
+
+        new RunConfiguration(differentialToleranceMs: INF);
     }
 
     public function testRunConfigurationRejectsAnEmptyCatchPattern(): void

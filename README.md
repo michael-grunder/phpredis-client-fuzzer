@@ -204,6 +204,59 @@ case-insensitive search. The selected output mode is still written, including
 the matching diagnostic in `caught_diagnostic` for JSON output, and the process
 exits with a nonzero status.
 
+### Differential cache oracle
+
+Differential testing is disabled by default because it is a different workload
+from unconstrained crash fuzzing. Enable it with an ordered client pair: the
+reference client first and the Relay subject second.
+
+```bash
+vendor/bin/phpredis-fuzz \
+    --client=redis,relay \
+    --differential \
+    --differential-tolerance-ms=10 \
+    --differential-poll-ms=1 \
+    --steps=1000 \
+    --seed=123456
+```
+
+The cluster equivalent is `--client=redis-cluster,relay-cluster`. Embedded
+callers may also provide a cache-disabled Relay reference. Both clients must be
+distinct instances using the same standalone or cluster topology, target,
+serializer, compressor, and prefix.
+
+For each atomic normal-path command marked `CACHED`, the oracle:
+
+1. Executes the concrete generated call on the reference.
+2. Executes the scheduled call on Relay and preserves that initial result in
+   the ordinary invocation outcome.
+3. Repeats the identical Relay call to exercise the warm-cache path.
+4. If Relay differs, polls until it agrees or the configured tolerance expires.
+
+Each `differential_outcomes` entry is classified as `matched`, `converged`, or
+`divergent`. A converged result is retained with its delay and attempt count but
+does not fail the CLI. A divergence survives the full tolerance and causes a
+nonzero exit. Values, exact Redis errors, and exception behavior are compared;
+PhpRedis and Relay exception class names are treated as an inherent client
+difference, and Relay's internal exception source-location suffix is ignored,
+while the semantic message is still compared. Exact observations and bounded
+concrete argument summaries are included in JSON output.
+
+Calls the reference client does not expose are skipped. Nondeterministic reads
+(`SRANDMEMBER` and `HRANDFIELD`) and cache-metadata reads (`GETWITHMETA` and
+`HGETWITHMETA`) are also skipped until they have command-specific comparison
+rules; treating their expected value differences as stale-cache failures would
+create false positives. PHP warnings are retained in each observation but are
+not parity-tested because the two extensions necessarily emit different class
+and call-site text.
+
+The current first slice does not flush Relay's process-wide cache or synthesize
+a populate/mutate sequence, because doing so would erase the pending
+invalidation state this tolerance mechanism is intended to observe. The
+initial Relay read can therefore be cold, warm, or awaiting invalidation; the
+immediate repeat and convergence polling distinguish those cases. Explicit
+deterministic cold/populate/mutate scenarios remain follow-up work.
+
 ## Command coverage
 
 Composer also installs `vendor/bin/phpredis-coverage`, which reports the Redis
@@ -425,6 +478,9 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `includeCrashing` | `false` | Include deliberately crashing commands |
 | `scriptLog` | `null` | Optional executable reproduction script path |
 | `catchPattern` | `null` | Case-insensitive Redis error, warning, or exception substring that stops the run after a match |
+| `differential` | `false` | Enable ordered reference-versus-Relay cache-read comparisons |
+| `differentialToleranceMs` | `10.0` | Maximum time for a mismatched Relay read to converge before it is divergent |
+| `differentialPollIntervalMs` | `1.0` | Delay between Relay convergence attempts |
 
 At least one of `maxSteps` or `maxSeconds` must be greater than zero.
 

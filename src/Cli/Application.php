@@ -21,6 +21,7 @@ final class Application
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'script-log', 'catch',
+        'differential-tolerance-ms', 'differential-poll-ms',
         'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
         'relay-multikey-reordering',
@@ -29,7 +30,7 @@ final class Application
     private const FLAG_OPTIONS = [
         'help', 'verbose', 'raw', 'include-blocking', 'include-local',
         'include-admin', 'include-flush', 'include-crashing',
-        'no-relay-compatibility',
+        'no-relay-compatibility', 'differential',
     ];
 
     private const REPEATABLE_OPTIONS = ['weight'];
@@ -155,10 +156,15 @@ final class Application
                 includeCrashing: $options->has('include-crashing'),
                 scriptLog: $options->nullableString('script-log'),
                 catchPattern: $options->nullableString('catch'),
+                differential: $options->has('differential'),
+                differentialToleranceMs: $options->number('differential-tolerance-ms', 10.0),
+                differentialPollIntervalMs: $options->number('differential-poll-ms', 1.0),
             ));
 
             $this->write((new ResultFormatter())->format($result, $outputMode));
-            return $result->caughtDiagnostic === null ? 0 : 1;
+            return $result->caughtDiagnostic === null && !$result->hasDifferentialDivergence()
+                ? 0
+                : 1;
         } catch (\Throwable $throwable) {
             $this->write('phpredis-fuzz: ' . $throwable->getMessage() . "\n", true);
             return 1;
@@ -272,6 +278,12 @@ Run configuration:
   --script-log=FILE          Write an executable PHP reproduction script
   --catch=STRING             Stop after a Redis error, warning, or exception
                              contains STRING (case-insensitive; exits nonzero)
+  --differential             Compare cacheable reads using an ordered pair:
+                             --client=redis,relay or redis-cluster,relay-cluster
+  --differential-tolerance-ms=N
+                             Wait up to N ms for a transient mismatch to converge
+                             before reporting a divergence (default: 10)
+  --differential-poll-ms=N   Delay between convergence attempts (default: 1)
   --output=MODE              json, simple, or detailed (default: json)
   --raw                      Enable raw-protocol command paths
   --include-blocking         Enable blocking commands

@@ -23,6 +23,10 @@ final class ResultFormatter
             if ($details !== '') {
                 $output .= "\n" . $details;
             }
+            $differential = $this->differentialDetails($result);
+            if ($differential !== '') {
+                $output .= "\n" . $differential;
+            }
         }
 
         return $output;
@@ -54,7 +58,7 @@ final class ResultFormatter
         [$exceptionOccurrences, $uniqueExceptions] = $this->exceptionCounts($result);
         [$redisErrorOccurrences, $uniqueRedisErrors] = $this->redisErrorCounts($result);
 
-        return implode("\n", [
+        $lines = [
             'Fuzz run summary',
             sprintf('  %-25s %d', 'Seed:', $result->seed),
             sprintf('  %-25s %d', 'Commands processed:', $result->steps),
@@ -80,8 +84,16 @@ final class ResultFormatter
                 $exceptionOccurrences,
                 $uniqueExceptions,
             ),
-            '',
-        ]);
+        ];
+        if (($result->configuration['differential'] ?? false) === true) {
+            $counts = $this->differentialCounts($result);
+            $lines[] = sprintf('  %-25s %d', 'Differential checks:', array_sum($counts));
+            $lines[] = sprintf('  %-25s %d', 'Differential converged:', $counts['converged']);
+            $lines[] = sprintf('  %-25s %d', 'Differential divergent:', $counts['divergent']);
+        }
+        $lines[] = '';
+
+        return implode("\n", $lines);
     }
 
     private function commandTable(FuzzResult $result): string
@@ -221,5 +233,63 @@ final class ResultFormatter
         }
 
         return $errors;
+    }
+
+    /** @return array{matched: int, converged: int, divergent: int} */
+    private function differentialCounts(FuzzResult $result): array
+    {
+        $counts = ['matched' => 0, 'converged' => 0, 'divergent' => 0];
+        foreach ($result->differentialOutcomes as $outcome) {
+            match ($outcome->status) {
+                'matched' => $counts['matched']++,
+                'converged' => $counts['converged']++,
+                'divergent' => $counts['divergent']++,
+                default => throw new \UnexpectedValueException(
+                    'Unknown differential status: ' . $outcome->status,
+                ),
+            };
+        }
+
+        return $counts;
+    }
+
+    private function differentialDetails(FuzzResult $result): string
+    {
+        if (($result->configuration['differential'] ?? false) !== true) {
+            return '';
+        }
+
+        $counts = $this->differentialCounts($result);
+        $lines = [
+            'Differential oracle',
+            sprintf(
+                '  %d matched, %d converged within tolerance, %d divergent',
+                $counts['matched'],
+                $counts['converged'],
+                $counts['divergent'],
+            ),
+        ];
+        foreach ($result->differentialOutcomes as $outcome) {
+            if ($outcome->status === 'matched') {
+                continue;
+            }
+            $differences = $outcome->finalDifferences === []
+                ? implode(', ', $outcome->initialDifferences)
+                : implode(', ', $outcome->finalDifferences);
+            $timing = $outcome->convergenceSeconds === null
+                ? ''
+                : sprintf(', converged in %.6f seconds', $outcome->convergenceSeconds);
+            $lines[] = sprintf(
+                '  #%d %s: %s (%s, %d subject attempts%s)',
+                $outcome->sequence,
+                $outcome->command,
+                $outcome->status,
+                $differences === '' ? 'no remaining differences' : $differences,
+                $outcome->subjectAttempts,
+                $timing,
+            );
+        }
+
+        return implode("\n", $lines) . "\n";
     }
 }

@@ -33,6 +33,9 @@ final readonly class RunConfiguration implements \JsonSerializable
         public bool $includeCrashing = false,
         public ?string $scriptLog = null,
         public ?string $catchPattern = null,
+        public bool $differential = false,
+        public float $differentialToleranceMs = 10.0,
+        public float $differentialPollIntervalMs = 1.0,
     ) {
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -57,6 +60,12 @@ final readonly class RunConfiguration implements \JsonSerializable
         }
         if ($catchPattern === '') {
             throw new \InvalidArgumentException('catchPattern cannot be empty');
+        }
+        if (!is_finite($differentialToleranceMs) || $differentialToleranceMs < 0.0) {
+            throw new \InvalidArgumentException('differentialToleranceMs must be finite and non-negative');
+        }
+        if (!is_finite($differentialPollIntervalMs) || $differentialPollIntervalMs <= 0.0) {
+            throw new \InvalidArgumentException('differentialPollIntervalMs must be finite and greater than zero');
         }
         foreach ($weights as $name => $weight) {
             if ($name === '' || $weight < 0.0) {
@@ -91,6 +100,9 @@ final readonly class RunConfiguration implements \JsonSerializable
             'includeCrashing' => $this->includeCrashing,
             'scriptLog' => $this->scriptLog,
             'catchPattern' => $this->catchPattern,
+            'differential' => $this->differential,
+            'differentialToleranceMs' => $this->differentialToleranceMs,
+            'differentialPollIntervalMs' => $this->differentialPollIntervalMs,
         ];
     }
 }

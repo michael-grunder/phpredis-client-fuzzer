@@ -30,6 +30,7 @@ final class ResultFormatterTest extends TestCase
             'configuration',
             'commands',
             'outcomes',
+            'differential_outcomes',
             'problematic_commands',
             'warnings',
             'caught_diagnostic',
