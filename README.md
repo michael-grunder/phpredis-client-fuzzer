@@ -127,27 +127,57 @@ vendor/bin/phpredis-fuzz \
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
 
-### Signal fuzzing
+### Disruption fuzzing
 
-`phpredis-fuzz-killer` repeatedly discovers running `phpredis-fuzz` processes
-through Linux `/proc` and sends each one a randomly chosen signal. This can
-exercise client shutdown and signal-processing paths while separate fuzzer
-workers run:
+`phpredis-fuzz-killer` repeatedly disrupts a running workload. `--mode` selects
+what it disrupts each iteration:
+
+- `process` (default) discovers running `phpredis-fuzz` processes through Linux
+  `/proc` and sends each one a randomly chosen signal.
+- `client` connects to a Redis target and runs `CLIENT KILL` against its normal
+  client connections.
+- `both` does both every iteration.
 
 ```bash
+# Signal fuzzer workers (the default mode)
 vendor/bin/phpredis-fuzz-killer \
     --signals=SIGINT,SIGTERM,SIGQUIT \
     --sleep=0.8-1.2 \
     --rate=100.0
+
+# Kill clients on a disposable Redis (or cluster) target
+vendor/bin/phpredis-fuzz-killer \
+    --mode=client \
+    --host=127.0.0.1 \
+    --port=6379 \
+    --client-rate=25 \
+    --sleep=0.5-1.0
+
+# Do both, signalling every worker but only killing a quarter of clients
+vendor/bin/phpredis-fuzz-killer \
+    --mode=both \
+    --host=127.0.0.1 --port=7000 \
+    --rate=100 --client-rate=25
 ```
 
-Signal names are case-insensitive and may omit the `SIG` prefix. `--sleep` is
-an inclusive minimum-to-maximum range in seconds and `--rate` is the chance,
-from `0.0` to `100.0`, of signaling each discovered PID during an iteration.
-Every signal, skipped PID, failure, empty scan, and sleep is logged with elapsed
-time. The utility requires Linux `/proc` and PHP's POSIX extension and runs
-until stopped. Use it only with disposable fuzzer workers; signals such as
-`SIGQUIT` may produce core dumps or other diagnostic artifacts.
+Signal names are case-insensitive and may omit the `SIG` prefix. `--sleep` is an
+inclusive minimum-to-maximum range in seconds. `--rate` is the chance, from
+`0.0` to `100.0`, of acting on each discovered PID or client during an
+iteration; `--process-rate` and `--client-rate` override it for that action.
+
+In `client` and `both` modes the target given by `--host`/`--port` (with an
+optional `--auth=PASSWORD` or `--auth=USER:PASSWORD`) is inspected once at
+startup. If it belongs to a cluster, every reachable primary and replica is
+mapped and one node is chosen at random each iteration; a standalone target
+always uses the single given node. Only `normal` client connections are
+eligible, and the killer never targets its own inspection connection.
+
+Every action, skipped target, failure, empty scan, and sleep is logged with
+elapsed time. Process mode requires Linux `/proc` and PHP's POSIX extension;
+client mode requires PHP's redis extension. The utility runs until stopped. Use
+it only with disposable fuzzer workers and Redis targets; signals such as
+`SIGQUIT` may produce core dumps or other diagnostic artifacts, and `CLIENT
+KILL` disconnects live connections.
 
 ### Choosing a setting at random
 
