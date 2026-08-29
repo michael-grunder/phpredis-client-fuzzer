@@ -19,19 +19,14 @@ the system-wide PHP executable. For example:
 /home/mike/dev/phpfarm/src/php-8.5.0-debug/sapi/cli/php
 ```
 
-The Relay Git SHA reported by `php --ri relay` is not necessarily authoritative
-for these builds. It is regenerated only by a full `./configure` build, so the
-source checkout and the binary's actual compiled code may be current even when
-the reported SHA is stale. Release reports should record all of the following:
+The in-tree build wrapper injects the full Relay source commit into the
+extension, so the Git SHA reported by `php --ri relay` should match the checkout
+used for that build. Release reports should record all of the following:
 
 - Full PHP binary path and `PHP_VERSION`.
 - Debug/NTS/ZTS status.
-- Relay source checkout commit.
-- Whether the build was fully reconfigured or incrementally rebuilt.
-- The Git SHA reported by the extension, clearly labeled as build metadata.
-
-For the example checkout, the Relay source is at commit
-`1fc24014944a7b03a4baf9a32e47c26c8b19cb66`.
+- Relay Git SHA reported by the extension, verified against the source
+  checkout.
 
 ## Priority 0: Preserve every outcome and failure signal
 
@@ -513,8 +508,3 @@ exception, crash, timeout, or semantic mismatch.
 - Both CLI help commands: passing.
 - No Redis server or cluster was contacted during the review.
 - No live commands or workload seed were used.
-
-The system-wide validation PHP observed during the review was PHP 8.5.8 NTS
-with PhpRedis 6.3.0RC1 and Relay 0.40.1-dev. This is not the authoritative
-release-test binary; actual release campaigns should use and report the
-explicit phpfarm CLI binary selected for that run.
