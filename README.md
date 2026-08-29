@@ -85,7 +85,8 @@ counts remain available in `FuzzResult::$commands`, and
 
 ## CLI
 
-Composer installs `vendor/bin/phpredis-fuzz` and `vendor/bin/phpredis-coverage`.
+Composer installs `vendor/bin/phpredis-fuzz`, `vendor/bin/phpredis-fuzz-killer`,
+and `vendor/bin/phpredis-coverage`.
 The fuzzer's generic `--client` option
 selects one or more concrete client types rather than using separate PhpRedis
 and Relay client-count flags.
@@ -117,6 +118,28 @@ vendor/bin/phpredis-fuzz \
 
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
+
+### Signal fuzzing
+
+`phpredis-fuzz-killer` repeatedly discovers running `phpredis-fuzz` processes
+through Linux `/proc` and sends each one a randomly chosen signal. This can
+exercise client shutdown and signal-processing paths while separate fuzzer
+workers run:
+
+```bash
+vendor/bin/phpredis-fuzz-killer \
+    --signals=SIGINT,SIGTERM,SIGQUIT \
+    --sleep=0.8-1.2 \
+    --rate=100.0
+```
+
+Signal names are case-insensitive and may omit the `SIG` prefix. `--sleep` is
+an inclusive minimum-to-maximum range in seconds and `--rate` is the chance,
+from `0.0` to `100.0`, of signaling each discovered PID during an iteration.
+Every signal, skipped PID, failure, empty scan, and sleep is logged with elapsed
+time. The utility requires Linux `/proc` and PHP's POSIX extension and runs
+until stopped. Use it only with disposable fuzzer workers; signals such as
+`SIGQUIT` may produce core dumps or other diagnostic artifacts.
 
 ### Choosing a setting at random
 

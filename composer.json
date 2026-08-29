@@ -15,6 +15,7 @@
     },
     "bin": [
         "bin/phpredis-fuzz",
+        "bin/phpredis-fuzz-killer",
         "bin/phpredis-coverage"
     ],
     "authors": [
@@ -29,6 +30,7 @@
         "ext-redis": "*"
     },
     "suggest": {
+        "ext-posix": "Required by the phpredis-fuzz-killer process signal utility",
         "ext-relay": "Required to fuzz Relay\\Relay or Relay\\Cluster clients"
     },
     "require-dev": {
