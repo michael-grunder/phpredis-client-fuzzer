@@ -95,9 +95,11 @@ and live in `DiagnosticNormalizer`.
 
 Composer installs `vendor/bin/phpredis-fuzz`, `vendor/bin/phpredis-fuzz-killer`,
 and `vendor/bin/phpredis-coverage`.
-The fuzzer's generic `--client` option
-selects one or more concrete client types rather than using separate PhpRedis
-and Relay client-count flags.
+The fuzzer's generic `--client` option selects one or more concrete client
+types. Append `:COUNT` to create multiple instances of a type; the count
+defaults to one and the total is limited to 10,000 clients. Each step selects
+one eligible instance at random, so `--steps` remains the total number of
+sequential operations rather than a per-client or parallel-operation count.
 
 ```bash
 # Standalone PhpRedis, fixed seed and focused command set
@@ -114,6 +116,13 @@ vendor/bin/phpredis-fuzz \
     --client=redis,relay \
     --host=127.0.0.1 \
     --steps=500 \
+    --seed=123456
+
+# Exercise client-count-sensitive paths with eight PhpRedis connections
+vendor/bin/phpredis-fuzz \
+    --client=redis:8 \
+    --host=127.0.0.1 \
+    --steps=5000 \
     --seed=123456
 
 # PhpRedis cluster

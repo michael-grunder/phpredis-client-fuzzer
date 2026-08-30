@@ -84,7 +84,7 @@ final class Application
                 });
             }
 
-            $clientTypes = $this->clientTypes($options->string('client', 'redis'));
+            $clientTypes = ClientTypeParser::parse($options->string('client', 'redis'));
             $host = $options->string('host', '127.0.0.1');
             $port = $options->integer('port', 6379);
             $seeds = Options::split($options->string('seeds', "{$host}:{$port}"));
@@ -214,23 +214,6 @@ final class Application
         }
     }
 
-    /** @return non-empty-list<ClientType> */
-    private function clientTypes(string $value): array
-    {
-        $types = [];
-        foreach (Options::split($value) as $name) {
-            $type = ClientType::tryFrom(strtolower($name));
-            if ($type === null) {
-                throw new \InvalidArgumentException("Unknown client type: {$name}");
-            }
-            $types[] = $type;
-        }
-        if ($types === []) {
-            throw new \InvalidArgumentException('--client cannot be empty');
-        }
-        return $types;
-    }
-
     /**
      * Reads an optional value option that names one of a fixed set of
      * settings, expanding the random sentinel into a concrete name.
@@ -273,7 +256,9 @@ Usage:
   phpredis-fuzz [options]
 
 Clients and connection:
-  --client=TYPE[,TYPE]       redis, redis-cluster, relay, relay-cluster (default: redis)
+  --client=TYPE[:COUNT],...  redis, redis-cluster, relay, relay-cluster (default: redis)
+                             COUNT creates that many client instances (default: 1;
+                             maximum total: 10000)
   --host=HOST                Standalone host (default: 127.0.0.1)
   --port=PORT                Standalone port (default: 6379)
   --seeds=HOST:PORT,...      Cluster seeds (defaults to host and port)
