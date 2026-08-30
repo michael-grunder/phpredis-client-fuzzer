@@ -15,6 +15,22 @@ use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
 
 final class Application
 {
+    /** @var resource */
+    private $output;
+
+    /** @var resource */
+    private $error;
+
+    /**
+     * @param resource|null $output Defaults to STDOUT.
+     * @param resource|null $error Defaults to STDERR.
+     */
+    public function __construct($output = null, $error = null)
+    {
+        $this->output = $output ?? STDOUT;
+        $this->error = $error ?? STDERR;
+    }
+
     private const VALUE_OPTIONS = [
         'client', 'host', 'port', 'seeds', 'username', 'password', 'timeout',
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
@@ -34,6 +50,13 @@ final class Application
     ];
 
     private const REPEATABLE_OPTIONS = ['weight'];
+
+    private const RELAY_CLUSTER_OPTIONS = [
+        'relay-failover',
+        'relay-distribute',
+        'relay-node-read-timeout',
+        'relay-multikey-reordering',
+    ];
 
     /** @param list<string> $arguments */
     public function run(array $arguments): int
@@ -82,22 +105,37 @@ final class Application
             $seed = $options->optionalInteger('seed') ?? random_int(0, PHP_INT_MAX);
             mt_srand($seed);
 
-            $relayCluster = new RelayClusterOptions(
-                failover: $this->choice($options, 'relay-failover', OptionChoices::relayFailover(), 'failover'),
-                distribute: $this->choice($options, 'relay-distribute', OptionChoices::relayDistribute(), 'distribute'),
-                nodeReadTimeout: $options->optionalNumber('relay-node-read-timeout'),
-                multikeyReordering: $this->choice(
-                    $options,
-                    'relay-multikey-reordering',
-                    OptionChoices::relayMultikeyReordering(),
-                    'multikey reordering',
-                ),
-            );
+            $hasRelayClient = in_array(ClientType::Relay, $clientTypes, true)
+                || in_array(ClientType::RelayCluster, $clientTypes, true);
 
-            if (!$relayCluster->isEmpty() && !in_array(ClientType::RelayCluster, $clientTypes, true)) {
-                throw new \InvalidArgumentException(
-                    'The --relay-* cluster options require --client=relay-cluster',
+            if (!$hasRelayClient) {
+                foreach (self::RELAY_CLUSTER_OPTIONS as $name) {
+                    if ($options->has($name)) {
+                        $this->write(
+                            "Warning: --{$name} doesn't apply to PhpRedis, ignoring\n",
+                            true,
+                        );
+                    }
+                }
+                $relayCluster = new RelayClusterOptions();
+            } else {
+                $relayCluster = new RelayClusterOptions(
+                    failover: $this->choice($options, 'relay-failover', OptionChoices::relayFailover(), 'failover'),
+                    distribute: $this->choice($options, 'relay-distribute', OptionChoices::relayDistribute(), 'distribute'),
+                    nodeReadTimeout: $options->optionalNumber('relay-node-read-timeout'),
+                    multikeyReordering: $this->choice(
+                        $options,
+                        'relay-multikey-reordering',
+                        OptionChoices::relayMultikeyReordering(),
+                        'multikey reordering',
+                    ),
                 );
+
+                if (!$relayCluster->isEmpty() && !in_array(ClientType::RelayCluster, $clientTypes, true)) {
+                    throw new \InvalidArgumentException(
+                        'The --relay-* cluster options require --client=relay-cluster',
+                    );
+                }
             }
 
             $serializer = OptionChoices::resolve(
@@ -219,7 +257,7 @@ final class Application
 
     private function write(string $message, bool $error = false): void
     {
-        $stream = $error ? STDERR : STDOUT;
+        $stream = $error ? $this->error : $this->output;
         fwrite($stream, $message);
     }
 
