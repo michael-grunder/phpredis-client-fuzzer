@@ -114,10 +114,10 @@ final class CoverageTest extends TestCase
             new IgnoreList(['shutdown']),
         );
 
-        self::assertSame(['get', 'set'], $report->covered);
+        self::assertSame(['get', 'set', 'sort'], $report->covered);
 
-        /* Redis::sort() exists, so an uncovered SORT is a catalog gap. */
-        self::assertSame(['sort'], $report->missing);
+        /* SORT is now covered by the command catalog. */
+        self::assertSame([], $report->missing);
 
         /* PhpRedis has no xSetId(), so it cannot be fuzzed at all. */
         self::assertSame(['xsetid'], $report->unsupported);
@@ -125,7 +125,7 @@ final class CoverageTest extends TestCase
         self::assertSame(['shutdown' => 'shutdown'], $report->ignored);
         self::assertSame(5, $report->serverCommands);
         self::assertSame(4, $report->considered());
-        self::assertSame(0.5, $report->ratio());
+        self::assertSame(0.75, $report->ratio());
     }
 
     public function testIgnorePatternsNeverHideCoveredCommands(): void
@@ -137,9 +137,9 @@ final class CoverageTest extends TestCase
             new IgnoreList(['*']),
         );
 
-        self::assertSame(['get'], $report->covered);
+        self::assertSame(['get', 'sort'], $report->covered);
         self::assertSame([], $report->missing);
-        self::assertSame(['sort' => '*'], $report->ignored);
+        self::assertSame([], $report->ignored);
     }
 
     public function testCatalogCommandsAbsentFromTheServerAreClassified(): void
@@ -180,8 +180,8 @@ final class CoverageTest extends TestCase
         self::assertIsArray($decoded);
         self::assertSame('redis', $decoded['client']);
         self::assertSame('Redis', $decoded['client_class']);
-        self::assertSame(['sort'], $decoded['missing']);
-        self::assertSame(0.5, $decoded['ratio']);
+        self::assertSame([], $decoded['missing']);
+        self::assertSame(1, $decoded['ratio']);
     }
 
     public function testCliReportsCoverageFromAFileWithoutARedisServer(): void
@@ -202,7 +202,7 @@ final class CoverageTest extends TestCase
         }
 
         self::assertSame(0, $status);
-        self::assertSame("sort\n", self::contents($stream));
+        self::assertSame('', self::contents($stream));
     }
 
     public function testCliRejectsUnknownOptions(): void

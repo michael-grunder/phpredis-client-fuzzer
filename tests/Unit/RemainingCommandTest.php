@@ -16,6 +16,8 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\Command\georadiusbymember_ro;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command\increx;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command\lmovem;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sdiffcard;
+use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sort as SortCommand;
+use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sort_ro as SortRoCommand;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sunioncard;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
@@ -105,7 +107,7 @@ final class RemainingCommandTest extends TestCase
         $names = [
             'bitfield', 'blmovem', 'blpop', 'brpop', 'digest',
             'georadiusbymember', 'georadiusbymember_ro', 'increx', 'lmovem',
-            'sdiffcard', 'sunioncard',
+            'sdiffcard', 'sunioncard', 'sort', 'sort_ro',
         ];
 
         foreach ($names as $name) {
@@ -471,6 +473,69 @@ final class RemainingCommandTest extends TestCase
                 self::assertArrayHasKey('APPROX', $tokens);
             else
                 self::assertArrayNotHasKey('APPROX', $tokens);
+        }
+    }
+
+    public function testSortCoversMethodAndRawOptionSurfaces(): void
+    {
+        foreach ([new SortCommand(), new SortRoCommand()] as $command) {
+            $invoker = $this->invoker($command);
+            for ($i = 0; $i < 800; $i++) {
+                $command->fuzz($this->client, $this->config);
+                $command->fuzzRaw($this->client, $this->config);
+            }
+
+            $tokens = [];
+            foreach ($invoker->calls as $call) {
+                $args = $call['arguments'];
+                if ($call['method'] === 'rawCommand') {
+                    self::assertSame($command->name(), array_shift($args));
+                    $source = array_shift($args);
+                    self::assertIsString($source);
+                    self::assertMatchesRegularExpression('/^(?:list|set|zset)-key-/', $source);
+
+                    while ($args !== []) {
+                        $token = array_shift($args);
+                        self::assertIsString($token);
+                        $tokens[$token] = true;
+                        if ($token === 'BY' || $token === 'STORE' || $token === 'GET') {
+                            self::assertNotSame([], $args);
+                            self::assertIsString(array_shift($args));
+                        } else if ($token === 'LIMIT') {
+                            self::assertCount(2, array_splice($args, 0, 2));
+                        }
+                    }
+                    continue;
+                }
+
+                self::assertSame($command->name(), $call['method']);
+                self::assertIsString($args[0]);
+                self::assertMatchesRegularExpression('/^(?:list|set|zset)-key-/', $args[0]);
+                if (!isset($args[1]))
+                    continue;
+
+                self::assertIsArray($args[1]);
+                foreach ($args[1] as $key => $value) {
+                    $token = is_string($key) ? $key : $value;
+                    if (!is_string($token))
+                        self::fail('SORT option is not a string');
+                    $tokens[$token] = true;
+                    if ($key === 'GET') {
+                        foreach (is_array($value) ? $value : [$value] as $pattern)
+                            self::assertIsString($pattern);
+                    } else if ($key === 'LIMIT') {
+                        self::assertIsArray($value);
+                        self::assertCount(2, $value);
+                    }
+                }
+            }
+
+            foreach (['BY', 'LIMIT', 'GET', 'ASC', 'DESC', 'ALPHA'] as $token)
+                self::assertArrayHasKey($token, $tokens);
+            if ($command instanceof SortCommand)
+                self::assertArrayHasKey('STORE', $tokens);
+            else
+                self::assertArrayNotHasKey('STORE', $tokens);
         }
     }
 

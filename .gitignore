@@ -1,3 +1,5 @@
 vendor/
 .phpactor.json
 .agents.md
+*.stub.php
+stubs/
