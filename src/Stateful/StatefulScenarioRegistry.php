@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
 
+use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
+use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
+
 final class StatefulScenarioRegistry
 {
     /** @return list<string> */
@@ -66,12 +69,15 @@ final class StatefulScenarioRegistry
         return $selected;
     }
 
-    public static function create(string $name): StatefulScenario
+    public static function create(
+        string $name,
+        ClientInvoker $clientInvoker = new StrictClientInvoker(),
+    ): StatefulScenario
     {
         return match (strtolower($name)) {
-            'transaction-exec' => new TransactionScenario('transaction-exec'),
-            'transaction-discard' => new TransactionScenario('transaction-discard'),
-            'watch-unwatch-discard' => new TransactionScenario('watch-unwatch-discard'),
+            'transaction-exec' => new TransactionScenario('transaction-exec', $clientInvoker),
+            'transaction-discard' => new TransactionScenario('transaction-discard', $clientInvoker),
+            'watch-unwatch-discard' => new TransactionScenario('watch-unwatch-discard', $clientInvoker),
             default => throw new \InvalidArgumentException(
                 "Unknown stateful scenario: {$name}",
             ),
@@ -82,12 +88,16 @@ final class StatefulScenarioRegistry
      * @param list<string> $names
      * @return list<StatefulScenario>
      */
-    public static function select(array $names, int $seed = 0): array
+    public static function select(
+        array $names,
+        int $seed = 0,
+        ClientInvoker $clientInvoker = new StrictClientInvoker(),
+    ): array
     {
         $names = self::resolve($names, $seed);
         $selected = [];
         foreach ($names as $name) {
-            $selected[] = self::create($name);
+            $selected[] = self::create($name, $clientInvoker);
         }
 
         /* A stable seed-derived order avoids consuming the fuzzer's global RNG. */

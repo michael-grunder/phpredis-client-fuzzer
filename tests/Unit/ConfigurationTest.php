@@ -6,6 +6,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
+use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -44,6 +45,22 @@ final class ConfigurationTest extends TestCase
         self::assertSame(10.0, $configuration->differentialToleranceMs);
         self::assertSame(1.0, $configuration->differentialPollIntervalMs);
         self::assertSame([], $configuration->scenarios);
+        self::assertSame(InvocationMode::Strict, $configuration->invocationMode);
+        self::assertSame('strict', $configuration->jsonSerialize()['invocationMode']);
+    }
+
+    public function testInvocationModesAreParsedExplicitly(): void
+    {
+        self::assertSame(InvocationMode::Strict, InvocationMode::parse(' STRICT '));
+        self::assertSame(InvocationMode::Coercive, InvocationMode::parse('coercive'));
+    }
+
+    public function testUnknownInvocationModeIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('expected strict or coercive');
+
+        InvocationMode::parse('weak');
     }
 
     public function testDifferentialTimingMustBeValid(): void

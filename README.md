@@ -93,8 +93,9 @@ and live in `DiagnosticNormalizer`.
 
 ## CLI
 
-Composer installs `vendor/bin/phpredis-fuzz`, `vendor/bin/phpredis-fuzz-killer`,
-and `vendor/bin/phpredis-coverage`.
+Composer installs `vendor/bin/phpredis-fuzz`,
+`vendor/bin/phpredis-fuzz-coercive`, `vendor/bin/phpredis-fuzz-killer`, and
+`vendor/bin/phpredis-coverage`.
 The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
 defaults to one and the total is limited to 10,000 clients. Each step selects
@@ -142,6 +143,30 @@ those scenarios to a random subset of the named choices.
 
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
+
+### Client invocation typing
+
+Client command calls use strict PHP typing by default. This affects only the
+boundary that invokes `Redis`, `RedisCluster`, `Relay\Relay`, or
+`Relay\Cluster`; workload selection, argument generation, diagnostics, and the
+rest of the fuzzer remain unchanged.
+
+Use `--invocation-mode=coercive` to exercise PHP's coercive scalar argument
+handling in the client extensions:
+
+```bash
+vendor/bin/phpredis-fuzz \
+    --invocation-mode=coercive \
+    --client=redis \
+    --steps=1000 \
+    --seed=123456
+```
+
+`vendor/bin/phpredis-fuzz-coercive` is a convenience entrypoint with the same
+coercive default; it accepts all normal fuzzer options. Passing
+`--invocation-mode=strict` overrides that default. The selected mode is stored
+in `FuzzResult::$configuration` and emitted as both metadata and the
+`declare(strict_types=...)` setting in reproduction scripts.
 
 ### Disruption fuzzing
 
@@ -257,7 +282,8 @@ adds an aligned per-command table, a dedicated problematic-command section, and
 groups the full Redis error, warning, and exception messages under the command
 that produced them.
 `--script-log` writes an executable PHP reproduction script containing the
-concrete generated calls. `--catch=STRING` stops the workload as soon as a
+concrete generated calls and the selected invocation typing declaration.
+`--catch=STRING` stops the workload as soon as a
 captured Redis error, PHP warning, or exception contains `STRING`, using a
 case-insensitive search. The selected output mode is still written, including
 the matching diagnostic in `caught_diagnostic` for JSON output, and the process
@@ -554,6 +580,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `maxPrefixLength` | `0` | Maximum randomized client prefix length; `0` disables |
 | `wrongTypeChance` | `0.0` | Chance from `0.0` to `1.0` of selecting a wrong key type |
 | `crossSlotChance` | `0.0` | Chance from `0.0` to `1.0` of forcing a `CROSSSLOT` error; cluster only |
+| `invocationMode` | `InvocationMode::Strict` | Typing mode used at the client method-call boundary |
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `weights` | `[]` | Command or flag weights |
 | `raw` | `false` | Enable raw-protocol paths and raw commands |

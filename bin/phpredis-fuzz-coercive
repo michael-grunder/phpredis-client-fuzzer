@@ -1,0 +1,17 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Mgrunder\PhpredisCommandFuzzer\Cli\Application;
+use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
+
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (!is_file($autoload)) {
+    $autoload = dirname(__DIR__, 3) . '/autoload.php';
+}
+require $autoload;
+
+exit((new Application(defaultInvocationMode: InvocationMode::Coercive))->run(
+    array_slice($argv, 1),
+));

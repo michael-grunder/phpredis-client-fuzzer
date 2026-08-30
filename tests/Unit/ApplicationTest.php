@@ -5,11 +5,62 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Cli\Application;
+use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ApplicationTest extends TestCase
 {
+    public function testHelpDocumentsInvocationModeWithoutConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run(['--help']);
+
+        self::assertSame(0, $status);
+        self::assertStringContainsString(
+            '--invocation-mode=MODE',
+            self::contents($output),
+        );
+        self::assertStringContainsString('(default: strict)', self::contents($output));
+        self::assertSame('', self::contents($error));
+    }
+
+    public function testHelpUsesTheEntrypointInvocationDefault(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application(
+            $output,
+            $error,
+            InvocationMode::Coercive,
+        ))->run(['--help']);
+
+        self::assertSame(0, $status);
+        self::assertStringContainsString('(default: coercive)', self::contents($output));
+        self::assertSame('', self::contents($error));
+    }
+
+    public function testUnknownInvocationModeIsRejectedBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--invocation-mode=weak',
+            '--port=0',
+        ]);
+
+        self::assertSame(1, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString(
+            'Unknown invocation mode: weak',
+            self::contents($error),
+        );
+    }
+
     /** @return iterable<string, array{string}> */
     public static function phpRedisClients(): iterable
     {

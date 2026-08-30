@@ -8,6 +8,7 @@ use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
+use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
@@ -25,7 +26,11 @@ final class Application
      * @param resource|null $output Defaults to STDOUT.
      * @param resource|null $error Defaults to STDERR.
      */
-    public function __construct($output = null, $error = null)
+    public function __construct(
+        $output = null,
+        $error = null,
+        private readonly InvocationMode $defaultInvocationMode = InvocationMode::Strict,
+    )
     {
         $this->output = $output ?? STDOUT;
         $this->error = $error ?? STDERR;
@@ -37,6 +42,7 @@ final class Application
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'script-log', 'catch',
+        'invocation-mode',
         'differential-tolerance-ms', 'differential-poll-ms',
         'scenarios',
         'output',
@@ -71,11 +77,14 @@ final class Application
             );
 
             if ($options->has('help')) {
-                $this->write(self::HELP);
+                $this->write($this->help());
                 return 0;
             }
 
             $outputMode = OutputMode::parse($options->string('output', 'json'));
+            $invocationMode = InvocationMode::parse(
+                $options->string('invocation-mode', $this->defaultInvocationMode->value),
+            );
 
             if ($options->has('verbose')) {
                 Log::setLogger(function (string $level, string $message, array $context): void {
@@ -200,6 +209,7 @@ final class Application
                 differentialToleranceMs: $options->number('differential-tolerance-ms', 10.0),
                 differentialPollIntervalMs: $options->number('differential-poll-ms', 1.0),
                 scenarios: $options->csv('scenarios'),
+                invocationMode: $invocationMode,
             ));
 
             $this->write((new ResultFormatter())->format($result, $outputMode));
@@ -247,6 +257,15 @@ final class Application
     {
         $stream = $error ? $this->error : $this->output;
         fwrite($stream, $message);
+    }
+
+    private function help(): string
+    {
+        return str_replace(
+            '{invocation-default}',
+            $this->defaultInvocationMode->value,
+            self::HELP,
+        );
     }
 
     private const HELP = <<<'HELP'
@@ -305,6 +324,8 @@ Run configuration:
   --crossslot-chance=N       Probability from 0 to 1 that a single-slot command
                              gets keys in different cluster slots, forcing a
                              CROSSSLOT error (cluster only, default: 0)
+  --invocation-mode=MODE     Client call typing: strict or coercive
+                             (default: {invocation-default})
   --script-log=FILE          Write an executable PHP reproduction script
   --catch=STRING             Stop after a Redis error, warning, or exception
                              contains STRING (case-insensitive; exits nonzero)

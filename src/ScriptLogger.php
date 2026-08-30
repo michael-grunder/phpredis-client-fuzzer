@@ -111,7 +111,11 @@ class ScriptLogger {
      * @param array<string, string|int|bool|float> $details
      */
     private function preamble(array $details): void {
-        fprintf($this->fp, "<?php\n\n");
+        fprintf(
+            $this->fp,
+            "<?php\n\ndeclare(strict_types=%d);\n\n",
+            $this->invocationMode === InvocationMode::Strict ? 1 : 0,
+        );
         fprintf($this->fp, "// Date: %s\n", date('Y-m-d H:i:s'));
 
         if (class_exists('\Relay\Relay'))
@@ -249,7 +253,8 @@ class ScriptLogger {
      * @param array<Redis|RedisCluster|Relay|Cluster> $clients
      */
     protected function __construct(?string $filename, array $details = [],
-                                   array $clients = [], bool $try_catch = false)
+                                   array $clients = [], bool $try_catch = false,
+                                   private readonly InvocationMode $invocationMode = InvocationMode::Strict)
     {
         $this->file_name = $filename;
         $this->try_catch = $try_catch;
@@ -271,14 +276,15 @@ class ScriptLogger {
      */
     public static function init(string $file_name, array $details = [],
                                 array $clients = [], bool
-                                $try_catch = false): void
+                                $try_catch = false,
+                                InvocationMode $invocationMode = InvocationMode::Strict): void
     {
         if (self::$instance !== null) {
             throw new \Exception("ScriptLogger already initialized");
         }
 
         self::$instance = new ScriptLogger($file_name, $details, $clients,
-                                          $try_catch);
+                                          $try_catch, $invocationMode);
     }
 
     public static function finish(): void {

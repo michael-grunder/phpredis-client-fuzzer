@@ -39,6 +39,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public float $differentialPollIntervalMs = 1.0,
         public array $scenarios = [],
         public bool $includeStateful = false,
+        public InvocationMode $invocationMode = InvocationMode::Strict,
     ) {
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -113,6 +114,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'differentialToleranceMs' => $this->differentialToleranceMs,
             'differentialPollIntervalMs' => $this->differentialPollIntervalMs,
             'scenarios' => $this->scenarios,
+            'invocationMode' => $this->invocationMode->value,
         ];
     }
 }

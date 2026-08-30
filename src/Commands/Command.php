@@ -2,6 +2,8 @@
 
 namespace Mgrunder\PhpredisCommandFuzzer\Commands;
 
+use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
+use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\DifferentialOracle;
 use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
@@ -59,6 +61,8 @@ abstract class Command implements HasWeight {
 
     private float $weight = 1.0;
 
+    private ?ClientInvoker $clientInvoker = null;
+
     /* RedisCluster and Relay\Cluster require rawCommand() to start with a
        routing key (or node address). FuzzConfig refreshes this for every
        command scope before arguments are generated. */
@@ -87,6 +91,10 @@ abstract class Command implements HasWeight {
             throw new \InvalidArgumentException('Command weights cannot be negative');
         }
         $this->weight = $weight;
+    }
+
+    final public function setClientInvoker(ClientInvoker $clientInvoker): void {
+        $this->clientInvoker = $clientInvoker;
     }
 
     protected function randomType(): string {
@@ -412,7 +420,7 @@ abstract class Command implements HasWeight {
         $warningsBefore = $oraclePrepared ? self::capturedWarnings() : [];
         $started = $oraclePrepared ? hrtime(true) : 0;
         try {
-            $result = $client->{$cmd}(...$args);
+            $result = $this->invokeClient($client, $cmd, $args);
         } catch (\Throwable $throwable) {
             /* Do not let diagnostics hide the exception thrown by the client. */
             try {
@@ -449,6 +457,17 @@ abstract class Command implements HasWeight {
         }
 
         return $result;
+    }
+
+    /** @param list<mixed> $args */
+    final protected function invokeClient(
+        Redis|RedisCluster|Relay|Cluster $client,
+        string $method,
+        array $args,
+    ): mixed {
+        $this->clientInvoker ??= new StrictClientInvoker();
+
+        return $this->clientInvoker->invoke($client, $method, $args);
     }
 
     /**

@@ -48,6 +48,7 @@ final class DifferentialOracle
         private readonly int $subjectIndex,
         private readonly float $toleranceMilliseconds,
         private readonly float $pollIntervalMilliseconds,
+        private readonly ClientInvoker $clientInvoker = new StrictClientInvoker(),
     ) {
     }
 
@@ -221,7 +222,7 @@ final class DifferentialOracle
         $reply = null;
         $exception = null;
         try {
-            $reply = $client->{$method}(...$arguments);
+            $reply = $this->clientInvoker->invoke($client, $method, $arguments);
             $returned = true;
         } catch (\Throwable $throwable) {
             $exception = $throwable;

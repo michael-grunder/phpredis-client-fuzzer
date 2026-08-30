@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
 
+use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
 use Mgrunder\PhpredisCommandFuzzer\ValueSummary;
 use Redis;
 use RedisCluster;
@@ -13,8 +15,10 @@ use Relay\Relay;
 
 final class TransactionScenario implements StatefulScenario
 {
-    public function __construct(private readonly string $scenario)
-    {
+    public function __construct(
+        private readonly string $scenario,
+        private readonly ClientInvoker $clientInvoker = new StrictClientInvoker(),
+    ) {
     }
 
     public function name(): string
@@ -168,7 +172,7 @@ final class TransactionScenario implements StatefulScenario
                 $client->clearLastError();
             } catch (\Throwable) {
             }
-            $reply = $client->{$method}(...$arguments);
+            $reply = $this->clientInvoker->invoke($client, $method, $arguments);
             $returned = true;
         } catch (\Throwable $throwable) {
             $exception = $throwable;

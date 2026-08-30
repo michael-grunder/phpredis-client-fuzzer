@@ -92,6 +92,7 @@ final class FuzzerEndpoint
             differentialToleranceMs: $this->configuration->differentialToleranceMs,
             differentialPollIntervalMs: $this->configuration->differentialPollIntervalMs,
             scenarios: $this->configuration->scenarios,
+            invocationMode: $this->configuration->invocationMode,
         );
     }
 

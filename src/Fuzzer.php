@@ -25,7 +25,12 @@ final class Fuzzer
     public function run(array $clients, RunConfiguration $configuration = new RunConfiguration()): FuzzResult
     {
         $clients = $this->normalizeClients($clients);
-        $differentialOracle = $this->differentialOracle($clients, $configuration);
+        $clientInvoker = $configuration->invocationMode->invoker();
+        $differentialOracle = $this->differentialOracle(
+            $clients,
+            $configuration,
+            $clientInvoker,
+        );
         $executionClients = $differentialOracle === null
             ? $clients
             : [$differentialOracle->subject()];
@@ -35,6 +40,11 @@ final class Fuzzer
         mt_srand($seed);
 
         $registry = (new CommandFilter())->apply(new Registry(), $configuration);
+        $registry->apply(
+            static function (Command $command) use ($clientInvoker): void {
+                $command->setClientInvoker($clientInvoker);
+            },
+        );
         $registry->filter(
             fn (Command $command): bool => $this->eligibleClients(
                 $executionClients,
@@ -80,7 +90,8 @@ final class Fuzzer
                 'php-version' => PHP_VERSION,
                 'phpredis-version' => phpversion('redis') ?: 'not-loaded',
                 'relay-version' => phpversion('relay') ?: 'not-loaded',
-            ], $clients);
+                'invocation-mode' => $configuration->invocationMode->value,
+            ], $clients, invocationMode: $configuration->invocationMode);
         }
 
         Command::resetCapturedWarnings();
@@ -90,7 +101,7 @@ final class Fuzzer
         $caughtDiagnostic = null;
         $statefulOutcomes = [];
         try {
-            $statefulOutcomes = (new StatefulScenarioRunner())->run(
+            $statefulOutcomes = (new StatefulScenarioRunner($clientInvoker))->run(
                 $executionClients,
                 $configuration->scenarios,
                 $seed,
@@ -259,6 +270,7 @@ final class Fuzzer
     private function differentialOracle(
         array $clients,
         RunConfiguration $configuration,
+        ClientInvoker $clientInvoker,
     ): ?DifferentialOracle {
         if (!$configuration->differential) {
             return null;
@@ -295,6 +307,7 @@ final class Fuzzer
             subjectIndex: 1,
             toleranceMilliseconds: $configuration->differentialToleranceMs,
             pollIntervalMilliseconds: $configuration->differentialPollIntervalMs,
+            clientInvoker: $clientInvoker,
         );
     }
 
