@@ -124,3 +124,8 @@ Redis target.
 In the final handoff state the PHP binary/version, loaded PhpRedis and Relay
 versions, Redis target/topology, commands and seed used, checks run, and any
 artifacts retained.
+
+## Local .agents.md
+
+There may also be a local `.agents.md` that has specific information about the machine
+and available tooling that can be useful
