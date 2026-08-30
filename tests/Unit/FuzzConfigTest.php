@@ -22,6 +22,18 @@ final class FuzzConfigTest extends TestCase
         self::assertSame($first, $second);
     }
 
+    public function testMillisecondAbsoluteExpiriesUseMillisecondEpoch(): void
+    {
+        mt_srand(12345);
+        $configuration = new FuzzConfig();
+        $before = time() * 1000;
+        $expiry = $configuration->getRandomExpireAt(true);
+        $after = time() * 1000;
+
+        self::assertGreaterThanOrEqual($before + 1000, $expiry);
+        self::assertLessThanOrEqual($after + 1_000_000, $expiry);
+    }
+
     public function testClusterKeysUseStableHashTags(): void
     {
         mt_srand(42);

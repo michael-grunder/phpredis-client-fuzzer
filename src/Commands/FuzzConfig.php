@@ -494,7 +494,9 @@ class FuzzConfig {
     }
 
     public function getRandomExpireAt(bool $millis = false): int {
-        return time() + $this->getRandomExpire($millis);
+        $now = time() * ($millis ? 1000 : 1);
+
+        return $now + $this->getRandomExpire($millis);
     }
 
     public function getRandomTimeout(): float {
