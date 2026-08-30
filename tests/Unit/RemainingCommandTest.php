@@ -109,6 +109,8 @@ final class RemainingCommandTest extends TestCase
             'georadiusbymember', 'georadiusbymember_ro', 'increx', 'lmovem',
             'sdiffcard', 'sunioncard', 'sort', 'sort_ro',
             'restore', 'script', 'xackdel', 'xdelex', 'xnack',
+            'vadd', 'vcard', 'vdim', 'vemb', 'vgetattr', 'vinfo', 'vismember',
+            'vlinks', 'vrandmember', 'vrange', 'vrem', 'vsetattr', 'vsim',
         ];
 
         foreach ($names as $name) {
