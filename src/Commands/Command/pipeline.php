@@ -13,7 +13,7 @@ use RedisCluster;
 
 class pipeline extends Command implements FuzzInterface {
     public function flags(): int {
-        return self::READ;
+        return self::READ | self::STATEFUL;
     }
 
     public function type(): string {

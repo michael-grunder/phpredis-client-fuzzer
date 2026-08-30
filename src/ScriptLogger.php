@@ -177,9 +177,17 @@ class ScriptLogger {
                 $context = [];
             }
 
+            $host = '127.0.0.1';
+            try {
+                if (@$client->isConnected()) {
+                    $host = $client->getHost();
+                }
+            } catch (\Throwable) {
+                /* Keep a usable local default for disconnected test doubles. */
+            }
             fprintf($this->fp, "%s = new %s;\n", $name, $class);
             fprintf($this->fp, "%s->connect(%s, \$port, %f, null, 0, %f, %s);\n", $name,
-                    $this->varExport($client->getHost()), $timeout,
+                    $this->varExport($host), $timeout,
                     $read_timeout, $this->varExport($context));
         } else {
             /** @var RedisCluster|Cluster $client */

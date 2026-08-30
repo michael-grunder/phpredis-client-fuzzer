@@ -11,6 +11,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
 use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
 use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
+use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -87,7 +88,13 @@ final class Fuzzer
         $warnings = [];
         $commandWarnings = [];
         $caughtDiagnostic = null;
+        $statefulOutcomes = [];
         try {
+            $statefulOutcomes = (new StatefulScenarioRunner())->run(
+                $executionClients,
+                $configuration->scenarios,
+                $seed,
+            );
             while ($this->withinLimits($steps, $started, $configuration)) {
                 $command = $selector->pick();
                 $eligible = $this->eligibleClients($executionClients, $command, $configuration->raw);
@@ -239,6 +246,7 @@ final class Fuzzer
             ),
             $outcomes,
             $differentialOracle?->outcomes() ?? [],
+            $statefulOutcomes,
         );
     }
 
@@ -433,7 +441,11 @@ final class Fuzzer
         try {
             if ($client instanceof Redis || $client instanceof Relay) {
                 $details['topology'] = 'standalone';
-                $details['server'] = ['host' => $client->getHost(), 'port' => $client->getPort()];
+                if (@$client->isConnected()) {
+                    $details['server'] = ['host' => $client->getHost(), 'port' => $client->getPort()];
+                } else {
+                    $details['server'] = ['host' => 'unknown', 'port' => 0];
+                }
             } else {
                 $details['topology'] = 'cluster';
                 $details['servers'] = $client->_masters();

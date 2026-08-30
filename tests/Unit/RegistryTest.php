@@ -26,7 +26,7 @@ final class RegistryTest extends TestCase
     {
         $registry = (new CommandFilter())->apply(new Registry(), new RunConfiguration());
         $excluded = Command::BLOCKING | Command::LOCAL | Command::ADMIN
-            | Command::FLUSH | Command::CRASH | Command::RAW;
+            | Command::FLUSH | Command::CRASH | Command::RAW | Command::STATEFUL;
 
         foreach ($registry as $command) {
             self::assertSame(0, $command->flags() & $excluded, $command->name());
@@ -47,6 +47,17 @@ final class RegistryTest extends TestCase
         foreach ($registry->names() as $name) {
             self::assertStringStartsWith('get', $name);
         }
+    }
+
+    public function testStatefulCommandsCanBeEnabledExplicitly(): void
+    {
+        $registry = (new CommandFilter())->apply(
+            new Registry(),
+            new RunConfiguration(includeStateful: true),
+        );
+
+        self::assertNotNull($registry->get('multi'));
+        self::assertNotNull($registry->get('discard'));
     }
 
     public function testSafetyFlagsStillApplyToExplicitCommandNames(): void

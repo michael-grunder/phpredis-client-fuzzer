@@ -8,6 +8,7 @@ final readonly class RunConfiguration implements \JsonSerializable
 {
     /**
      * @param list<string> $commands Command/glob/flag filters, such as get*, -getex, or @read.
+     * @param list<string> $scenarios Named stateful scenarios to run before random steps.
      * @param array<string, float> $weights Command or @flag weights.
      */
     public function __construct(
@@ -36,6 +37,8 @@ final readonly class RunConfiguration implements \JsonSerializable
         public bool $differential = false,
         public float $differentialToleranceMs = 10.0,
         public float $differentialPollIntervalMs = 1.0,
+        public array $scenarios = [],
+        public bool $includeStateful = false,
     ) {
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -66,6 +69,11 @@ final readonly class RunConfiguration implements \JsonSerializable
         }
         if (!is_finite($differentialPollIntervalMs) || $differentialPollIntervalMs <= 0.0) {
             throw new \InvalidArgumentException('differentialPollIntervalMs must be finite and greater than zero');
+        }
+        foreach ($scenarios as $scenario) {
+            if (trim($scenario) === '') {
+                throw new \InvalidArgumentException('scenarios must contain non-empty names');
+            }
         }
         foreach ($weights as $name => $weight) {
             if ($name === '' || $weight < 0.0) {
@@ -98,11 +106,13 @@ final readonly class RunConfiguration implements \JsonSerializable
             'includeAdmin' => $this->includeAdmin,
             'includeFlush' => $this->includeFlush,
             'includeCrashing' => $this->includeCrashing,
+            'includeStateful' => $this->includeStateful,
             'scriptLog' => $this->scriptLog,
             'catchPattern' => $this->catchPattern,
             'differential' => $this->differential,
             'differentialToleranceMs' => $this->differentialToleranceMs,
             'differentialPollIntervalMs' => $this->differentialPollIntervalMs,
+            'scenarios' => $this->scenarios,
         ];
     }
 }

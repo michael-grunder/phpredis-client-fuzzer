@@ -23,7 +23,7 @@ class unwatch extends Command implements FuzzInterface,
     }
 
     public function flags(): int {
-        return self::READ;
+        return self::READ | self::STATEFUL;
     }
 
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,

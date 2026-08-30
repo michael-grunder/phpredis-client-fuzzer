@@ -300,6 +300,31 @@ initial Relay read can therefore be cold, warm, or awaiting invalidation; the
 immediate repeat and convergence polling distinguish those cases. Explicit
 deterministic cold/populate/mutate scenarios remain follow-up work.
 
+### Stateful scenarios
+
+Named state-machine scenarios are disabled unless selected explicitly. They run
+before the random command stream, use the run seed in their key namespace, and
+report every operation and postcondition in `stateful_outcomes`:
+
+```bash
+vendor/bin/phpredis-fuzz \
+    --client=relay-cluster \
+    --scenarios=transaction-exec,transaction-discard,watch-unwatch-discard \
+    --steps=1000 \
+    --seed=123456
+```
+
+The built-in scenarios verify transaction commit, discard cleanup, and
+`WATCH`/`UNWATCH` cleanup. Each terminal operation asserts that the client is
+back in atomic mode; commit also verifies both writes and discard verifies the
+key remains absent. A failed postcondition makes the CLI exit nonzero. Clients
+missing a required method produce a structured `skipped` outcome.
+
+The `STATEFUL` command flag is separate from scenarios. Standalone random
+`MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH`, and pipeline commands are
+excluded by default; use `--include-stateful` when deliberately mixing them
+into the random stream.
+
 ## Command coverage
 
 Composer also installs `vendor/bin/phpredis-coverage`, which reports the Redis
@@ -526,6 +551,8 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `differential` | `false` | Enable ordered reference-versus-Relay cache-read comparisons |
 | `differentialToleranceMs` | `10.0` | Maximum time for a mismatched Relay read to converge before it is divergent |
 | `differentialPollIntervalMs` | `1.0` | Delay between Relay convergence attempts |
+| `scenarios` | `[]` | Named seeded state-machine scenarios to run before random steps |
+| `includeStateful` | `false` | Include standalone stateful commands in random fuzzing |
 
 At least one of `maxSteps` or `maxSeconds` must be greater than zero.
 
@@ -539,7 +566,7 @@ Command filters are case-insensitive:
 
 Supported flags are `read`, `write`, `delete`, `flush`, `blocking`, `cached`,
 `invalidating`, `expire`, `raw`, `select`, `admin`, `scan`, `local`, `crash`,
-and `crossslot`. Safety category switches are applied after name filters, so
+`crossslot`, and `stateful`. Safety category switches are applied after name filters, so
 explicitly naming `flushall` still requires `includeFlush: true`.
 
 Weights use command names or flags:

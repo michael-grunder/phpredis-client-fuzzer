@@ -27,6 +27,10 @@ final class ResultFormatter
             if ($differential !== '') {
                 $output .= "\n" . $differential;
             }
+            $stateful = $this->statefulDetails($result);
+            if ($stateful !== '') {
+                $output .= "\n" . $stateful;
+            }
         }
 
         return $output;
@@ -90,6 +94,13 @@ final class ResultFormatter
             $lines[] = sprintf('  %-25s %d', 'Differential checks:', array_sum($counts));
             $lines[] = sprintf('  %-25s %d', 'Differential converged:', $counts['converged']);
             $lines[] = sprintf('  %-25s %d', 'Differential divergent:', $counts['divergent']);
+        }
+        if (($result->configuration['scenarios'] ?? []) !== []) {
+            $stateful = $this->statefulCounts($result);
+            $lines[] = sprintf('  %-25s %d', 'Stateful scenarios:', $stateful['total']);
+            $lines[] = sprintf('  %-25s %d', 'Stateful passed:', $stateful['passed']);
+            $lines[] = sprintf('  %-25s %d', 'Stateful failed:', $stateful['failed']);
+            $lines[] = sprintf('  %-25s %d', 'Stateful skipped:', $stateful['skipped']);
         }
         $lines[] = '';
 
@@ -287,6 +298,55 @@ final class ResultFormatter
                 $differences === '' ? 'no remaining differences' : $differences,
                 $outcome->subjectAttempts,
                 $timing,
+            );
+        }
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    /** @return array{total: int, passed: int, failed: int, skipped: int} */
+    private function statefulCounts(FuzzResult $result): array
+    {
+        $counts = ['total' => 0, 'passed' => 0, 'failed' => 0, 'skipped' => 0];
+        foreach ($result->statefulOutcomes as $outcome) {
+            $counts['total']++;
+            if ($outcome->status === 'passed') {
+                $counts['passed']++;
+            } elseif ($outcome->status === 'failed') {
+                $counts['failed']++;
+            } elseif ($outcome->status === 'skipped') {
+                $counts['skipped']++;
+            } else {
+                throw new \UnexpectedValueException('Unknown stateful status: ' . $outcome->status);
+            }
+        }
+
+        return $counts;
+    }
+
+    private function statefulDetails(FuzzResult $result): string
+    {
+        if (($result->configuration['scenarios'] ?? []) === []) {
+            return '';
+        }
+
+        $counts = $this->statefulCounts($result);
+        $lines = [
+            'Stateful scenarios',
+            sprintf(
+                '  %d passed, %d failed, %d skipped',
+                $counts['passed'],
+                $counts['failed'],
+                $counts['skipped'],
+            ),
+        ];
+        foreach ($result->statefulOutcomes as $outcome) {
+            $lines[] = sprintf(
+                '  %s/%s: %s%s',
+                $outcome->scenario,
+                $outcome->clientId,
+                $outcome->status,
+                $outcome->failure === null ? '' : ' - ' . $outcome->failure,
             );
         }
 

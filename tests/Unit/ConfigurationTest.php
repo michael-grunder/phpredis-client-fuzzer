@@ -38,10 +38,12 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($configuration->includeAdmin);
         self::assertFalse($configuration->includeFlush);
         self::assertFalse($configuration->includeCrashing);
+        self::assertFalse($configuration->includeStateful);
         self::assertNull($configuration->catchPattern);
         self::assertFalse($configuration->differential);
         self::assertSame(10.0, $configuration->differentialToleranceMs);
         self::assertSame(1.0, $configuration->differentialPollIntervalMs);
+        self::assertSame([], $configuration->scenarios);
     }
 
     public function testDifferentialTimingMustBeValid(): void

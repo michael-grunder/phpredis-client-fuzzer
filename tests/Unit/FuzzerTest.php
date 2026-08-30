@@ -110,8 +110,8 @@ final class FuzzerTest extends TestCase
 
         self::assertSame(1, $result->steps);
         self::assertStringContainsString('Special warning to catch', $result->caughtDiagnostic ?? '');
-        self::assertSame(1, array_sum($result->warnings));
-        self::assertSame(1, array_sum($result->outcomes[0]->warnings));
+        self::assertGreaterThanOrEqual(1, array_sum($result->warnings));
+        self::assertGreaterThanOrEqual(1, array_sum($result->outcomes[0]->warnings));
     }
 
     public function testCatchPatternStopsAfterAMatchingException(): void

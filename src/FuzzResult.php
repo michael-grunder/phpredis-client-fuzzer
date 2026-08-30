@@ -16,6 +16,7 @@ final readonly class FuzzResult implements \JsonSerializable
      * @param array<string, array{executions: int, false_replies: int}> $problematicCommands
      * @param list<InvocationOutcome> $outcomes
      * @param list<DifferentialOutcome> $differentialOutcomes
+     * @param list<\Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulOutcome> $statefulOutcomes
      */
     public function __construct(
         public int $seed,
@@ -32,6 +33,7 @@ final readonly class FuzzResult implements \JsonSerializable
         public array $problematicCommands = [],
         public array $outcomes = [],
         public array $differentialOutcomes = [],
+        public array $statefulOutcomes = [],
     ) {
     }
 
@@ -49,6 +51,7 @@ final readonly class FuzzResult implements \JsonSerializable
             'commands' => $this->commands,
             'outcomes' => $this->outcomes,
             'differential_outcomes' => $this->differentialOutcomes,
+            'stateful_outcomes' => $this->statefulOutcomes,
             'problematic_commands' => $this->problematicCommands,
             'warnings' => $this->warnings,
             'caught_diagnostic' => $this->caughtDiagnostic,
@@ -59,6 +62,17 @@ final readonly class FuzzResult implements \JsonSerializable
     {
         foreach ($this->differentialOutcomes as $outcome) {
             if ($outcome->status === 'divergent') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasStatefulFailure(): bool
+    {
+        foreach ($this->statefulOutcomes as $outcome) {
+            if ($outcome->status === 'failed') {
                 return true;
             }
         }

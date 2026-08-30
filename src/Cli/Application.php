@@ -38,6 +38,7 @@ final class Application
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'script-log', 'catch',
         'differential-tolerance-ms', 'differential-poll-ms',
+        'scenarios',
         'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
         'relay-multikey-reordering',
@@ -45,7 +46,7 @@ final class Application
 
     private const FLAG_OPTIONS = [
         'help', 'verbose', 'raw', 'include-blocking', 'include-local',
-        'include-admin', 'include-flush', 'include-crashing',
+        'include-admin', 'include-flush', 'include-crashing', 'include-stateful',
         'no-relay-compatibility', 'differential',
     ];
 
@@ -192,15 +193,19 @@ final class Application
                 includeAdmin: $options->has('include-admin'),
                 includeFlush: $options->has('include-flush'),
                 includeCrashing: $options->has('include-crashing'),
+                includeStateful: $options->has('include-stateful'),
                 scriptLog: $options->nullableString('script-log'),
                 catchPattern: $options->nullableString('catch'),
                 differential: $options->has('differential'),
                 differentialToleranceMs: $options->number('differential-tolerance-ms', 10.0),
                 differentialPollIntervalMs: $options->number('differential-poll-ms', 1.0),
+                scenarios: $options->csv('scenarios'),
             ));
 
             $this->write((new ResultFormatter())->format($result, $outputMode));
-            return $result->caughtDiagnostic === null && !$result->hasDifferentialDivergence()
+            return $result->caughtDiagnostic === null
+                && !$result->hasDifferentialDivergence()
+                && !$result->hasStatefulFailure()
                 ? 0
                 : 1;
         } catch (\Throwable $throwable) {
@@ -331,6 +336,8 @@ Run configuration:
   --include-admin            Enable Redis administrative commands
   --include-flush            Enable FLUSHDB/FLUSHALL
   --include-crashing         Enable deliberately process-crashing commands
+  --include-stateful         Enable standalone stateful commands in random fuzzing
+  --scenarios=NAME,...       Run named seeded state-machine scenarios first
   --verbose                  Log command execution to stderr
   --help                     Show this help without connecting to Redis
 

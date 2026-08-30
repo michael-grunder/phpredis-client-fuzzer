@@ -35,6 +35,7 @@ abstract class Command implements HasWeight {
      * key slot, so generated keys are allowed to span slots.  See
      * SlotPolicy and FuzzConfig::beginStep(). */
     public const CROSSSLOT    = (1 << 17);
+    public const STATEFUL     = (1 << 18);
 
     public const STRING = 'string';
     public const INT    = 'int';
@@ -126,6 +127,7 @@ abstract class Command implements HasWeight {
             'local'        => self::LOCAL,
             'crash'        => self::CRASH,
             'crossslot'    => self::CROSSSLOT,
+            'stateful'     => self::STATEFUL,
             default        => 0
         };
     }
@@ -334,14 +336,18 @@ abstract class Command implements HasWeight {
 
         try {
             if ($client instanceof Redis || $client instanceOf Relay) {
-                $host = (string)$client->getHost();
-                $port = (int)$client->getPort();
+                $host = 'unknown';
+                $port = 0;
+                if (@$client->isConnected()) {
+                    $host = (string)$client->getHost();
+                    $port = (int)$client->getPort();
+                }
                 return ['host' => $host, 'port' => $port];
             } else {
                 /** @var RedisCluster|Cluster $client */
                 return ['seeds' => $client->_masters()];
             }
-        } catch (\Exception $ex) {
+        } catch (\Throwable $ex) {
             if ($standalone) {
                 return ['host' => 'unknown', 'port' => 0];
             } else {

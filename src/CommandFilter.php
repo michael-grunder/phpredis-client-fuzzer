@@ -32,6 +32,9 @@ final class CommandFilter
         if (!$configuration->includeCrashing) {
             $excludedFlags |= Command::CRASH;
         }
+        if (!$configuration->includeStateful) {
+            $excludedFlags |= Command::STATEFUL;
+        }
 
         $registry->filter(
             static fn (Command $command): bool => ($command->flags() & $excludedFlags) === 0,

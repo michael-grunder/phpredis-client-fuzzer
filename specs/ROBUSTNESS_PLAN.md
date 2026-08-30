@@ -238,6 +238,24 @@ Add seeded, named state-machine scenarios with explicit postconditions:
 Introduce a `STATEFUL` command/scenario category. Transaction-mode operations
 should not be represented only as ordinary `READ` commands.
 
+### Implementation status
+
+The first stateful slice is implemented as an explicit seeded scenario layer:
+
+- `RunConfiguration::scenarios` selects named scenarios and the runner shuffles
+  their order using the workload seed.
+- `transaction-exec`, `transaction-discard`, and
+  `watch-unwatch-discard` record each operation and explicit postcondition.
+- Terminal operations verify atomic mode; commit verifies both writes and
+  discard paths verify that queued writes do not appear.
+- Results are emitted as `stateful_outcomes`; failed postconditions fail the
+  CLI, while missing client methods are represented as `skipped`.
+- Transaction and pipeline commands carry the `STATEFUL` flag and are excluded
+  from random fuzzing unless `includeStateful`/`--include-stateful` is enabled.
+
+Listener lifecycle, mutable-option scenarios, mutation-from-a-second-client,
+and per-node cluster assertions remain the next stateful iterations.
+
 ## Priority 3: Guarantee command and variant breadth
 
 ### Problem

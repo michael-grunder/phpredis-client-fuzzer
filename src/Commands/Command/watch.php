@@ -21,7 +21,7 @@ class watch extends Command implements FuzzInterface, FuzzRawInterface {
     }
 
     public function flags(): int {
-        return self::READ;
+        return self::READ | self::STATEFUL;
     }
 
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
