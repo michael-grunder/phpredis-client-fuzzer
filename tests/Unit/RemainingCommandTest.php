@@ -108,6 +108,7 @@ final class RemainingCommandTest extends TestCase
             'bitfield', 'blmovem', 'blpop', 'brpop', 'digest',
             'georadiusbymember', 'georadiusbymember_ro', 'increx', 'lmovem',
             'sdiffcard', 'sunioncard', 'sort', 'sort_ro',
+            'restore', 'script', 'xackdel', 'xdelex', 'xnack',
         ];
 
         foreach ($names as $name) {
