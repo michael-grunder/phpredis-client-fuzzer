@@ -337,7 +337,9 @@ Run configuration:
   --include-flush            Enable FLUSHDB/FLUSHALL
   --include-crashing         Enable deliberately process-crashing commands
   --include-stateful         Enable standalone stateful commands in random fuzzing
-  --scenarios=NAME,...       Run named seeded state-machine scenarios first
+  --scenarios=NAME,...       Run seeded scenarios first: transaction-exec,
+                             transaction-discard, watch-unwatch-discard,
+                             none, or random (random may select any subset)
   --verbose                  Log command execution to stderr
   --help                     Show this help without connecting to Redis
 

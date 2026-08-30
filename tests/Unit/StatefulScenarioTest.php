@@ -83,6 +83,19 @@ final class StatefulScenarioTest extends TestCase
         StatefulScenarioRegistry::select(['not-a-scenario']);
     }
 
+    public function testRandomScenarioSelectionIsSeededAndCanSelectNone(): void
+    {
+        $first = StatefulScenarioRegistry::select(['random'], 42);
+        $repeat = StatefulScenarioRegistry::select(['random'], 42);
+
+        self::assertSame(
+            array_map(static fn ($scenario): string => $scenario->name(), $first),
+            array_map(static fn ($scenario): string => $scenario->name(), $repeat),
+        );
+        self::assertLessThanOrEqual(count(StatefulScenarioRegistry::names()), count($first));
+        self::assertSame([], StatefulScenarioRegistry::select(['none'], 42));
+    }
+
     /** @return \Redis */
     private function client(): \Redis
     {

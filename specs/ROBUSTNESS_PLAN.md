@@ -244,6 +244,8 @@ The first stateful slice is implemented as an explicit seeded scenario layer:
 
 - `RunConfiguration::scenarios` selects named scenarios and the runner shuffles
   their order using the workload seed.
+- The CLI lists valid scenario names and accepts `none` or seed-derived
+  `random` (which can select any subset, including no scenarios).
 - `transaction-exec`, `transaction-discard`, and
   `watch-unwatch-discard` record each operation and explicit postcondition.
 - Terminal operations verify atomic mode; commit verifies both writes and

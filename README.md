@@ -124,6 +124,13 @@ vendor/bin/phpredis-fuzz \
     --seed=123456
 ```
 
+`--scenarios` accepts `transaction-exec`, `transaction-discard`, and
+`watch-unwatch-discard`. Use `none` to explicitly disable them, or `random` to
+select a deterministic random subset (including no scenarios) from the full
+catalog. The subset is derived from the workload seed, so a reported seed
+reproduces the selection. Explicit names may be combined with `random` to add
+those scenarios to a random subset of the named choices.
+
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
 
