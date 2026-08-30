@@ -83,6 +83,11 @@ SHA-256 digest, while arrays are depth- and item-limited. Aggregate command
 counts remain available in `FuzzResult::$commands`, and
 `FuzzResult::$commandWarnings` exposes warning counts keyed by command.
 
+Runs containing either `Relay\Relay` or `Relay\Cluster` also sample the global
+`Relay\Relay::stats()` counters before the workload, after every 100 commands,
+and at the end. `FuzzResult::$relayStats` reports the latest hit, miss, OOM, and
+memory counters together with the highest observed active and used memory.
+
 Human-readable summaries normalize known volatile diagnostic fields before
 counting unique messages. For example, generated stream keys in `NOGROUP`
 errors are displayed as `'<key>'`, and changing Lua hashes or source line
@@ -269,7 +274,8 @@ still fails the run.
 Use `--output=json` (the default) for the complete machine-readable report,
 including the seed, PHP/client versions, client classes and topology, effective
 configuration, elapsed time, selected commands, per-invocation outcomes,
-reply-type counts, Redis errors, captured PHP warnings, thrown exceptions, and
+reply-type counts, Redis errors, captured PHP warnings, thrown exceptions,
+Relay cache statistics (when a Relay client is present), and
 `problematic_commands`: commands whose observed
 replies were exclusively `false` even though each server involved reports the
 command in `COMMAND`. Commands absent from the server are still executed to test

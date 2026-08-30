@@ -19,6 +19,8 @@ use Relay\Relay;
 
 final class Fuzzer
 {
+    private const RELAY_STATS_SAMPLE_INTERVAL = 100;
+
     /**
      * @param list<object> $clients
      */
@@ -35,6 +37,7 @@ final class Fuzzer
             ? $clients
             : [$differentialOracle->subject()];
         $serverCommands = $this->serverCommands($clients);
+        $relayStats = $this->relayStatsCollector($clients);
 
         $seed = $configuration->seed ?? random_int(0, PHP_INT_MAX);
         mt_srand($seed);
@@ -100,6 +103,7 @@ final class Fuzzer
         $commandWarnings = [];
         $caughtDiagnostic = null;
         $statefulOutcomes = [];
+        $relayStats?->sample();
         try {
             $statefulOutcomes = (new StatefulScenarioRunner($clientInvoker))->run(
                 $executionClients,
@@ -225,6 +229,10 @@ final class Fuzzer
                 if ($caughtDiagnostic !== null) {
                     break;
                 }
+
+                if ($steps % self::RELAY_STATS_SAMPLE_INTERVAL === 0) {
+                    $relayStats?->sample();
+                }
             }
         } finally {
             Command::setDifferentialOracle(null);
@@ -233,6 +241,7 @@ final class Fuzzer
             if ($scriptLogging) {
                 ScriptLogger::finish();
             }
+            $relayStats?->sample();
         }
 
         $elapsed = (hrtime(true) - $started) / 1e9;
@@ -258,7 +267,22 @@ final class Fuzzer
             $outcomes,
             $differentialOracle?->outcomes() ?? [],
             $statefulOutcomes,
+            $relayStats?->statistics(),
         );
+    }
+
+    /**
+     * @param non-empty-list<Redis|RedisCluster|Relay|Cluster> $clients
+     */
+    private function relayStatsCollector(array $clients): ?RelayStatsCollector
+    {
+        foreach ($clients as $client) {
+            if ($client instanceof Relay || $client instanceof Cluster) {
+                return RelayStatsCollector::forRelay();
+            }
+        }
+
+        return null;
     }
 
     /**

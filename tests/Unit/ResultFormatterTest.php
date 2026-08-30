@@ -32,6 +32,7 @@ final class ResultFormatterTest extends TestCase
             'outcomes',
             'differential_outcomes',
             'stateful_outcomes',
+            'relay_stats',
             'problematic_commands',
             'warnings',
             'caught_diagnostic',
@@ -47,6 +48,15 @@ final class ResultFormatterTest extends TestCase
         self::assertStringContainsString('Warnings:                 2 (1 unique)', $output);
         self::assertStringContainsString('Redis errors:             3 (2 unique)', $output);
         self::assertStringContainsString('Exceptions:               2 (1 unique)', $output);
+        self::assertStringContainsString('Relay hits:               12', $output);
+        self::assertStringContainsString('Relay misses:             8', $output);
+        self::assertStringContainsString('Relay OOM:                2', $output);
+        self::assertStringContainsString('Relay memory total:       4096', $output);
+        self::assertStringContainsString('Relay memory limit:       3072', $output);
+        self::assertStringContainsString('Relay memory active:      1024', $output);
+        self::assertStringContainsString('Relay memory used:        768', $output);
+        self::assertStringContainsString('Relay peak active:        2048', $output);
+        self::assertStringContainsString('Relay peak used:          1536', $output);
         self::assertStringNotContainsString('Per-command results', $output);
         self::assertStringNotContainsString('Problematic commands', $output);
         self::assertStringNotContainsString('bad warning', $output);
@@ -167,6 +177,20 @@ final class ResultFormatterTest extends TestCase
                 modeAfter: \Redis::ATOMIC,
                 slotPolicy: 'same-slot',
             )],
+            relayStats: [
+                'samples' => 4,
+                'hits' => 12,
+                'misses' => 8,
+                'oom' => 2,
+                'memory' => [
+                    'total' => 4096,
+                    'limit' => 3072,
+                    'active' => 1024,
+                    'used' => 768,
+                    'peak_active' => 2048,
+                    'peak_used' => 1536,
+                ],
+            ],
         );
     }
 }

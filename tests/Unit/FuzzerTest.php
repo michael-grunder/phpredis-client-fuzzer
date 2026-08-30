@@ -53,6 +53,7 @@ final class FuzzerTest extends TestCase
         self::assertNotNull($result->outcomes[0]->replyType);
         self::assertNotNull($result->outcomes[0]->reply);
         self::assertGreaterThanOrEqual(0.0, $result->outcomes[0]->durationSeconds);
+        self::assertNull($result->relayStats);
         $clients = $result->environment['clients'];
         self::assertIsArray($clients);
         $client = $clients[0] ?? null;

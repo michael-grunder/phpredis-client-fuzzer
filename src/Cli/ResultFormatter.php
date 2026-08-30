@@ -102,6 +102,18 @@ final class ResultFormatter
             $lines[] = sprintf('  %-25s %d', 'Stateful failed:', $stateful['failed']);
             $lines[] = sprintf('  %-25s %d', 'Stateful skipped:', $stateful['skipped']);
         }
+        if ($result->relayStats !== null) {
+            $memory = $result->relayStats['memory'];
+            $lines[] = sprintf('  %-25s %d', 'Relay hits:', $result->relayStats['hits']);
+            $lines[] = sprintf('  %-25s %d', 'Relay misses:', $result->relayStats['misses']);
+            $lines[] = sprintf('  %-25s %d', 'Relay OOM:', $result->relayStats['oom']);
+            $lines[] = sprintf('  %-25s %d', 'Relay memory total:', $memory['total']);
+            $lines[] = sprintf('  %-25s %d', 'Relay memory limit:', $memory['limit']);
+            $lines[] = sprintf('  %-25s %d', 'Relay memory active:', $memory['active']);
+            $lines[] = sprintf('  %-25s %d', 'Relay memory used:', $memory['used']);
+            $lines[] = sprintf('  %-25s %d', 'Relay peak active:', $memory['peak_active']);
+            $lines[] = sprintf('  %-25s %d', 'Relay peak used:', $memory['peak_used']);
+        }
         $lines[] = '';
 
         return implode("\n", $lines);
