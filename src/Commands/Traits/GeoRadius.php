@@ -21,7 +21,7 @@ trait GeoRadius {
     /* Radius of the earth in meters */
     private const EARTH_RADIUS = 6371000;
 
-    private static function randomDistance(string $unit): float {
+    protected static function randomDistance(string $unit): float {
         return rand(1, self::EARTH_RADIUS) * self::UNITS[$unit];
     }
 
@@ -69,5 +69,29 @@ trait GeoRadius {
             $options['COUNT'] = [rand(1, $config->getMembers()), $rng & 0x40];
 
         return $options;
+    }
+
+    /**
+     * @param array<mixed>|null $options
+     * @return array<mixed>
+     */
+    protected static function optionsToRawTokens(?array $options): array {
+        $result = [];
+
+        foreach ($options ?? [] as $key => $value) {
+            if (is_int($key)) {
+                $result[] = $value;
+            } else if ($key === 'COUNT' && is_array($value)) {
+                $result[] = $key;
+                $result[] = $value[0];
+                if ($value[1])
+                    $result[] = 'ANY';
+            } else {
+                $result[] = $key;
+                $result[] = $value;
+            }
+        }
+
+        return $result;
     }
 }
