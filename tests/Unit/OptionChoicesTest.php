@@ -84,6 +84,84 @@ final class OptionChoicesTest extends TestCase
         self::assertSame($first, $second);
     }
 
+    public function testCsvChoosesOnlyFromTheRequestedSupportedSubset(): void
+    {
+        $requested = ['none', 'php', 'json'];
+        $supported = array_values(array_intersect(
+            $requested,
+            OptionChoices::available(OptionChoices::SERIALIZER),
+        ));
+        if ($supported === []) {
+            self::markTestSkipped('No requested serializer is supported by the loaded extension');
+        }
+
+        for ($attempt = 0; $attempt < 25; $attempt++) {
+            self::assertContains(
+                OptionChoices::resolve('none,php,json', OptionChoices::SERIALIZER, 'serializer'),
+                $supported,
+            );
+        }
+    }
+
+    public function testCsvChoiceIsNormalizedAndReproducible(): void
+    {
+        self::supported(OptionChoices::SERIALIZER);
+
+        mt_srand(20260829);
+        $first = OptionChoices::resolve(' NONE, Php,none ', OptionChoices::SERIALIZER, 'serializer');
+
+        mt_srand(20260829);
+        $second = OptionChoices::resolve('none,php', OptionChoices::SERIALIZER, 'serializer');
+
+        self::assertSame($first, $second);
+    }
+
+    public function testCsvCanIncludeAChoiceLiterallyNamedRandom(): void
+    {
+        $choices = [
+            'none' => 'PHP_VERSION_ID',
+            'random' => 'PHP_INT_MAX',
+        ];
+
+        for ($attempt = 0; $attempt < 25; $attempt++) {
+            self::assertContains(
+                OptionChoices::resolve('none,random', $choices, 'distribution'),
+                ['none', 'random'],
+            );
+        }
+    }
+
+    public function testCsvRejectsAnUnknownValue(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown serializer value "bogus" in subset');
+
+        OptionChoices::resolve('none,bogus', OptionChoices::SERIALIZER, 'serializer');
+    }
+
+    public function testCsvRejectsAnEmptyValue(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Empty serializer value in subset');
+
+        OptionChoices::resolve('none,,php', OptionChoices::SERIALIZER, 'serializer');
+    }
+
+    public function testCsvRejectsASubsetWithNoSupportedValues(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/No serializer value is supported/');
+
+        OptionChoices::resolve(
+            'first,second',
+            [
+                'first' => 'Redis::NOT_A_REAL_CONSTANT',
+                'second' => 'Redis::ALSO_NOT_A_REAL_CONSTANT',
+            ],
+            'serializer',
+        );
+    }
+
     public function testRandomIsTheSentinelWhenNoValueIsNamedRandom(): void
     {
         self::assertTrue(OptionChoices::isRandom('random', OptionChoices::SERIALIZER));

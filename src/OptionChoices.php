@@ -8,7 +8,8 @@ use Relay\Cluster;
 
 /**
  * Named settings that accept one of a fixed list of values, plus the sentinel
- * that asks the run to pick one of them.
+ * that asks the run to pick one of them. A comma-separated list restricts the
+ * random choice to that subset.
  *
  * Selection uses the process-global `mt_rand()` sequence, so a caller that
  * seeds with `mt_srand()` before resolving gets the same setting for the same
@@ -81,21 +82,50 @@ final class OptionChoices
     }
 
     /**
-     * Returns `$value` unchanged unless it asks for a random setting, in which
-     * case one of the available names is chosen with `mt_rand()`. Names that
-     * are not the sentinel are left alone so the setting's own validation
-     * still reports unknown values.
+     * Returns `$value` unchanged unless it asks for a random setting or names
+     * a comma-separated subset, in which case one of the available names is
+     * chosen with `mt_rand()`. A single name that is not the sentinel is left
+     * alone so the setting's own validation still reports unknown values.
      *
      * @param array<string, string> $choices Setting name to constant.
      * @param string $kind Human-readable setting name used in errors.
      */
     public static function resolve(string $value, array $choices, string $kind): string
     {
-        if (!self::isRandom($value, $choices)) {
-            return $value;
+        if (!str_contains($value, ',')) {
+            if (!self::isRandom($value, $choices)) {
+                return $value;
+            }
+
+            return self::choose(self::available($choices), $kind);
         }
 
-        $available = self::available($choices);
+        $subset = [];
+        foreach (explode(',', $value) as $item) {
+            $name = self::normalize($item);
+            if ($name === '') {
+                throw new \InvalidArgumentException("Empty {$kind} value in subset");
+            }
+            if (!array_key_exists($name, $choices)) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Unknown %s value "%s" in subset; expected one of %s',
+                    $kind,
+                    trim($item),
+                    implode(', ', array_keys($choices)),
+                ));
+            }
+
+            $subset[$name] = $choices[$name];
+        }
+
+        return self::choose(self::available($subset), $kind);
+    }
+
+    /**
+     * @param list<string> $available
+     */
+    private static function choose(array $available, string $kind): string
+    {
         if ($available === []) {
             throw new \RuntimeException(
                 "No {$kind} value is supported by the loaded extension, so one cannot be chosen at random",

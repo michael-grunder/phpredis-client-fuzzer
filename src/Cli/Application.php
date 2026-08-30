@@ -276,23 +276,25 @@ Clients and connection:
   --password=PASS            Password
   --timeout=SECONDS          Connect timeout (default: 1)
   --read-timeout=SECONDS     Read timeout (default: 1)
-  --serializer=NAME          none, php, igbinary, msgpack, json, or random
-  --compression=NAME         none, lzf, zstd, lz4, or random
+  --serializer=NAME[,NAME]   none, php, igbinary, msgpack, json, or random
+  --compression=NAME[,NAME]  none, lzf, zstd, lz4, or random
   --prefix=PREFIX            Client key prefix
   --no-relay-compatibility   Disable Relay PhpRedis compatibility
 
 Relay cluster options (relay-cluster only; each is verified via setOption()):
-  --relay-failover=MODE      Cluster::OPT_FAILOVER retry strategy:
+  --relay-failover=MODE[,MODE]
+                             Cluster::OPT_FAILOVER retry strategy:
                              none, primary, random_replica, replicas, all,
                              or random
-  --relay-distribute=MODE    Cluster::OPT_DISTRIBUTE readonly distribution:
+  --relay-distribute=MODE[,MODE]
+                             Cluster::OPT_DISTRIBUTE readonly distribution:
                              none, random, random_replica, replicas, all;
                              use any to choose a mode at random, since random
                              is itself a distribution mode
   --relay-node-read-timeout=SECONDS
                              Cluster::OPT_NODE_READ_TIMEOUT per-node read
                              timeout override; 0 disables the override
-  --relay-multikey-reordering=MODE
+  --relay-multikey-reordering=MODE[,MODE]
                              Cluster::OPT_MULTIKEY_REORDERING slot grouping:
                              none, reads, writes, all, or random
 
@@ -337,7 +339,9 @@ Choosing a setting at random:
   collides with a value named random). One supported value is picked before
   the run using the same seed as the workload, so repeating the run with the
   reported --seed reproduces both the chosen settings and the commands. Values
-  the loaded extension does not support are never picked.
+  the loaded extension does not support are never picked. Pass a comma-separated
+  subset, such as --serializer=none,php,igbinary,json, to choose randomly from
+  only those values.
 
 The target is mutated. Use only an explicitly selected disposable Redis instance.
 HELP;

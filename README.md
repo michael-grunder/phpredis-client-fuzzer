@@ -196,6 +196,19 @@ the values that the loaded extensions actually support:
 `--relay-distribute`, where `random` is itself a distribution mode and keeps
 its literal meaning.
 
+Pass a comma-separated subset to choose randomly from only those values. This
+can exclude a known-problematic implementation while still varying the setting;
+for example, this selects every serializer except msgpack:
+
+```bash
+vendor/bin/phpredis-fuzz --serializer=none,php,igbinary,json
+```
+
+CSV subsets work for every option in the table. Unknown names and empty CSV
+entries are rejected. Duplicate names are treated as one choice rather than as
+weights. Values in the subset that the loaded extension does not support are
+not picked, consistent with `random`; the run fails if none are supported.
+
 The choice is made from the run's seed before any client is created, so the
 same `--seed` selects the same settings and the same command stream:
 
