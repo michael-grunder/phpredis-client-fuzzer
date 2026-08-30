@@ -182,8 +182,25 @@ class FuzzConfig {
      * called (or when generating keys outside of a command) each key picks its
      * own random tag, which is what SlotPolicy::Unconstrained does.
      */
-    public function beginCommand(Command $command): SlotPolicy {
-        return $this->beginStep(($command->flags() & Command::CROSSSLOT) !== 0);
+    public function beginCommand(Command $command, bool $raw = false): SlotPolicy {
+        $policy = $this->beginStep(
+            ! $raw && ($command->flags() & Command::CROSSSLOT) !== 0,
+        );
+
+        /* A raw cluster call bypasses the client's normal command parser, so
+           it needs an explicit routing key. Normally it shares the generated
+           keys' tag. For a forced cross-slot step, deliberately route to the
+           next tag so even a one-key command exercises the wrong-node path. */
+        $routeTag = $this->slot_tag;
+        if ($raw && $policy === SlotPolicy::CrossSlot) {
+            $routeTag = ($routeTag + 1) % $this->shards;
+        }
+        $command->setRawRoutingKey(sprintf(
+            'phpredis-command-fuzzer:{%d}:route',
+            $routeTag,
+        ));
+
+        return $policy;
     }
 
     /**
@@ -197,7 +214,7 @@ class FuzzConfig {
 
         $this->slot_policy = match (true) {
             $crossslot_capable => SlotPolicy::Unconstrained,
-            $this->cluster && $this->pctChance($this->crossslot) => SlotPolicy::CrossSlot,
+            $this->cluster && $this->shards > 1 && $this->pctChance($this->crossslot) => SlotPolicy::CrossSlot,
             default => SlotPolicy::SameSlot,
         };
 

@@ -78,6 +78,17 @@ final class FuzzConfigTest extends TestCase
         self::assertSame(SlotPolicy::SameSlot, $configuration->beginStep(false));
     }
 
+    public function testCrossSlotChanceIsIgnoredWithOneShard(): void
+    {
+        mt_srand(7);
+        $configuration = (new FuzzConfig())
+            ->setCluster(true)
+            ->setShards(1)
+            ->setCrossSlot(1.0);
+
+        self::assertSame(SlotPolicy::SameSlot, $configuration->beginStep(false));
+    }
+
     public function testTheCrossSlotFlagMarksTheClientDistributedCommands(): void
     {
         $registry = new Registry();

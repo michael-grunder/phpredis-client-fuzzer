@@ -110,10 +110,11 @@ final class Fuzzer
                 if ($operations === []) {
                     throw new \LogicException('An eligible command has no executable operation');
                 }
+                $operation = $operations[array_rand($operations)];
 
                 /* Decide how this command's generated keys map onto cluster
                    hash slots before it builds any arguments. */
-                $slotPolicy = $arguments->beginCommand($command);
+                $slotPolicy = $arguments->beginCommand($command, $operation === 'raw');
                 if ($slotPolicy === SlotPolicy::CrossSlot) {
                     $crossSlotSteps++;
                 }
@@ -128,7 +129,6 @@ final class Fuzzer
                 $warningsBefore = Command::capturedWarnings();
                 $modeBefore = $this->clientMode($client);
                 $invocationStarted = hrtime(true);
-                $operation = $operations[array_rand($operations)];
                 $differentialOracle?->beginStep(
                     $steps,
                     $name,

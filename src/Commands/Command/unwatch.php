@@ -29,10 +29,6 @@ class unwatch extends Command implements FuzzInterface,
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
                                 FuzzConfig $config, string $fn): mixed
     {
-        if ($fn == 'execRaw' && $this->isCluster($client)) {
-            return $this->$fn($client, $config->getRandomKey(self::ANY));
-        }
-
         return $this->$fn($client);
     }
 }

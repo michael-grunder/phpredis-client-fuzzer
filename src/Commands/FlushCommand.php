@@ -20,7 +20,7 @@ class FlushCommand extends Command implements FuzzInterface, FuzzRawInterface {
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
                                 FuzzConfig $config, string $fn): mixed
     {
-        if (($client instanceOf Redis) || ($client instanceOf Relay))
+        if ($fn === 'execRaw' || ($client instanceOf Redis) || ($client instanceOf Relay))
             return $this->$fn($client);
 
         return $this->$fn($client, $config->getRandomKey(self::ANY));

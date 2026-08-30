@@ -59,6 +59,11 @@ abstract class Command implements HasWeight {
 
     private float $weight = 1.0;
 
+    /* RedisCluster and Relay\Cluster require rawCommand() to start with a
+       routing key (or node address). FuzzConfig refreshes this for every
+       command scope before arguments are generated. */
+    private ?string $rawRoutingKey = null;
+
     /**
      * @var array<string, Command>
      */
@@ -372,7 +377,22 @@ abstract class Command implements HasWeight {
     {
         array_unshift($args, $this->name());
 
+        if ($this->isCluster($client)) {
+            array_unshift($args, $this->clusterRawRoutingKey());
+        }
+
         return $this->cmd($client, 'rawCommand', ...$args);
+    }
+
+    /** @internal Set by FuzzConfig::beginCommand() for the current step. */
+    final public function setRawRoutingKey(string $key): void {
+        $this->rawRoutingKey = $key;
+    }
+
+    final protected function clusterRawRoutingKey(): string {
+        /* Keep direct fuzzRaw() callers functional even if they did not open
+           a command scope. The runner always supplies a slot-aware key. */
+        return $this->rawRoutingKey ?? 'phpredis-command-fuzzer:{0}:route';
     }
 
     final public function cmd(Redis|RedisCluster|Relay|Cluster $client,

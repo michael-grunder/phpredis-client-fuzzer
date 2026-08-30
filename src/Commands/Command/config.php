@@ -42,7 +42,8 @@ class config extends Command implements FuzzInterface, FuzzRawInterface {
     {
         $args = [];
 
-        if (($client instanceOf RedisCluster) || ($client instanceOf Cluster))
+        if ($fn !== 'execRaw' &&
+            (($client instanceOf RedisCluster) || ($client instanceOf Cluster)))
             $args[] = $config->getRandomKey(self::ANY);
 
         if (rand() & 1) {

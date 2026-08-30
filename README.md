@@ -627,8 +627,11 @@ bin/phpredis-fuzz --client=redis-cluster --seeds=127.0.0.1:7000 --commands=@cros
 ```
 
 The scope is opened by the runner, so an embedded caller driving commands
-directly should call `FuzzConfig::beginCommand($command)` once per command to
-get the same behavior. Without it every key picks its own tag
+directly should call `FuzzConfig::beginCommand($command)` once per normal
+command, or `FuzzConfig::beginCommand($command, raw: true)` before calling
+`fuzzRaw()`. The raw form also prepares the routing key required by
+`RedisCluster::rawCommand()` and `Relay\Cluster::rawCommand()`. Without a scope,
+every generated key picks its own tag
 (`Unconstrained`), which is the pre-existing behavior.
 
 Hash tags come from the `shards` setting: `shards: 16` means keys are spread
@@ -690,8 +693,11 @@ against the configured rate:
 ```
 
 Note that this counts steps *selected* for scattering. Commands taking a single
-key produce a valid request regardless, so the number of `CROSSSLOT` errors
-returned is lower than this count.
+key through normal client methods produce a valid request regardless, so the
+number of `CROSSSLOT` errors returned can be lower than this count. For raw
+cluster calls, the forced policy deliberately chooses a routing tag different
+from the first generated key, allowing a one-key command to exercise the
+wrong-node path too.
 
 The runner seeds PHP's process-global Mersenne Twister because the extracted
 command implementations use `rand()`/`mt_rand()`. The selected seed and concrete

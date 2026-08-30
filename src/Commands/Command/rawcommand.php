@@ -7,11 +7,6 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 
-//use Mgrunder\PhpredisCommandFuzzer\Commands\Command\get;
-//use Mgrunder\PhpredisCommandFuzzer\Commands\Command\smembers;
-//use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hgetall;
-//use Mgrunder\PhpredisCommandFuzzer\Commands\Command\lrange;
-
 use Redis;
 use RedisCluster;
 use Relay\Relay;
@@ -32,10 +27,6 @@ class rawcommand extends Command implements FuzzRawInterface {
         return self::READ | self::WRITE;
     }
 
-    private function className(string $class): string {
-        return 'Mgrunder\\RedisClientFuzzer\\Commands\\Command\\' . $class;
-    }
-
     private function randomArg(FuzzConfig $config): mixed {
         switch (rand() % 4) {
             case 0:
@@ -52,14 +43,11 @@ class rawcommand extends Command implements FuzzRawInterface {
     public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
                             FuzzConfig $config): mixed
     {
-        $cmd = $this->className(array_rand(self::COMMANDS));
-        $obj = new $cmd;
-        if ( ! $obj instanceof Command)
-            throw new \UnexpectedValueException("{$cmd} is not a command");
+        $obj = Command::object(array_rand(self::COMMANDS));
         $rng = rand() % 8;
 
         if (($client instanceOf Cluster) || ($client instanceOf RedisCluster))
-            $args = [$obj->name(), $config->getRandomKey(self::ANY)];
+            $args = [$this->clusterRawRoutingKey(), $obj->name()];
         else
             $args = [$obj->name()];
 
