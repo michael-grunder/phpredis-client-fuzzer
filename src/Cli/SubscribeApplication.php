@@ -13,7 +13,7 @@ final class SubscribeApplication
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
-        $options = Options::parse($arguments, ['client','host','port','steps','seed'], ['help']);
+        $options = Options::parse($arguments, ['client','host','port','seeds','steps','seed'], ['help']);
         if ($options->has('help')) { fwrite(STDOUT, $this->help()); return 0; }
         if (!function_exists('pcntl_fork')) throw new \RuntimeException('pcntl extension is required');
         $type = ClientType::tryFrom($options->string('client', 'relay'));
@@ -21,7 +21,10 @@ final class SubscribeApplication
         $steps = max(1, $options->integer('steps', 100));
         $seed = $options->integer('seed', 1); mt_srand($seed);
         $factory = new ClientFactory();
-        $config = new ClientConfiguration($type, $options->string('host','127.0.0.1'), $options->integer('port',6379));
+        $host = $options->string('host', '127.0.0.1');
+        $port = $options->integer('port', 6379);
+        $seeds = $options->csv('seeds', $host . ':' . $port);
+        $config = new ClientConfiguration(type: $type, host: $host, port: $port, seeds: $seeds);
         $client = $factory->create($config);
         $control = 'fuzz:control:' . mt_rand();
         $pid = pcntl_fork();
@@ -37,7 +40,7 @@ final class SubscribeApplication
                 if (!is_array($message)) return;
                 try {
                     switch ($message['action'] ?? '') {
-                        case 'subscribe': $sub = is_string($message['channel'] ?? null) ? $message['channel'] : 'fuzz:room'; $channels[] = $sub; $c->subscribe([$sub], $callback ?? static function (): void {}); break;
+                        case 'subscribe': $sub = is_string($message['channel'] ?? null) ? $message['channel'] : 'fuzz:room'; $channels[] = $sub; $c->subscribe([$sub], $callback); break;
                         case 'unsubscribe': $sub = is_string($message['channel'] ?? null) ? $message['channel'] : 'fuzz:room'; $c->unsubscribe([$sub]); break;
                         case 'command': if ($type === ClientType::Relay || $type === ClientType::RelayCluster) $c->set('fuzz:side', $message['value'] ?? 'x'); break;
                         case 'quit': $c->unsubscribe(); return;
@@ -58,5 +61,5 @@ final class SubscribeApplication
         $status = 0; pcntl_waitpid($pid, $status);
         return 0;
     }
-    private function help(): string { return "Usage: phpredis-fuzz-subscribe [--client=redis|redis-cluster|relay|relay-cluster] [--host=HOST] [--port=N] [--steps=N] [--seed=N]\n"; }
+    private function help(): string { return "Usage: phpredis-fuzz-subscribe [--client=redis|redis-cluster|relay|relay-cluster] [--host=HOST] [--port=N] [--seeds=HOST:PORT,...] [--steps=N] [--seed=N]\n"; }
 }
