@@ -13,7 +13,7 @@ final class SubscribeApplication
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
-        $options = Options::parse($arguments, ['client','host','port','seeds','steps','seed'], ['help']);
+        $options = Options::parse($arguments, ['client','host','port','seeds','steps','seed'], ['help','no-fork']);
         if ($options->has('help')) { fwrite(STDOUT, $this->help()); return 0; }
         if (!function_exists('pcntl_fork')) throw new \RuntimeException('pcntl extension is required');
         $type = ClientType::tryFrom($options->string('client', 'relay'));
@@ -28,7 +28,7 @@ final class SubscribeApplication
         $client = $factory->create($config);
         $control = 'fuzz:control:' . mt_rand();
         $isRelay = in_array($type, [ClientType::Relay, ClientType::RelayCluster], true);
-        if ($isRelay) {
+        if ($isRelay && $options->has('no-fork')) {
             if (defined('Relay\\Relay::OPT_PHPREDIS_COMPATIBILITY')) {
                 $client->setOption(\Relay\Relay::OPT_PHPREDIS_COMPATIBILITY, false);
             }
@@ -95,5 +95,5 @@ final class SubscribeApplication
         $status = 0; pcntl_waitpid($pid, $status);
         return 0;
     }
-    private function help(): string { return "Usage: phpredis-fuzz-subscribe [--client=redis|redis-cluster|relay|relay-cluster] [--host=HOST] [--port=N] [--seeds=HOST:PORT,...] [--steps=N] [--seed=N]\n"; }
+    private function help(): string { return "Usage: phpredis-fuzz-subscribe [--client=redis|redis-cluster|relay|relay-cluster] [--host=HOST] [--port=N] [--seeds=HOST:PORT,...] [--steps=N] [--seed=N] [--no-fork]\n\n--no-fork enables Relay callback sequencing without forking (useful with Valgrind).\n"; }
 }
