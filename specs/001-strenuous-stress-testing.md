@@ -101,7 +101,6 @@ that do not currently have catalog workloads include:
 
 - `fullscan()` and its custom generator lifecycle;
 - `clusterscan()`;
-- `flushSlotCache()` and `invalidateSlotCaches()`;
 - persistent cluster connection reuse;
 - subscribe/unsubscribe state machines.
 
@@ -109,6 +108,9 @@ When local commands are enabled, `setoption` mutates Relay cluster distribution,
 failover, per-node read timeout, multi-key reordering, and availability-zone
 options during a run. Availability-zone preference behavior still requires a
 cluster with multiple replicas that advertise their zones.
+
+Relay cluster slot-cache flushing and cross-worker invalidation are also
+included in the catalog when local commands are enabled.
 
 ### Crash-free is necessary but not sufficient
 
