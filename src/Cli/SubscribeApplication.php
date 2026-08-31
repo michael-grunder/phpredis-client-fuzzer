@@ -53,6 +53,14 @@ final class SubscribeApplication
                         array_pop($active);
                         if (count($active) > 1) $c->publish((string) $active[count($active)-1], 'unsubscribe');
                         else $c->publish((string) $active[0], 'unsubscribe');
+                    } elseif (mt_rand(0, 3) === 0) {
+                        $key = 'fuzz:side:' . mt_rand(1, 8);
+                        $op = mt_rand(0, 3);
+                        if ($op === 0) $c->set($key, (string) mt_rand());
+                        elseif ($op === 1) $c->get($key);
+                        elseif ($op === 2) $c->del($key);
+                        else { $c->multi(); $c->set($key, 'txn'); $c->exec(); }
+                        $c->publish((string) $channel, 'tick');
                     } else {
                         $c->publish((string) $channel, 'unsubscribe');
                     }
