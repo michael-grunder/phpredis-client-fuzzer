@@ -99,7 +99,6 @@ dispatch are excluded by default. Client construction always uses
 Relay cluster methods with particularly interesting state or lifetime behavior
 that do not currently have catalog workloads include:
 
-- `fullscan()` and its custom generator lifecycle;
 - `clusterscan()`;
 - persistent cluster connection reuse;
 - subscribe/unsubscribe state machines.
@@ -111,6 +110,10 @@ cluster with multiple replicas that advertise their zones.
 
 Relay cluster slot-cache flushing and cross-worker invalidation are also
 included in the catalog when local commands are enabled.
+
+Relay cluster `fullscan()` is consumed to completion with randomized match,
+count, and type arguments, exercising its custom generator iteration and
+destruction lifecycle.
 
 ### Crash-free is necessary but not sufficient
 

@@ -46,6 +46,7 @@ class ScriptLogger {
 
     private int $counter = 1;
     private int $reference_counter = 1;
+    private int $iterable_counter = 1;
 
     private bool $try_catch = false;
 
@@ -367,6 +368,50 @@ class ScriptLogger {
         fflush($this->fp);
     }
 
+    /** @param array<mixed> $args */
+    private function writeIterableCommand(Redis|RedisCluster|Relay|Cluster $client,
+                                          string $cmd, array $args): void
+    {
+        $hash = spl_object_hash($client);
+        if ( ! isset($this->objects[$hash]))
+            $this->initObject($client);
+
+        $code_args = [];
+        foreach ($args as $arg) {
+            $code_args[] = $arg instanceof ScriptArg
+                ? $arg->code()
+                : $this->varExport($arg);
+        }
+
+        $iterable = sprintf('$phpredisFuzzIterable%d', $this->iterable_counter++);
+        $indent = '';
+        if ($this->try_catch) {
+            fprintf($this->fp, "try {\n");
+            $indent = '    ';
+        }
+
+        fprintf(
+            $this->fp,
+            "%s%s = %s->%s(%s);\n",
+            $indent,
+            $iterable,
+            $this->objects[$hash],
+            $cmd,
+            implode(", ", $code_args),
+        );
+        fprintf($this->fp, "%sif (%s instanceof \\Traversable) {\n", $indent, $iterable);
+        fprintf($this->fp, "%s    foreach (%s as \$phpredisFuzzBatch) {}\n", $indent, $iterable);
+        fprintf($this->fp, "%s}\n", $indent);
+
+        if ($this->try_catch) {
+            fprintf($this->fp, "} catch (Exception \$e) {\n");
+            fprintf($this->fp, "    if (\$debug) printf(\"[%%s:%%d] Exception: %%s\\n\", '$cmd', __LINE__, \$e->getMessage());\n");
+            fprintf($this->fp, "}\n");
+        }
+
+        fflush($this->fp);
+    }
+
     public static function comment(string $message): void {
         if (self::$instance === null)
             return;
@@ -393,6 +438,21 @@ class ScriptLogger {
             return;
 
         self::$instance->logCommand($client, $cmd, $args);
+    }
+
+    /**
+     * Log a client call whose iterable result must be consumed to reproduce it.
+     *
+     * @internal
+     * @param array<mixed> $args
+     */
+    public static function logIterable(Redis|RedisCluster|Relay|Cluster $client,
+                                       string $cmd, array $args): void
+    {
+        if (self::$instance === null)
+            return;
+
+        self::$instance->writeIterableCommand($client, $cmd, $args);
     }
 
     /**
