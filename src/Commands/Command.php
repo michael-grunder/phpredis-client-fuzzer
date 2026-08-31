@@ -54,6 +54,26 @@ abstract class Command implements HasWeight {
     public const ANY    = 'any';
     public const NONE   = 'none';
 
+    /** @var array<string, int> */
+    private const FLAG_MAP = [
+        'read' => self::READ,
+        'write' => self::WRITE,
+        'delete' => self::DELETE,
+        'flush' => self::FLUSH,
+        'blocking' => self::BLOCKING,
+        'cached' => self::CACHED,
+        'invalidating' => self::INVALIDATING,
+        'expire' => self::EXPIRE,
+        'raw' => self::RAW,
+        'select' => self::SELECT,
+        'admin' => self::ADMIN,
+        'scan' => self::SCAN,
+        'local' => self::LOCAL,
+        'crash' => self::CRASH,
+        'crossslot' => self::CROSSSLOT,
+        'stateful' => self::STATEFUL,
+    ];
+
     abstract public function type(): string;
     abstract public function flags(): int;
 
@@ -124,25 +144,19 @@ abstract class Command implements HasWeight {
     }
 
     public static function stringToFlag(string $flag): int {
-        return match ($flag) {
-            'read'         => self::READ,
-            'write'        => self::WRITE,
-            'delete'       => self::DELETE,
-            'flush'        => self::FLUSH,
-            'blocking'     => self::BLOCKING,
-            'cached'       => self::CACHED,
-            'invalidating' => self::INVALIDATING,
-            'expire'       => self::EXPIRE,
-            'raw'          => self::RAW,
-            'select'       => self::SELECT,
-            'admin'        => self::ADMIN,
-            'scan'         => self::SCAN,
-            'local'        => self::LOCAL,
-            'crash'        => self::CRASH,
-            'crossslot'    => self::CROSSSLOT,
-            'stateful'     => self::STATEFUL,
-            default        => 0
-        };
+        return self::FLAG_MAP[$flag] ?? 0;
+    }
+
+    /** @return list<string> */
+    public static function flagNames(int $flags): array {
+        $names = [];
+        foreach (self::FLAG_MAP as $name => $flag) {
+            if (($flags & $flag) !== 0) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
     }
 
     public static function isRelay(Redis|RedisCluster|Relay|Cluster $client): bool {

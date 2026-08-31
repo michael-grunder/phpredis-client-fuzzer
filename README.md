@@ -99,8 +99,8 @@ and live in `DiagnosticNormalizer`.
 ## CLI
 
 Composer installs `vendor/bin/phpredis-fuzz`,
-`vendor/bin/phpredis-fuzz-coercive`, `vendor/bin/phpredis-fuzz-killer`, and
-`vendor/bin/phpredis-coverage`.
+`vendor/bin/phpredis-fuzz-coercive`, `vendor/bin/phpredis-fuzz-killer`,
+`vendor/bin/phpredis-commands`, and `vendor/bin/phpredis-coverage`.
 The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
 defaults to one and the total is limited to 10,000 clients. Each step selects
@@ -148,6 +148,20 @@ those scenarios to a random subset of the named choices.
 
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
+
+To inspect the command catalog without connecting to Redis, run
+`vendor/bin/phpredis-commands`. It prints each command's type, category flags,
+and available client, raw-protocol, and proxy-sampling surfaces. Its optional
+`--commands` argument uses the same case-insensitive names, globs, flag filters,
+and exclusions as the fuzzer:
+
+```bash
+vendor/bin/phpredis-commands --commands='get*,-getex,@crossslot'
+```
+
+The catalog listing includes every safety category so filters such as
+`--commands=@blocking` can be checked without enabling or executing those
+commands.
 
 ### Client invocation typing
 
@@ -835,6 +849,7 @@ find src tests bin -type f -exec php -l {} +
 vendor/bin/phpstan analyse --debug --no-progress
 vendor/bin/phpunit
 bin/phpredis-fuzz --help
+bin/phpredis-commands --help
 bin/phpredis-coverage --help
 ```
 

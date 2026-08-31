@@ -17,6 +17,7 @@
         "bin/phpredis-fuzz",
         "bin/phpredis-fuzz-coercive",
         "bin/phpredis-fuzz-killer",
+        "bin/phpredis-commands",
         "bin/phpredis-coverage"
     ],
     "authors": [
