@@ -14,6 +14,7 @@ use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
+use Mgrunder\PhpredisCommandFuzzer\SaturationTarget;
 
 final class Application
 {
@@ -90,6 +91,10 @@ final class Application
             $saturationMode = SaturationMode::parse(
                 $options->string('saturate-mode', SaturationMode::Natural->value),
             );
+            $saturationTargetValue = $options->nullableString('saturate-target');
+            $saturationTarget = $saturationTargetValue === null
+                ? null
+                : SaturationTarget::parse($saturationTargetValue);
 
             if ($options->has('verbose')) {
                 Log::setLogger(function (string $level, string $message, array $context): void {
@@ -122,6 +127,12 @@ final class Application
 
             $hasRelayClient = in_array(ClientType::Relay, $clientTypes, true)
                 || in_array(ClientType::RelayCluster, $clientTypes, true);
+
+            if ($saturationTarget?->isPercentage() && !$hasRelayClient) {
+                throw new \InvalidArgumentException(
+                    'A percentage --saturate-target requires a Relay client',
+                );
+            }
 
             if (!$hasRelayClient) {
                 foreach (self::RELAY_CLUSTER_OPTIONS as $name) {
@@ -201,7 +212,7 @@ final class Application
                 crossSlotChance: $options->number('crossslot-chance', 0.0),
                 saturateChance: $options->number('saturate-chance', 0.0),
                 saturateSteps: $options->optionalInteger('saturate-steps'),
-                saturateTarget: $options->optionalByteSize('saturate-target'),
+                saturateTarget: $saturationTarget?->resolve(),
                 saturateMode: $saturationMode,
                 commands: $options->csv('commands'),
                 weights: $this->weights($options->repeated('weight')),
@@ -337,9 +348,10 @@ Run configuration:
                              saturation event after a fuzz step (default: 0)
   --saturate-steps=N         Maximum whole-key reads per saturation event;
                              omitted means one pass over the known key space
-  --saturate-target=SIZE     Read until Relay memory.used reaches SIZE (K/M/G/T
-                             suffixes use powers of 1024); overrides steps and
-                             stops after one pass over the known key space
+  --saturate-target=TARGET   Read until Relay memory.used reaches a byte SIZE
+                             (K/M/G/T suffixes use powers of 1024) or a percent
+                             of Relay memory.total, such as 95.2%; overrides
+                             steps and stops after one known-key-space pass
   --saturate-mode=MODE       natural reads existing keys; seeded writes generated
                              values before reading each key (default: natural)
   --invocation-mode=MODE     Client call typing: strict or coercive

@@ -811,8 +811,17 @@ bin/phpredis-fuzz --client=relay --steps=100000 \
     --saturate-chance=0.02 --saturate-target=100m --saturate-mode=seeded
 ```
 
-The CLI accepts an integer byte count or a case-insensitive `k`, `m`, `g`, or
-`t` suffix. Suffixes use powers of 1024, so `100m` is 104,857,600 bytes.
+The CLI accepts an integer byte count, a case-insensitive `k`, `m`, `g`, or `t`
+suffix, or a percentage from greater than `0%` through `100%`. Suffixes use
+powers of 1024, so `100m` is 104,857,600 bytes. A percentage such as `95.2%` is
+resolved once at startup against `Relay\Relay::stats()['memory']['total']` and
+rounded to the nearest byte. The resolved byte count is recorded in the run
+configuration and reproduction log.
+
+```bash
+bin/phpredis-fuzz --client=relay --steps=100000 \
+    --saturate-chance=0.02 --saturate-target=95.2% --saturate-mode=seeded
+```
 
 The result includes `saturation_events`, `saturation_reads`, and detailed
 `saturation_outcomes`. Saturation calls also pass through the standard warning,

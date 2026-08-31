@@ -25,7 +25,7 @@ final class ApplicationTest extends TestCase
         );
         self::assertStringContainsString('--saturate-chance=N', self::contents($output));
         self::assertStringContainsString('--saturate-steps=N', self::contents($output));
-        self::assertStringContainsString('--saturate-target=SIZE', self::contents($output));
+        self::assertStringContainsString('--saturate-target=TARGET', self::contents($output));
         self::assertStringContainsString('--saturate-mode=MODE', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));
         self::assertSame('', self::contents($error));
@@ -79,6 +79,43 @@ final class ApplicationTest extends TestCase
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             'Unknown saturation mode: synthetic',
+            self::contents($error),
+        );
+    }
+
+    public function testInvalidSaturationPercentageIsRejectedBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--saturate-target=100.1%',
+            '--port=0',
+        ]);
+
+        self::assertSame(1, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString(
+            '--saturate-target percentage must be greater than 0 and at most 100',
+            self::contents($error),
+        );
+    }
+
+    public function testPercentageSaturationTargetRequiresRelayBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--client=redis',
+            '--saturate-target=95.2%',
+            '--port=0',
+        ]);
+
+        self::assertSame(1, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString(
+            'A percentage --saturate-target requires a Relay client',
             self::contents($error),
         );
     }
