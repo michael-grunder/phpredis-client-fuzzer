@@ -115,6 +115,38 @@ final class Options
         return (int) $value;
     }
 
+    public function optionalByteSize(string $name): ?int
+    {
+        if (!$this->has($name)) {
+            return null;
+        }
+
+        $value = $this->string($name, '');
+        if (preg_match('/\A([0-9]+)([kmgt]?)\z/i', $value, $matches) !== 1) {
+            throw new \InvalidArgumentException(
+                "--{$name} must be a byte size such as 100, 100k, or 100m",
+            );
+        }
+
+        $bytes = filter_var($matches[1], FILTER_VALIDATE_INT);
+        if (!is_int($bytes)) {
+            throw new \InvalidArgumentException("--{$name} byte size is too large");
+        }
+
+        $multiplier = match (strtolower($matches[2])) {
+            'k' => 1024,
+            'm' => 1024 ** 2,
+            'g' => 1024 ** 3,
+            't' => 1024 ** 4,
+            default => 1,
+        };
+        if ($bytes > intdiv(PHP_INT_MAX, $multiplier)) {
+            throw new \InvalidArgumentException("--{$name} byte size is too large");
+        }
+
+        return $bytes * $multiplier;
+    }
+
     public function number(string $name, float $default): float
     {
         return $this->optionalNumber($name) ?? $default;

@@ -42,7 +42,7 @@ final class Application
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'saturate-chance',
-        'saturate-steps', 'script-log', 'catch',
+        'saturate-steps', 'saturate-target', 'script-log', 'catch',
         'invocation-mode',
         'differential-tolerance-ms', 'differential-poll-ms',
         'scenarios',
@@ -197,6 +197,7 @@ final class Application
                 crossSlotChance: $options->number('crossslot-chance', 0.0),
                 saturateChance: $options->number('saturate-chance', 0.0),
                 saturateSteps: $options->optionalInteger('saturate-steps'),
+                saturateTarget: $options->optionalByteSize('saturate-target'),
                 commands: $options->csv('commands'),
                 weights: $this->weights($options->repeated('weight')),
                 raw: $options->has('raw'),
@@ -331,6 +332,9 @@ Run configuration:
                              saturation event after a fuzz step (default: 0)
   --saturate-steps=N         Maximum whole-key reads per saturation event;
                              omitted means one pass over the known key space
+  --saturate-target=SIZE     Read until Relay memory.used reaches SIZE (K/M/G/T
+                             suffixes use powers of 1024); overrides steps and
+                             stops after one pass over the known key space
   --invocation-mode=MODE     Client call typing: strict or coercive
                              (default: {invocation-default})
   --script-log=FILE          Write an executable PHP reproduction script

@@ -42,6 +42,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public InvocationMode $invocationMode = InvocationMode::Strict,
         public float $saturateChance = 0.0,
         public ?int $saturateSteps = null,
+        public ?int $saturateTarget = null,
     ) {
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -69,6 +70,9 @@ final readonly class RunConfiguration implements \JsonSerializable
         }
         if ($saturateSteps !== null && $saturateSteps < 1) {
             throw new \InvalidArgumentException('saturateSteps must be positive when provided');
+        }
+        if ($saturateTarget !== null && $saturateTarget < 1) {
+            throw new \InvalidArgumentException('saturateTarget must be positive when provided');
         }
         if ($catchPattern === '') {
             throw new \InvalidArgumentException('catchPattern cannot be empty');
@@ -109,6 +113,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'crossSlotChance' => $this->crossSlotChance,
             'saturateChance' => $this->saturateChance,
             'saturateSteps' => $this->saturateSteps,
+            'saturateTarget' => $this->saturateTarget,
             'commands' => $this->commands,
             'weights' => $this->weights,
             'raw' => $this->raw,

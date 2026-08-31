@@ -42,10 +42,12 @@ final class HttpEndpointTest extends TestCase
             new RunConfiguration(
                 maxSteps: 1,
                 seed: 42,
+                keys: 1,
                 commands: ['isconnected'],
                 includeLocal: true,
                 saturateChance: 1.0,
                 saturateSteps: 1,
+                saturateTarget: PHP_INT_MAX,
             ),
         );
 
@@ -53,6 +55,9 @@ final class HttpEndpointTest extends TestCase
 
         self::assertTrue($response['ok']);
         self::assertSame(1, $response['result']['saturation_events'] ?? null);
-        self::assertSame(1, $response['result']['saturation_reads'] ?? null);
+        self::assertSame(5, $response['result']['saturation_reads'] ?? null);
+        $configuration = $response['result']['configuration'] ?? null;
+        self::assertIsArray($configuration);
+        self::assertSame(PHP_INT_MAX, $configuration['saturateTarget'] ?? null);
     }
 }

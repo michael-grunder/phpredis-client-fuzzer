@@ -30,10 +30,16 @@ final class CacheSaturator
 
     private int $cursor = 0;
 
+    /** @var \Closure(): int */
+    private readonly \Closure $memoryUsage;
+
+    /** @param (\Closure(): int)|null $memoryUsage */
     public function __construct(
         private readonly FuzzConfig $configuration,
         ClientInvoker $clientInvoker,
+        ?\Closure $memoryUsage = null,
     ) {
+        $this->memoryUsage = $memoryUsage ?? self::relayMemoryUsage(...);
         foreach (self::READS as $read) {
             $command = Command::object($read['command']);
             $command->setClientInvoker($clientInvoker);
@@ -68,15 +74,22 @@ final class CacheSaturator
         ?int $maxReads,
         ?int $deadlineNanoseconds,
         ?string $catchPattern,
+        ?int $targetBytes = null,
     ): array {
         $initialMode = $this->clientMode($client);
         if ($initialMode !== null && $initialMode !== \Redis::ATOMIC) {
             return ['outcomes' => [], 'caughtDiagnostic' => null];
         }
 
-        $limit = $maxReads ?? $this->keySpaceSize();
+        $limit = $targetBytes === null
+            ? ($maxReads ?? $this->keySpaceSize())
+            : $this->keySpaceSize();
         $outcomes = [];
         $caughtDiagnostic = null;
+
+        if ($targetBytes !== null && ($this->memoryUsage)() >= $targetBytes) {
+            return ['outcomes' => [], 'caughtDiagnostic' => null];
+        }
 
         for ($readIndex = 0; $readIndex < $limit; $readIndex++) {
             if ($deadlineNanoseconds !== null && hrtime(true) >= $deadlineNanoseconds) {
@@ -140,9 +153,23 @@ final class CacheSaturator
             if ($caughtDiagnostic !== null) {
                 break;
             }
+            if ($targetBytes !== null && ($this->memoryUsage)() >= $targetBytes) {
+                break;
+            }
         }
 
         return ['outcomes' => $outcomes, 'caughtDiagnostic' => $caughtDiagnostic];
+    }
+
+    private static function relayMemoryUsage(): int
+    {
+        $memory = Relay::stats()['memory'] ?? null;
+        $used = is_array($memory) ? ($memory['used'] ?? null) : null;
+        if (!is_int($used)) {
+            throw new \UnexpectedValueException('Relay stats memory.used is not an integer');
+        }
+
+        return $used;
     }
 
     /** @return array{Command, string, list<mixed>} */

@@ -87,6 +87,59 @@ final class CacheSaturatorTest extends TestCase
         self::assertSame([], $batch['outcomes']);
         self::assertSame([], $invoker->calls);
     }
+
+    public function testTargetOverridesTheStepLimitAndStopsAtUsedMemory(): void
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $usage = [0, 10, 50];
+        $sample = 0;
+        $saturator = new CacheSaturator(
+            (new FuzzConfig())->setKeys(2),
+            $invoker,
+            static function () use (&$usage, &$sample): int {
+                return $usage[$sample++];
+            },
+        );
+
+        $batch = $saturator->run(new Relay(), 0, 1, 1, null, null, 50);
+
+        self::assertCount(2, $batch['outcomes']);
+        self::assertSame([
+            ['get', ['string:0']],
+            ['lrange', ['list:0', 0, -1]],
+        ], $invoker->calls);
+        self::assertSame(3, $sample);
+    }
+
+    public function testTargetStopsAfterOneKeySpacePassWhenItCannotBeReached(): void
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator(
+            (new FuzzConfig())->setKeys(1),
+            $invoker,
+            static fn (): int => 0,
+        );
+
+        $batch = $saturator->run(new Relay(), 0, 1, 1, null, null, 100);
+
+        self::assertCount($saturator->keySpaceSize(), $batch['outcomes']);
+        self::assertCount($saturator->keySpaceSize(), $invoker->calls);
+    }
+
+    public function testTargetAlreadyReachedPerformsNoReads(): void
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator(
+            new FuzzConfig(),
+            $invoker,
+            static fn (): int => 100,
+        );
+
+        $batch = $saturator->run(new Relay(), 0, 1, null, null, null, 100);
+
+        self::assertSame([], $batch['outcomes']);
+        self::assertSame([], $invoker->calls);
+    }
 }
 
 final class RecordingSaturationInvoker implements ClientInvoker

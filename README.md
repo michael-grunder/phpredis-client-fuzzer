@@ -588,6 +588,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `crossSlotChance` | `0.0` | Chance from `0.0` to `1.0` of forcing a `CROSSSLOT` error; cluster only |
 | `saturateChance` | `0.0` | Chance from `0.0` to `1.0` of running a Relay cache-saturation event after a fuzz step |
 | `saturateSteps` | `null` | Maximum whole-key reads per saturation event; `null` makes one complete key-space pass |
+| `saturateTarget` | `null` | Target Relay `memory.used` byte count; overrides `saturateSteps` and stops after one key-space pass if unmet |
 | `invocationMode` | `InvocationMode::Strict` | Typing mode used at the client method-call boundary |
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `weights` | `[]` | Command or flag weights |
@@ -770,9 +771,13 @@ compression settings continue to apply normally.
 
 When `saturateSteps` is `null`, one event makes a complete pass. When it is set,
 the event performs at most that many reads and the next event resumes at the
-following key. Saturation reads do not consume the normal `maxSteps` budget,
-but the wall-clock `maxSeconds` deadline can truncate a batch. At least one
-Relay client is required when the chance is nonzero. A selected client that is
+following key. `saturateTarget` overrides that step limit: Relay's global
+`Relay\Relay::stats()['memory']['used']` value is checked before the event and
+after every read, and the event stops once it reaches the requested byte count.
+If the target cannot be reached, the event ends after one complete pass over the
+known key space. Saturation reads do not consume the normal `maxSteps` budget,
+but the wall-clock `maxSeconds` deadline can truncate a batch. At least one Relay
+client is required when the chance is nonzero. A selected client that is
 currently in a transaction or pipeline is skipped so saturation reads cannot
 alter its queued workload.
 
@@ -780,14 +785,17 @@ alter its queued workload.
 $configuration = new RunConfiguration(
     maxSteps: 100000,
     saturateChance: 0.02,
-    saturateSteps: 250,
+    saturateTarget: 100 * 1024 * 1024,
 );
 ```
 
 ```bash
 bin/phpredis-fuzz --client=relay --steps=100000 \
-    --saturate-chance=0.02 --saturate-steps=250
+    --saturate-chance=0.02 --saturate-target=100m
 ```
+
+The CLI accepts an integer byte count or a case-insensitive `k`, `m`, `g`, or
+`t` suffix. Suffixes use powers of 1024, so `100m` is 104,857,600 bytes.
 
 The result includes `saturation_events`, `saturation_reads`, and detailed
 `saturation_outcomes`. Saturation calls also pass through the standard warning,

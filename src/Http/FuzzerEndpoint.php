@@ -95,6 +95,7 @@ final class FuzzerEndpoint
             invocationMode: $this->configuration->invocationMode,
             saturateChance: $this->configuration->saturateChance,
             saturateSteps: $this->configuration->saturateSteps,
+            saturateTarget: $this->configuration->saturateTarget,
         );
     }
 

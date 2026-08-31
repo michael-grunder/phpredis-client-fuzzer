@@ -123,6 +123,7 @@ final class Fuzzer
                 'invocation-mode' => $configuration->invocationMode->value,
                 'saturate-chance' => $configuration->saturateChance,
                 'saturate-steps' => $configuration->saturateSteps ?? 'keyspace',
+                'saturate-target' => $configuration->saturateTarget ?? 'disabled',
             ], $clients, invocationMode: $configuration->invocationMode);
         }
 
@@ -272,6 +273,7 @@ final class Fuzzer
                             maxReads: $configuration->saturateSteps,
                             deadlineNanoseconds: $deadlineNanoseconds,
                             catchPattern: $configuration->catchPattern,
+                            targetBytes: $configuration->saturateTarget,
                         );
                     } finally {
                         Command::setDifferentialOracle($differentialOracle);
