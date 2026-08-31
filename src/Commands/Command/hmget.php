@@ -4,6 +4,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
+use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
 
@@ -12,7 +13,7 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-class hmget extends Command implements FuzzInterface {
+class hmget extends Command implements FuzzInterface, FuzzRawInterface {
     use FuzzGeneric;
 
     public function flags(): int {
@@ -41,10 +42,12 @@ class hmget extends Command implements FuzzInterface {
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
                                 FuzzConfig $config, string $fn): mixed
     {
-        return $this->$fn(
-            $client,
-            $config->getRandomKey($this->type()),
-            $config->getRandomMembers($this->type())
-        );
+        $key = $config->getRandomKey($this->type());
+        $fields = $config->getRandomMembers($this->type());
+
+        if ($fn === 'exec')
+            return $this->exec($client, $key, $fields);
+
+        return $this->execRaw($client, $key, ...$fields);
     }
 }

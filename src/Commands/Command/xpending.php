@@ -4,7 +4,9 @@ namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
+use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
 use Mgrunder\PhpredisCommandFuzzer\Data\Events;
 
 use Redis;
@@ -13,7 +15,9 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-class xpending extends Command implements FuzzInterface {
+class xpending extends Command implements FuzzInterface, FuzzRawInterface {
+    use FuzzGeneric;
+
     public function type(): string {
         return self::STREAM;
     }
@@ -42,10 +46,12 @@ class xpending extends Command implements FuzzInterface {
         return $result;
     }
 
-    public function fuzz(Redis|RedisCluster|Relay|Cluster $client, FuzzConfig $config): mixed {
+    public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
+                                FuzzConfig $config, string $fn): mixed
+    {
         $key = $config->getRandomKey($this->type());
 
-        return $this->exec($client, $key, 'fuzzer', ...$this->randomArgs($config));
+        return $this->$fn($client, $key, 'fuzzer', ...$this->randomArgs($config));
     }
 
 // public function xpending(

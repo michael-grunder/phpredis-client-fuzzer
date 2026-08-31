@@ -8,7 +8,7 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-abstract class ScanCommand extends Command implements FuzzInterface {
+abstract class ScanCommand extends Command implements FuzzInterface, FuzzRawInterface {
     private int|string|null $cursor = null;
     private ?string $routeKey = null;
     protected ?string $key = null;
@@ -72,5 +72,29 @@ abstract class ScanCommand extends Command implements FuzzInterface {
             $this->logRedisError($client, ...$args);
 
         return $result;
+    }
+
+    public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
+                            FuzzConfig $config): mixed
+    {
+        $this->resetValues();
+        $this->initArgs($config);
+
+        $args = [];
+        if ($this->key !== null)
+            $args[] = $this->key;
+        $args[] = 0;
+
+        if ($this->pattern !== null)
+            array_push($args, 'MATCH', $this->pattern);
+
+        $count = rand(0, $config->getCmdMaxKeys());
+        if ($count > 0)
+            array_push($args, 'COUNT', $count);
+
+        if ($this->type !== null)
+            array_push($args, 'TYPE', $this->type);
+
+        return $this->execRaw($client, ...$args);
     }
 }

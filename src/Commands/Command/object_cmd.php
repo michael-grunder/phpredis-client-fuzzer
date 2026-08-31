@@ -14,7 +14,7 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-class object_cmd extends Command implements FuzzInterface {
+class object_cmd extends Command implements FuzzInterface, FuzzRawInterface {
     use FuzzGeneric;
 
     private const OPS = [
@@ -45,4 +45,3 @@ class object_cmd extends Command implements FuzzInterface {
         );
     }
 }
-

@@ -11,29 +11,55 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-abstract class GeoRadiusCommand extends Command implements FuzzInterface {
+abstract class GeoRadiusCommand extends Command implements FuzzInterface,
+                                                               FuzzRawInterface
+{
     use GeoRadius;
 
     public function type(): string {
         return self::GEO;
     }
 
-    public function fuzz(Redis|RedisCluster|Relay|Cluster $client, FuzzConfig $config): mixed {
+    /** @return array{string, float, float, float, string, array<mixed>|null} */
+    private function arguments(FuzzConfig $config): array {
         $city    = Cities::instance()->randomCity();
         $unit    = array_rand(self::UNITS);
         $radius  = rand(1, self::EARTH_RADIUS) * self::UNITS[$unit];
 
-        $rng     = self::randomOptions($config, !!($this->flags() & self::WRITE));
-        $options = $rng ? [$rng] : [];
-
-        return $this->exec(
-            $client,
+        return [
             $config->getRandomKey($this->type()),
             $city->lng(),
             $city->lat(),
             $radius,
             $unit,
-            ...$options,
+            self::randomOptions($config, !!($this->flags() & self::WRITE)),
+        ];
+    }
+
+    public function fuzz(Redis|RedisCluster|Relay|Cluster $client,
+                         FuzzConfig $config): mixed
+    {
+        $args = $this->arguments($config);
+        if ($args[5] === null)
+            array_pop($args);
+
+        return $this->exec($client, ...$args);
+    }
+
+    public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
+                            FuzzConfig $config): mixed
+    {
+        [$key, $longitude, $latitude, $radius, $unit, $options] =
+            $this->arguments($config);
+
+        return $this->execRaw(
+            $client,
+            $key,
+            $longitude,
+            $latitude,
+            $radius,
+            $unit,
+            ...self::optionsToRawTokens($options),
         );
     }
 }

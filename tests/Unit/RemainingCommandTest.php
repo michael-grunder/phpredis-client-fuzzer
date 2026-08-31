@@ -20,6 +20,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sort as SortCommand;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sort_ro as SortRoCommand;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sunioncard;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
 use PHPUnit\Framework\TestCase;
 use Redis;
@@ -91,6 +92,14 @@ final class DeterministicRemainingCommandConfig extends FuzzConfig
 
 final class RemainingCommandTest extends TestCase
 {
+    private const NEW_RAW_COMMANDS = [
+        'bitop', 'fcall', 'fcall_ro', 'function', 'geohash', 'geopos',
+        'georadius', 'georadius_ro', 'geosearch', 'geosearchstore', 'getbit',
+        'hmget', 'object', 'sdiffstore', 'sinterstore', 'sunionstore',
+        'xautoclaim', 'xclaim', 'xgroup', 'xinfo', 'xpending', 'xread',
+        'xreadgroup', 'zlexcount', 'scan', 'hscan', 'sscan', 'zscan',
+    ];
+
     private Redis $client;
     private DeterministicRemainingCommandConfig $config;
 
@@ -134,6 +143,75 @@ final class RemainingCommandTest extends TestCase
         self::assertSame(Command::EXPIRE, $increx->flags() & Command::EXPIRE);
         self::assertSame(Command::WRITE, $geo->flags() & Command::WRITE);
         self::assertSame(0, $geoRo->flags() & Command::WRITE);
+    }
+
+    public function testRequestedCommandsExposeFlatRawProtocolArguments(): void
+    {
+        $registry = new Registry();
+
+        foreach (self::NEW_RAW_COMMANDS as $name) {
+            $command = $registry->get($name);
+            self::assertInstanceOf(FuzzRawInterface::class, $command, $name);
+            self::assertInstanceOf(Command::class, $command);
+
+            $invoker = $this->invoker($command);
+            for ($i = 0; $i < 20; $i++) {
+                $this->config->beginCommand($command, raw: true);
+                $command->fuzzRaw($this->client, $this->config);
+            }
+
+            foreach ($invoker->calls as $call) {
+                self::assertSame('rawCommand', $call['method'], $name);
+                self::assertSame($name, $call['arguments'][0], $name);
+                foreach (array_slice($call['arguments'], 1) as $argument) {
+                    self::assertFalse(
+                        is_array($argument),
+                        "{$name} left a client-method array in its raw arguments",
+                    );
+                }
+            }
+        }
+    }
+
+    public function testStructuredRawCommandsEmitRedisWireKeywords(): void
+    {
+        $registry = new Registry();
+        $tokens = [
+            'geosearch' => [],
+            'geosearchstore' => [],
+            'xread' => [],
+            'xreadgroup' => [],
+        ];
+
+        foreach (['geosearch', 'geosearchstore', 'xread', 'xreadgroup'] as $name) {
+            $command = $registry->get($name);
+            self::assertInstanceOf(FuzzRawInterface::class, $command);
+            self::assertInstanceOf(Command::class, $command);
+            $invoker = $this->invoker($command);
+
+            for ($i = 0; $i < 50; $i++) {
+                $command->fuzzRaw($this->client, $this->config);
+            }
+
+            foreach ($invoker->calls as $call) {
+                foreach ($call['arguments'] as $argument) {
+                    if (is_string($argument))
+                        $tokens[$name][$argument] = true;
+                }
+            }
+        }
+
+        foreach (['geosearch', 'geosearchstore'] as $name) {
+            self::assertTrue(
+                isset($tokens[$name]['FROMMEMBER']) || isset($tokens[$name]['FROMLONLAT'])
+            );
+            self::assertTrue(
+                isset($tokens[$name]['BYRADIUS']) || isset($tokens[$name]['BYBOX'])
+            );
+        }
+        self::assertArrayHasKey('STREAMS', $tokens['xread']);
+        self::assertArrayHasKey('GROUP', $tokens['xreadgroup']);
+        self::assertArrayHasKey('STREAMS', $tokens['xreadgroup']);
     }
 
     public function testSimpleKeyAndBlockingPopShapes(): void

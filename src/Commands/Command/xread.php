@@ -6,6 +6,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\ProxyInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\KeySample;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
+use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 use Mgrunder\PhpredisCommandFuzzer\Data\Events;
 
@@ -15,7 +16,7 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-class xread extends Command implements FuzzInterface {
+class xread extends Command implements FuzzInterface, FuzzRawInterface {
     public function type(): string {
         return self::STREAM;
     }
@@ -25,14 +26,40 @@ class xread extends Command implements FuzzInterface {
     }
 
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client, FuzzConfig $config): mixed {
+        [$keys, $count, $block] = $this->arguments($config);
+
+        return $this->exec($client, $keys, $count, $block);
+    }
+
+    /** @return array{array<string, string>, int, int} */
+    private function arguments(FuzzConfig $config): array {
         $keys = array_flip($config->getRandomKeys($this->type()));
         foreach ($keys as $key => &$id) {
             $id = Events::instance()->randomReadId();
         }
+        unset($id);
 
+        $count = rand() & 1 ? $config->randomMemberCount() : -1;
         $block = rand() & 1 ? $config->getRandomTimeoutMs() : -1;
 
-        return $this->exec($client, $keys, $block);
+        return [$keys, $count, $block];
+    }
+
+    public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
+                            FuzzConfig $config): mixed
+    {
+        [$streams, $count, $block] = $this->arguments($config);
+        $args = [];
+
+        if ($count >= 0)
+            array_push($args, 'COUNT', $count);
+        if ($block >= 0)
+            array_push($args, 'BLOCK', $block);
+
+        $args[] = 'STREAMS';
+        array_push($args, ...array_keys($streams), ...array_values($streams));
+
+        return $this->execRaw($client, ...$args);
     }
 }
 

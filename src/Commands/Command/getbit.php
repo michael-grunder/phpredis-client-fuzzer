@@ -12,7 +12,7 @@ use Relay\Cluster;
 use Redis;
 use RedisCluster;
 
-class getbit extends Command implements FuzzInterface {
+class getbit extends Command implements FuzzInterface, FuzzRawInterface {
     public function type(): string {
         return self::STRING;
     }

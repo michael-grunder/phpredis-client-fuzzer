@@ -7,7 +7,9 @@ use Relay\Cluster;
 use Redis;
 use RedisCluster;
 
-class SInterUnionDiffStoreCommand extends Command implements FuzzInterface {
+class SInterUnionDiffStoreCommand extends Command implements FuzzInterface,
+                                                                       FuzzRawInterface
+{
     use Traits\FuzzGeneric;
 
     public function type(): string {

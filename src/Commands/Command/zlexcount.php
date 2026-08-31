@@ -13,7 +13,7 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-class zlexcount extends Command implements FuzzInterface {
+class zlexcount extends Command implements FuzzInterface, FuzzRawInterface {
     use FuzzGeneric;
 
     public function type(): string {

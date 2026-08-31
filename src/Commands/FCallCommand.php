@@ -11,7 +11,9 @@ use Relay\Cluster;
 use Redis;
 use RedisCluster;
 
-abstract class FCallCommand extends FunctionCommand implements FuzzInterface {
+abstract class FCallCommand extends FunctionCommand implements FuzzInterface,
+                                                              FuzzRawInterface
+{
     public function type(): string {
         return self::ANY;
     }
@@ -38,5 +40,31 @@ abstract class FCallCommand extends FunctionCommand implements FuzzInterface {
         }
 
         return null;
+    }
+
+    public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
+                            FuzzConfig $config): mixed
+    {
+        [$fn] = $this->randomFunction();
+
+        if ($fn === 'tracking_hset') {
+            return $this->execRaw(
+                $client,
+                $fn,
+                1,
+                $config->getRandomKey(self::HASH),
+                $config->getRandomMember(self::HASH),
+                $config->getRandomMember('field'),
+            );
+        } else if ($fn === 'hash_stats') {
+            return $this->execRaw(
+                $client,
+                $fn,
+                1,
+                $config->getRandomKey(self::HASH),
+            );
+        }
+
+        throw new \LogicException("Unknown function: {$fn}");
     }
 }

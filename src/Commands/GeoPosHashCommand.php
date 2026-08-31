@@ -10,7 +10,11 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-abstract class GeoPosHashCommand extends Command implements FuzzInterface {
+abstract class GeoPosHashCommand extends Command implements FuzzInterface,
+                                                                FuzzRawInterface
+{
+    use Traits\FuzzGeneric;
+
     public function type(): string {
         return self::GEO;
     }
@@ -19,14 +23,16 @@ abstract class GeoPosHashCommand extends Command implements FuzzInterface {
         return self::READ;
     }
 
-    public function fuzz(Redis|RedisCluster|Relay|Cluster $client, FuzzConfig $config): mixed {
+    public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
+                                FuzzConfig $config, string $fn): mixed
+    {
         $count = rand(1, $config->getMembers());
         $names = array_map(
             fn($c) => $c->name(),
             Cities::instance()->randomCities($count)
         );
 
-        return $this->exec(
+        return $this->$fn(
             $client,
             $config->getRandomKey($this->type()),
             ...$names

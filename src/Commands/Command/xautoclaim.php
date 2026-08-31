@@ -6,6 +6,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\ProxyInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\KeySample;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
+use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 
 use Mgrunder\PhpredisCommandFuzzer\Data\Events;
@@ -16,7 +17,7 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-class xautoclaim extends Command implements FuzzInterface {
+class xautoclaim extends Command implements FuzzInterface, FuzzRawInterface {
     public function type(): string {
         return self::STREAM;
     }
@@ -43,6 +44,28 @@ class xautoclaim extends Command implements FuzzInterface {
             Events::instance()->randomId(),
             ...$extra
         );
+    }
+
+    public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
+                            FuzzConfig $config): mixed
+    {
+        $key = $config->getRandomKey($this->type());
+        $args = [
+            $key,
+            'fuzzer',
+            $config->getConsumer(),
+            rand(0, $config->getRandomTimeoutMs()),
+            Events::instance()->randomId(),
+        ];
+
+        $rng = rand();
+        if ($rng & 1) {
+            array_push($args, 'COUNT', rand(1, $config->randomMemberCount()));
+            if ($rng & 2)
+                $args[] = 'JUSTID';
+        }
+
+        return $this->execRaw($client, ...$args);
     }
 }
 
