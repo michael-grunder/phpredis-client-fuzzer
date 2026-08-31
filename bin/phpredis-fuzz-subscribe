@@ -1,0 +1,8 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (!is_file($autoload)) $autoload = dirname(__DIR__, 3) . '/autoload.php';
+require $autoload;
+try { exit((new Mgrunder\PhpredisCommandFuzzer\Cli\SubscribeApplication())->run(array_slice($argv, 1))); }
+catch (Throwable $e) { fwrite(STDERR, $e->getMessage()."\n"); exit(1); }
