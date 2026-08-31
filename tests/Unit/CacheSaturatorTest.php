@@ -8,6 +8,7 @@ use Mgrunder\PhpredisCommandFuzzer\CacheSaturator;
 use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
 use PHPUnit\Framework\TestCase;
 use Redis;
 use RedisCluster;
@@ -140,6 +141,71 @@ final class CacheSaturatorTest extends TestCase
         self::assertSame([], $batch['outcomes']);
         self::assertSame([], $invoker->calls);
     }
+
+    public function testSeededModeWritesEachGeneratedTypeBeforeReadingIt(): void
+    {
+        mt_srand(20260830);
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator(
+            (new FuzzConfig())
+                ->setKeys(1)
+                ->setMembers(2)
+                ->setMinLen(4)
+                ->setMaxLen(4),
+            $invoker,
+        );
+
+        $batch = $saturator->run(
+            new Relay(),
+            0,
+            1,
+            5,
+            null,
+            null,
+            mode: SaturationMode::Seeded,
+        );
+
+        self::assertCount(5, $batch['outcomes']);
+        self::assertSame('saturate:seeded:get', $batch['outcomes'][0]->command);
+        self::assertSame([
+            'set', 'get',
+            'rpush', 'lrange',
+            'sadd', 'smembers',
+            'hset', 'hgetall',
+            'zadd', 'zrange',
+        ], array_column($invoker->calls, 0));
+        self::assertSame('string:0', $invoker->calls[0][1][0]);
+        self::assertIsString($invoker->calls[0][1][1]);
+        self::assertSame('list:0', $invoker->calls[2][1][0]);
+        self::assertGreaterThanOrEqual(2, count($invoker->calls[2][1]));
+        self::assertSame('set:0', $invoker->calls[4][1][0]);
+        self::assertGreaterThanOrEqual(2, count($invoker->calls[4][1]));
+        self::assertSame('hash:0', $invoker->calls[6][1][0]);
+        self::assertIsArray($invoker->calls[6][1][1]);
+        self::assertNotEmpty($invoker->calls[6][1][1]);
+        self::assertSame('zset:0', $invoker->calls[8][1][0]);
+        self::assertGreaterThanOrEqual(3, count($invoker->calls[8][1]));
+    }
+
+    public function testSeededModeStillAttemptsTheReadWhenTheWriteThrows(): void
+    {
+        $invoker = new RecordingSaturationInvoker('set');
+        $saturator = new CacheSaturator((new FuzzConfig())->setKeys(1), $invoker);
+
+        $batch = $saturator->run(
+            new Relay(),
+            0,
+            1,
+            1,
+            null,
+            null,
+            mode: SaturationMode::Seeded,
+        );
+
+        self::assertSame(['set', 'get'], array_column($invoker->calls, 0));
+        self::assertSame('Synthetic set failure', $batch['outcomes'][0]->exception['message'] ?? null);
+        self::assertSame('string', $batch['outcomes'][0]->replyType);
+    }
 }
 
 final class RecordingSaturationInvoker implements ClientInvoker
@@ -147,12 +213,19 @@ final class RecordingSaturationInvoker implements ClientInvoker
     /** @var list<array{string, list<mixed>}> */
     public array $calls = [];
 
+    public function __construct(private readonly ?string $throwOn = null)
+    {
+    }
+
     public function invoke(
         Redis|RedisCluster|Relay|Cluster $client,
         string $method,
         array $arguments,
     ): mixed {
         $this->calls[] = [$method, $arguments];
+        if ($method === $this->throwOn) {
+            throw new \RuntimeException('Synthetic ' . $method . ' failure');
+        }
 
         return $method;
     }

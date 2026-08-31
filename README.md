@@ -589,6 +589,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `saturateChance` | `0.0` | Chance from `0.0` to `1.0` of running a Relay cache-saturation event after a fuzz step |
 | `saturateSteps` | `null` | Maximum whole-key reads per saturation event; `null` makes one complete key-space pass |
 | `saturateTarget` | `null` | Target Relay `memory.used` byte count; overrides `saturateSteps` and stops after one key-space pass if unmet |
+| `saturateMode` | `SaturationMode::Natural` | `Natural` reads existing values; `Seeded` writes generated values before reading them |
 | `invocationMode` | `InvocationMode::Strict` | Typing mode used at the client method-call boundary |
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `weights` | `[]` | Command or flag weights |
@@ -624,6 +625,8 @@ explicitly naming `flushall` still requires `includeFlush: true`.
 Weights use command names or flags:
 
 ```php
+use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+
 $configuration = new RunConfiguration(
     commands: ['@read', 'set', 'del'],
     weights: [
@@ -696,6 +699,8 @@ step, and out-of-range values are clamped by `FuzzConfig::setCrossSlot()`
 (`RunConfiguration` rejects them outright instead).
 
 ```php
+use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+
 $configuration = new RunConfiguration(
     maxSteps: 100000,
     crossSlotChance: 0.05,
@@ -764,6 +769,14 @@ client:
 - hashes with `HGETALL`
 - sorted sets with `ZRANGE key 0 -1 WITHSCORES`
 
+The default `natural` mode only performs those reads. The `seeded` mode first
+writes the selected key with the corresponding normal command (`SET`, `RPUSH`,
+`SADD`, `HSET`, or `ZADD`) using the configured string lengths, member limit,
+serializer, compression, and prefix behavior, then immediately performs the
+whole-value read. Seeded mode intentionally mutates only the fuzzer's known key
+namespaces and is more efficient when the goal is to fill an otherwise sparse
+Relay cache.
+
 No `SCAN`, `KEYS`, or `TYPE` calls are needed. Standalone passes cover each of
 the five type namespaces across `keys`; cluster passes additionally cover every
 configured hash tag from `shards`. The client prefix, serializer, and
@@ -782,16 +795,20 @@ currently in a transaction or pipeline is skipped so saturation reads cannot
 alter its queued workload.
 
 ```php
+use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
+
 $configuration = new RunConfiguration(
     maxSteps: 100000,
     saturateChance: 0.02,
     saturateTarget: 100 * 1024 * 1024,
+    saturateMode: SaturationMode::Seeded,
 );
 ```
 
 ```bash
 bin/phpredis-fuzz --client=relay --steps=100000 \
-    --saturate-chance=0.02 --saturate-target=100m
+    --saturate-chance=0.02 --saturate-target=100m --saturate-mode=seeded
 ```
 
 The CLI accepts an integer byte count or a case-insensitive `k`, `m`, `g`, or

@@ -59,5 +59,6 @@ final class HttpEndpointTest extends TestCase
         $configuration = $response['result']['configuration'] ?? null;
         self::assertIsArray($configuration);
         self::assertSame(PHP_INT_MAX, $configuration['saturateTarget'] ?? null);
+        self::assertSame('natural', $configuration['saturateMode'] ?? null);
     }
 }

@@ -9,6 +9,7 @@ use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -47,6 +48,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame(0.0, $configuration->saturateChance);
         self::assertNull($configuration->saturateSteps);
         self::assertNull($configuration->saturateTarget);
+        self::assertSame(SaturationMode::Natural, $configuration->saturateMode);
         self::assertSame([], $configuration->scenarios);
         self::assertSame(InvocationMode::Strict, $configuration->invocationMode);
         self::assertSame('strict', $configuration->jsonSerialize()['invocationMode']);
@@ -130,6 +132,23 @@ final class ConfigurationTest extends TestCase
             100 * 1024 ** 2,
             $configuration->jsonSerialize()['saturateTarget'] ?? null,
         );
+    }
+
+    public function testSaturationModesAreParsedAndSerialized(): void
+    {
+        self::assertSame(SaturationMode::Natural, SaturationMode::parse(' NATURAL '));
+        self::assertSame(SaturationMode::Seeded, SaturationMode::parse('seeded'));
+
+        $configuration = new RunConfiguration(saturateMode: SaturationMode::Seeded);
+        self::assertSame('seeded', $configuration->jsonSerialize()['saturateMode'] ?? null);
+    }
+
+    public function testUnknownSaturationModeIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('expected natural or seeded');
+
+        SaturationMode::parse('synthetic');
     }
 
     public function testClientConfigurationRejectsEmptyClusterSeeds(): void

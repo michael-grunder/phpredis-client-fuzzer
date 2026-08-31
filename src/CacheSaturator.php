@@ -11,18 +11,19 @@ use Relay\Relay;
 
 /**
  * Reads complete values from Relay's known fuzzing key space without SCAN or
- * TYPE probes. The cursor survives bounded batches so successive events keep
- * moving through the key space instead of warming the same first keys.
+ * TYPE probes, optionally seeding each value immediately before its read. The
+ * cursor survives bounded batches so successive events keep moving through the
+ * key space instead of warming the same first keys.
  */
 final class CacheSaturator
 {
-    /** @var list<array{type: string, command: string}> */
-    private const READS = [
-        ['type' => Command::STRING, 'command' => 'get'],
-        ['type' => Command::LIST, 'command' => 'lrange'],
-        ['type' => Command::SET, 'command' => 'smembers'],
-        ['type' => Command::HASH, 'command' => 'hgetall'],
-        ['type' => Command::ZSET, 'command' => 'zrange'],
+    /** @var list<array{type: string, read: string, write: string}> */
+    private const OPERATIONS = [
+        ['type' => Command::STRING, 'read' => 'get', 'write' => 'set'],
+        ['type' => Command::LIST, 'read' => 'lrange', 'write' => 'rpush'],
+        ['type' => Command::SET, 'read' => 'smembers', 'write' => 'sadd'],
+        ['type' => Command::HASH, 'read' => 'hgetall', 'write' => 'hset'],
+        ['type' => Command::ZSET, 'read' => 'zrange', 'write' => 'zadd'],
     ];
 
     /** @var array<string, Command> */
@@ -40,10 +41,12 @@ final class CacheSaturator
         ?\Closure $memoryUsage = null,
     ) {
         $this->memoryUsage = $memoryUsage ?? self::relayMemoryUsage(...);
-        foreach (self::READS as $read) {
-            $command = Command::object($read['command']);
-            $command->setClientInvoker($clientInvoker);
-            $this->commands[$read['command']] = $command;
+        foreach (self::OPERATIONS as $operation) {
+            foreach ([$operation['read'], $operation['write']] as $name) {
+                $command = Command::object($name);
+                $command->setClientInvoker($clientInvoker);
+                $this->commands[$name] = $command;
+            }
         }
     }
 
@@ -57,11 +60,11 @@ final class CacheSaturator
             throw new \OverflowException('Configured saturation key space is too large');
         }
         $coordinates = $keys * $shards;
-        if ($coordinates > intdiv(PHP_INT_MAX, count(self::READS))) {
+        if ($coordinates > intdiv(PHP_INT_MAX, count(self::OPERATIONS))) {
             throw new \OverflowException('Configured saturation key space is too large');
         }
 
-        return count(self::READS) * $coordinates;
+        return count(self::OPERATIONS) * $coordinates;
     }
 
     /**
@@ -75,6 +78,7 @@ final class CacheSaturator
         ?int $deadlineNanoseconds,
         ?string $catchPattern,
         ?int $targetBytes = null,
+        SaturationMode $mode = SaturationMode::Natural,
     ): array {
         $initialMode = $this->clientMode($client);
         if ($initialMode !== null && $initialMode !== \Redis::ATOMIC) {
@@ -96,8 +100,10 @@ final class CacheSaturator
                 break;
             }
 
-            [$command, $key, $arguments] = $this->nextRead();
-            $context = 'saturate:' . $command->name();
+            [$operation, $command, $key, $arguments] = $this->nextRead();
+            $context = 'saturate:'
+                . ($mode === SaturationMode::Seeded ? 'seeded:' : '')
+                . $command->name();
             Command::setCapturedWarningCommand($context);
             Command::beginInvocation();
             $warningsBefore = Command::capturedWarnings();
@@ -109,17 +115,34 @@ final class CacheSaturator
             $duration = 0.0;
             $redisErrors = [];
             $warnings = [];
+            $invocationException = null;
             try {
-                $reply = $command->exec($client, ...$arguments);
-                $replyType = ValueSummary::type($reply);
-                $replySummary = ValueSummary::summarize($reply);
-            } catch (\Throwable $throwable) {
-                $exceptionDetails = [
-                    'class' => $throwable::class,
-                    'message' => $throwable->getMessage(),
-                    'code' => $throwable->getCode(),
-                ];
+                if ($mode === SaturationMode::Seeded) {
+                    $write = $this->commands[$operation['write']];
+                    try {
+                        $write->exec(
+                            $client,
+                            ...$this->seedArguments($client, $operation['type'], $key),
+                        );
+                    } catch (\Throwable $throwable) {
+                        $invocationException = $throwable;
+                    }
+                }
+                try {
+                    $reply = $command->exec($client, ...$arguments);
+                    $replyType = ValueSummary::type($reply);
+                    $replySummary = ValueSummary::summarize($reply);
+                } catch (\Throwable $throwable) {
+                    $invocationException ??= $throwable;
+                }
             } finally {
+                if ($invocationException !== null) {
+                    $exceptionDetails = [
+                        'class' => $invocationException::class,
+                        'message' => $invocationException->getMessage(),
+                        'code' => $invocationException->getCode(),
+                    ];
+                }
                 $duration = (hrtime(true) - $started) / 1e9;
                 $redisErrors = Command::finishInvocationRedisErrors();
                 $warnings = $this->warningDifference(
@@ -172,25 +195,79 @@ final class CacheSaturator
         return $used;
     }
 
-    /** @return array{Command, string, list<mixed>} */
+    /**
+     * @return array{
+     *     array{type: string, read: string, write: string},
+     *     Command,
+     *     string,
+     *     list<mixed>
+     * }
+     */
     private function nextRead(): array
     {
         $position = $this->cursor++ % $this->keySpaceSize();
-        $read = self::READS[$position % count(self::READS)];
-        $position = intdiv($position, count(self::READS));
+        $operation = self::OPERATIONS[$position % count(self::OPERATIONS)];
+        $position = intdiv($position, count(self::OPERATIONS));
         $keyIndex = $position % $this->configuration->getMaxKeys();
         $shard = $this->configuration->isCluster()
             ? intdiv($position, $this->configuration->getMaxKeys())
             : 0;
-        $key = $this->configuration->getKeyAt($read['type'], $keyIndex, $shard);
+        $key = $this->configuration->getKeyAt($operation['type'], $keyIndex, $shard);
         $arguments = [$key];
-        if ($read['command'] === 'lrange') {
+        if ($operation['read'] === 'lrange') {
             $arguments = [$key, 0, -1];
-        } elseif ($read['command'] === 'zrange') {
+        } elseif ($operation['read'] === 'zrange') {
             $arguments = [$key, 0, -1, true];
         }
 
-        return [$this->commands[$read['command']], $key, $arguments];
+        return [$operation, $this->commands[$operation['read']], $key, $arguments];
+    }
+
+    /** @return list<mixed> */
+    private function seedArguments(Relay|Cluster $client, string $type, string $key): array
+    {
+        $arguments = [$key];
+        $values = match ($type) {
+            Command::STRING => [
+                $this->configuration->getRandomValue($client, $type),
+            ],
+            Command::LIST => $this->configuration->getRandomValues($client, $type),
+            Command::SET => $this->configuration->getRandomMembers($type),
+            Command::HASH => [$this->randomHash($client, $type)],
+            Command::ZSET => $this->randomZset($type),
+            default => throw new \LogicException("Unsupported saturation type: {$type}"),
+        };
+        foreach ($values as $value) {
+            $arguments[] = $value;
+        }
+
+        return $arguments;
+    }
+
+    /** @return array<string, mixed> */
+    private function randomHash(Relay|Cluster $client, string $type): array
+    {
+        $hash = [];
+        $members = $this->configuration->randomMemberCount();
+        for ($index = 0; $index < $members; $index++) {
+            $hash[$this->configuration->getRandomMember($type)] =
+                $this->configuration->getRandomValue($client, $type);
+        }
+
+        return $hash;
+    }
+
+    /** @return list<float|string> */
+    private function randomZset(string $type): array
+    {
+        $arguments = [];
+        $members = $this->configuration->randomMemberCount();
+        for ($index = 0; $index < $members; $index++) {
+            $arguments[] = $this->configuration->getRandomFloat();
+            $arguments[] = $this->configuration->getRandomMember($type);
+        }
+
+        return $arguments;
     }
 
     private function matchingDiagnostic(InvocationOutcome $outcome, ?string $pattern): ?string

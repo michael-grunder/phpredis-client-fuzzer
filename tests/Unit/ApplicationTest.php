@@ -26,6 +26,7 @@ final class ApplicationTest extends TestCase
         self::assertStringContainsString('--saturate-chance=N', self::contents($output));
         self::assertStringContainsString('--saturate-steps=N', self::contents($output));
         self::assertStringContainsString('--saturate-target=SIZE', self::contents($output));
+        self::assertStringContainsString('--saturate-mode=MODE', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));
         self::assertSame('', self::contents($error));
     }
@@ -60,6 +61,24 @@ final class ApplicationTest extends TestCase
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             'Unknown invocation mode: weak',
+            self::contents($error),
+        );
+    }
+
+    public function testUnknownSaturationModeIsRejectedBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--saturate-mode=synthetic',
+            '--port=0',
+        ]);
+
+        self::assertSame(1, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString(
+            'Unknown saturation mode: synthetic',
             self::contents($error),
         );
     }

@@ -43,6 +43,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public float $saturateChance = 0.0,
         public ?int $saturateSteps = null,
         public ?int $saturateTarget = null,
+        public SaturationMode $saturateMode = SaturationMode::Natural,
     ) {
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -114,6 +115,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'saturateChance' => $this->saturateChance,
             'saturateSteps' => $this->saturateSteps,
             'saturateTarget' => $this->saturateTarget,
+            'saturateMode' => $this->saturateMode->value,
             'commands' => $this->commands,
             'weights' => $this->weights,
             'raw' => $this->raw,

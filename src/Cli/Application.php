@@ -13,6 +13,7 @@ use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
 
 final class Application
 {
@@ -42,7 +43,7 @@ final class Application
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'saturate-chance',
-        'saturate-steps', 'saturate-target', 'script-log', 'catch',
+        'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
         'invocation-mode',
         'differential-tolerance-ms', 'differential-poll-ms',
         'scenarios',
@@ -85,6 +86,9 @@ final class Application
             $outputMode = OutputMode::parse($options->string('output', 'json'));
             $invocationMode = InvocationMode::parse(
                 $options->string('invocation-mode', $this->defaultInvocationMode->value),
+            );
+            $saturationMode = SaturationMode::parse(
+                $options->string('saturate-mode', SaturationMode::Natural->value),
             );
 
             if ($options->has('verbose')) {
@@ -198,6 +202,7 @@ final class Application
                 saturateChance: $options->number('saturate-chance', 0.0),
                 saturateSteps: $options->optionalInteger('saturate-steps'),
                 saturateTarget: $options->optionalByteSize('saturate-target'),
+                saturateMode: $saturationMode,
                 commands: $options->csv('commands'),
                 weights: $this->weights($options->repeated('weight')),
                 raw: $options->has('raw'),
@@ -335,6 +340,8 @@ Run configuration:
   --saturate-target=SIZE     Read until Relay memory.used reaches SIZE (K/M/G/T
                              suffixes use powers of 1024); overrides steps and
                              stops after one pass over the known key space
+  --saturate-mode=MODE       natural reads existing keys; seeded writes generated
+                             values before reading each key (default: natural)
   --invocation-mode=MODE     Client call typing: strict or coercive
                              (default: {invocation-default})
   --script-log=FILE          Write an executable PHP reproduction script
