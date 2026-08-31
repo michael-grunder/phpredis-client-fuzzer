@@ -67,10 +67,37 @@ final class Fuzzer
         }
         $selector = new AliasTable($registry->commands());
         $arguments = $this->argumentConfiguration($clients, $configuration);
+        $saturationClients = array_values(array_filter(
+            $executionClients,
+            static fn (Redis|RedisCluster|Relay|Cluster $client): bool =>
+                $client instanceof Relay || $client instanceof Cluster,
+        ));
+        if ($configuration->saturateChance > 0.0 && $saturationClients === []) {
+            throw new \InvalidArgumentException(
+                'Cache saturation requires at least one Relay\\Relay or Relay\\Cluster client',
+            );
+        }
+        $cacheSaturator = $configuration->saturateChance > 0.0
+            ? new CacheSaturator($arguments, $clientInvoker)
+            : null;
 
         $started = hrtime(true);
+        $deadlineNanoseconds = null;
+        if ($configuration->maxSeconds > 0.0) {
+            $durationNanoseconds = (int) min(
+                PHP_INT_MAX - $started,
+                round($configuration->maxSeconds * 1e9),
+            );
+            $deadlineNanoseconds = (int) min(
+                PHP_INT_MAX,
+                $started + $durationNanoseconds,
+            );
+        }
         $steps = 0;
         $crossSlotSteps = 0;
+        $saturationEvents = 0;
+        /** @var list<InvocationOutcome> $saturationOutcomes */
+        $saturationOutcomes = [];
         /** @var array<string, array{count: int, replies: array<string, int>, exceptions: array<string, int>}> $results */
         $results = [];
         /** @var array<string, array<int, true>> $falseReplyClients */
@@ -94,6 +121,8 @@ final class Fuzzer
                 'phpredis-version' => phpversion('redis') ?: 'not-loaded',
                 'relay-version' => phpversion('relay') ?: 'not-loaded',
                 'invocation-mode' => $configuration->invocationMode->value,
+                'saturate-chance' => $configuration->saturateChance,
+                'saturate-steps' => $configuration->saturateSteps ?? 'keyspace',
             ], $clients, invocationMode: $configuration->invocationMode);
         }
 
@@ -230,6 +259,33 @@ final class Fuzzer
                     break;
                 }
 
+                if ($cacheSaturator !== null
+                    && Utilities::randomChance($configuration->saturateChance)) {
+                    /** @var Relay|Cluster $saturationClient */
+                    $saturationClient = $saturationClients[array_rand($saturationClients)];
+                    Command::setDifferentialOracle(null);
+                    try {
+                        $batch = $cacheSaturator->run(
+                            client: $saturationClient,
+                            clientIndex: $clientIndexes[spl_object_id($saturationClient)],
+                            sequence: $steps,
+                            maxReads: $configuration->saturateSteps,
+                            deadlineNanoseconds: $deadlineNanoseconds,
+                            catchPattern: $configuration->catchPattern,
+                        );
+                    } finally {
+                        Command::setDifferentialOracle($differentialOracle);
+                    }
+                    if ($batch['outcomes'] !== []) {
+                        $saturationEvents++;
+                        array_push($saturationOutcomes, ...$batch['outcomes']);
+                    }
+                    if ($batch['caughtDiagnostic'] !== null) {
+                        $caughtDiagnostic = $batch['caughtDiagnostic'];
+                        break;
+                    }
+                }
+
                 if ($steps % self::RELAY_STATS_SAMPLE_INTERVAL === 0) {
                     $relayStats?->sample();
                 }
@@ -268,6 +324,8 @@ final class Fuzzer
             $differentialOracle?->outcomes() ?? [],
             $statefulOutcomes,
             $relayStats?->statistics(),
+            $saturationEvents,
+            $saturationOutcomes,
         );
     }
 

@@ -89,6 +89,10 @@ final class ResultFormatter
                 $uniqueExceptions,
             ),
         ];
+        if (($result->configuration['saturateChance'] ?? 0.0) > 0.0) {
+            $lines[] = sprintf('  %-25s %d', 'Saturation events:', $result->saturationEvents);
+            $lines[] = sprintf('  %-25s %d', 'Saturation reads:', count($result->saturationOutcomes));
+        }
         if (($result->configuration['differential'] ?? false) === true) {
             $counts = $this->differentialCounts($result);
             $lines[] = sprintf('  %-25s %d', 'Differential checks:', array_sum($counts));
@@ -178,9 +182,11 @@ final class ResultFormatter
     private function issueDetails(FuzzResult $result): string
     {
         $redisErrors = $this->redisErrorsByCommand($result);
+        $exceptions = $this->exceptionsByCommand($result);
         $commands = array_unique([
             ...array_keys($result->commandWarnings),
             ...array_keys($redisErrors),
+            ...array_keys($exceptions),
             ...array_keys($result->commands),
         ]);
         sort($commands);
@@ -189,10 +195,10 @@ final class ResultFormatter
         foreach ($commands as $command) {
             $warnings = DiagnosticNormalizer::aggregate($result->commandWarnings[$command] ?? []);
             $commandRedisErrors = $redisErrors[$command] ?? [];
-            $exceptions = DiagnosticNormalizer::aggregate(
-                $result->commands[$command]['exceptions'] ?? [],
+            $commandExceptions = DiagnosticNormalizer::aggregate(
+                $exceptions[$command] ?? [],
             );
-            if ($warnings === [] && $commandRedisErrors === [] && $exceptions === []) {
+            if ($warnings === [] && $commandRedisErrors === [] && $commandExceptions === []) {
                 continue;
             }
 
@@ -204,7 +210,7 @@ final class ResultFormatter
             foreach ($commandRedisErrors as $message => $count) {
                 $lines[] = "    Redis error x{$count}: {$message}";
             }
-            foreach ($exceptions as $message => $count) {
+            foreach ($commandExceptions as $message => $count) {
                 $lines[] = "    exception x{$count}: {$message}";
             }
         }
@@ -217,9 +223,9 @@ final class ResultFormatter
     {
         $occurrences = 0;
         $unique = [];
-        foreach ($result->commands as $statistics) {
-            $occurrences += array_sum($statistics['exceptions']);
-            foreach (array_keys($statistics['exceptions']) as $exception) {
+        foreach ($this->exceptionsByCommand($result) as $exceptions) {
+            $occurrences += array_sum($exceptions);
+            foreach (array_keys($exceptions) as $exception) {
                 $unique[DiagnosticNormalizer::normalize($exception)] = true;
             }
         }
@@ -227,12 +233,32 @@ final class ResultFormatter
         return [$occurrences, count($unique)];
     }
 
+    /** @return array<string, array<string, int>> */
+    private function exceptionsByCommand(FuzzResult $result): array
+    {
+        $exceptions = [];
+        foreach ($result->commands as $command => $statistics) {
+            $exceptions[$command] = $statistics['exceptions'];
+        }
+        foreach ($result->saturationOutcomes as $outcome) {
+            if ($outcome->exception === null) {
+                continue;
+            }
+            $exception = $outcome->exception['class'] . ': ' . $outcome->exception['message'];
+            $exceptions[$outcome->command] ??= [];
+            $exceptions[$outcome->command][$exception] =
+                ($exceptions[$outcome->command][$exception] ?? 0) + 1;
+        }
+
+        return $exceptions;
+    }
+
     /** @return array{int, int} */
     private function redisErrorCounts(FuzzResult $result): array
     {
         $occurrences = 0;
         $unique = [];
-        foreach ($result->outcomes as $outcome) {
+        foreach ([...$result->outcomes, ...$result->saturationOutcomes] as $outcome) {
             $occurrences += count($outcome->redisErrors);
             foreach ($outcome->redisErrors as $error) {
                 $unique[DiagnosticNormalizer::normalize($error)] = true;
@@ -246,7 +272,7 @@ final class ResultFormatter
     private function redisErrorsByCommand(FuzzResult $result): array
     {
         $errors = [];
-        foreach ($result->outcomes as $outcome) {
+        foreach ([...$result->outcomes, ...$result->saturationOutcomes] as $outcome) {
             foreach ($outcome->redisErrors as $error) {
                 $error = DiagnosticNormalizer::normalize($error);
                 $errors[$outcome->command] ??= [];

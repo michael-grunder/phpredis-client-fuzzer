@@ -45,6 +45,15 @@ final class FuzzConfigTest extends TestCase
         self::assertMatchesRegularExpression('/^string:\{[0-3]\}:\d+$/', $configuration->getRandomKey(Command::STRING));
     }
 
+    public function testExactKeysUseTheConfiguredNamespaceWithoutRandomness(): void
+    {
+        $standalone = (new FuzzConfig())->setKeys(10)->setShards(4);
+        self::assertSame('hash:7', $standalone->getKeyAt(Command::HASH, 7, 3));
+
+        $cluster = (new FuzzConfig())->setCluster(true)->setKeys(10)->setShards(4);
+        self::assertSame('zset:{3}:7', $cluster->getKeyAt(Command::ZSET, 7, 3));
+    }
+
     public function testSingleSlotCommandsShareOneHashTag(): void
     {
         mt_srand(7);

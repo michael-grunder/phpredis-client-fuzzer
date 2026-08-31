@@ -93,6 +93,8 @@ final class FuzzerEndpoint
             differentialPollIntervalMs: $this->configuration->differentialPollIntervalMs,
             scenarios: $this->configuration->scenarios,
             invocationMode: $this->configuration->invocationMode,
+            saturateChance: $this->configuration->saturateChance,
+            saturateSteps: $this->configuration->saturateSteps,
         );
     }
 

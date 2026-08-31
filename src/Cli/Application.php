@@ -41,7 +41,8 @@ final class Application
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
         'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
-        'wrongtype-chance', 'crossslot-chance', 'script-log', 'catch',
+        'wrongtype-chance', 'crossslot-chance', 'saturate-chance',
+        'saturate-steps', 'script-log', 'catch',
         'invocation-mode',
         'differential-tolerance-ms', 'differential-poll-ms',
         'scenarios',
@@ -194,6 +195,8 @@ final class Application
                 maxPrefixLength: $options->integer('max-prefix-length', 0),
                 wrongTypeChance: $options->number('wrongtype-chance', 0.0),
                 crossSlotChance: $options->number('crossslot-chance', 0.0),
+                saturateChance: $options->number('saturate-chance', 0.0),
+                saturateSteps: $options->optionalInteger('saturate-steps'),
                 commands: $options->csv('commands'),
                 weights: $this->weights($options->repeated('weight')),
                 raw: $options->has('raw'),
@@ -324,6 +327,10 @@ Run configuration:
   --crossslot-chance=N       Probability from 0 to 1 that a single-slot command
                              gets keys in different cluster slots, forcing a
                              CROSSSLOT error (cluster only, default: 0)
+  --saturate-chance=N        Probability from 0 to 1 of running a Relay cache
+                             saturation event after a fuzz step (default: 0)
+  --saturate-steps=N         Maximum whole-key reads per saturation event;
+                             omitted means one pass over the known key space
   --invocation-mode=MODE     Client call typing: strict or coercive
                              (default: {invocation-default})
   --script-log=FILE          Write an executable PHP reproduction script

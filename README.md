@@ -586,6 +586,8 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `maxPrefixLength` | `0` | Maximum randomized client prefix length; `0` disables |
 | `wrongTypeChance` | `0.0` | Chance from `0.0` to `1.0` of selecting a wrong key type |
 | `crossSlotChance` | `0.0` | Chance from `0.0` to `1.0` of forcing a `CROSSSLOT` error; cluster only |
+| `saturateChance` | `0.0` | Chance from `0.0` to `1.0` of running a Relay cache-saturation event after a fuzz step |
+| `saturateSteps` | `null` | Maximum whole-key reads per saturation event; `null` makes one complete key-space pass |
 | `invocationMode` | `InvocationMode::Strict` | Typing mode used at the client method-call boundary |
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `weights` | `[]` | Command or flag weights |
@@ -746,6 +748,50 @@ command implementations use `rand()`/`mt_rand()`. The selected seed and concrete
 arguments are reproducible when the same PHP/client versions, server topology,
 configuration, and initial Redis state are used. Avoid unrelated calls to
 `rand()` in the same process while a run is active.
+
+## Relay cache saturation
+
+Cache saturation is an opt-in Relay-only workload that runs alongside normal
+fuzz steps. After each normal step, `saturateChance` is rolled using the seeded
+workload RNG. A successful roll reads complete values from the fuzzer's known
+key namespaces through a randomly selected `Relay\Relay` or `Relay\Cluster`
+client:
+
+- strings with `GET`
+- lists with `LRANGE key 0 -1`
+- sets with `SMEMBERS`
+- hashes with `HGETALL`
+- sorted sets with `ZRANGE key 0 -1 WITHSCORES`
+
+No `SCAN`, `KEYS`, or `TYPE` calls are needed. Standalone passes cover each of
+the five type namespaces across `keys`; cluster passes additionally cover every
+configured hash tag from `shards`. The client prefix, serializer, and
+compression settings continue to apply normally.
+
+When `saturateSteps` is `null`, one event makes a complete pass. When it is set,
+the event performs at most that many reads and the next event resumes at the
+following key. Saturation reads do not consume the normal `maxSteps` budget,
+but the wall-clock `maxSeconds` deadline can truncate a batch. At least one
+Relay client is required when the chance is nonzero. A selected client that is
+currently in a transaction or pipeline is skipped so saturation reads cannot
+alter its queued workload.
+
+```php
+$configuration = new RunConfiguration(
+    maxSteps: 100000,
+    saturateChance: 0.02,
+    saturateSteps: 250,
+);
+```
+
+```bash
+bin/phpredis-fuzz --client=relay --steps=100000 \
+    --saturate-chance=0.02 --saturate-steps=250
+```
+
+The result includes `saturation_events`, `saturation_reads`, and detailed
+`saturation_outcomes`. Saturation calls also pass through the standard warning,
+Redis-error, exception, catch-pattern, and reproduction-script machinery.
 
 ## Development
 

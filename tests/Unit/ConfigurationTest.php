@@ -44,6 +44,8 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($configuration->differential);
         self::assertSame(10.0, $configuration->differentialToleranceMs);
         self::assertSame(1.0, $configuration->differentialPollIntervalMs);
+        self::assertSame(0.0, $configuration->saturateChance);
+        self::assertNull($configuration->saturateSteps);
         self::assertSame([], $configuration->scenarios);
         self::assertSame(InvocationMode::Strict, $configuration->invocationMode);
         self::assertSame('strict', $configuration->jsonSerialize()['invocationMode']);
@@ -92,6 +94,22 @@ final class ConfigurationTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         new RunConfiguration(maxSteps: 0, maxSeconds: 0.0);
+    }
+
+    public function testCacheSaturationSettingsAreValidated(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('saturateSteps');
+
+        new RunConfiguration(saturateChance: 0.5, saturateSteps: 0);
+    }
+
+    public function testCacheSaturationChanceIsAProbability(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('saturateChance');
+
+        new RunConfiguration(saturateChance: 50.0);
     }
 
     public function testClientConfigurationRejectsEmptyClusterSeeds(): void

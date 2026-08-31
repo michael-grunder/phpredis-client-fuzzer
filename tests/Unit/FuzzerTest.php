@@ -61,6 +61,44 @@ final class FuzzerTest extends TestCase
         self::assertSame(\Redis::class, $client['class'] ?? null);
     }
 
+    public function testRelayCacheSaturationRunsAlongsideTheNormalStepBudget(): void
+    {
+        $result = (new Fuzzer())->run(
+            [new \Relay\Relay()],
+            new RunConfiguration(
+                maxSteps: 1,
+                seed: 42,
+                commands: ['isconnected'],
+                includeLocal: true,
+                saturateChance: 1.0,
+                saturateSteps: 2,
+            ),
+        );
+
+        self::assertSame(1, $result->steps);
+        self::assertSame(1, $result->saturationEvents);
+        self::assertCount(2, $result->saturationOutcomes);
+        self::assertSame('saturate:get', $result->saturationOutcomes[0]->command);
+        self::assertSame('string:0', $result->saturationOutcomes[0]->variant);
+        self::assertSame('saturation', $result->saturationOutcomes[0]->operation);
+    }
+
+    public function testCacheSaturationRequiresARelayClient(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('requires at least one Relay');
+
+        (new Fuzzer())->run(
+            [new \Redis()],
+            new RunConfiguration(
+                maxSteps: 1,
+                commands: ['isconnected'],
+                includeLocal: true,
+                saturateChance: 1.0,
+            ),
+        );
+    }
+
     public function testFalseOnlyUnsupportedCommandIsExecutedButNotProblematic(): void
     {
         $result = (new Fuzzer())->run(

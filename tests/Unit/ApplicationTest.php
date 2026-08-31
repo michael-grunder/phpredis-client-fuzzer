@@ -23,6 +23,8 @@ final class ApplicationTest extends TestCase
             '--invocation-mode=MODE',
             self::contents($output),
         );
+        self::assertStringContainsString('--saturate-chance=N', self::contents($output));
+        self::assertStringContainsString('--saturate-steps=N', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));
         self::assertSame('', self::contents($error));
     }

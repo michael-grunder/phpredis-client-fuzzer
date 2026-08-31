@@ -233,6 +233,29 @@ class FuzzConfig {
         return $this->keys;
     }
 
+    public function getShards(): int {
+        return $this->shards;
+    }
+
+    public function isCluster(): bool {
+        return $this->cluster;
+    }
+
+    /**
+     * Return an exact key in the configured namespace without consuming
+     * randomness or applying the wrong-type policy.
+     */
+    public function getKeyAt(string $type, int $key, int $shard = 0): string {
+        if ($key < 0 || $key >= $this->keys) {
+            throw new \OutOfBoundsException('Key index is outside the configured key space');
+        }
+        if ($shard < 0 || $shard >= $this->shards) {
+            throw new \OutOfBoundsException('Shard index is outside the configured shard space');
+        }
+
+        return $this->getKey($type, $shard, $key);
+    }
+
     public function getConsumer(): string {
         return sprintf("consumer:%d", getmypid());
     }
