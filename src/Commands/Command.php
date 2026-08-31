@@ -406,6 +406,21 @@ abstract class Command implements HasWeight {
         return $this->cmd($client, 'rawCommand', ...$args);
     }
 
+    final public function fuzzRawChaos(Redis|RedisCluster|Relay|Cluster $client,
+                                      FuzzConfig $config): mixed {
+        $args = [];
+        for ($count = rand() % 8; $count > 0; $count--) {
+            $args[] = match (rand() % 4) {
+                0 => $config->getRandomKey(self::ANY),
+                1 => $config->getRandomString(),
+                2 => $config->getRandomInt(),
+                3 => $config->getRandomFloat(),
+            };
+        }
+
+        return $this->execRaw($client, ...$args);
+    }
+
     /** @internal Set by FuzzConfig::beginCommand() for the current step. */
     final public function setRawRoutingKey(string $key): void {
         $this->rawRoutingKey = $key;

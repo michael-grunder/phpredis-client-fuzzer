@@ -61,6 +61,51 @@ final class FuzzerTest extends TestCase
         self::assertSame(\Redis::class, $client['class'] ?? null);
     }
 
+    public function testRawChaosIsAnExecutableOperationWithoutANormalMethod(): void
+    {
+        $client = new class extends \Redis {
+            /** @var list<array{command: string, args: list<mixed>}> */
+            public array $calls = [];
+
+            public function rawCommand(string $command, mixed ...$args): mixed
+            {
+                if ($command === 'command') {
+                    return [['rawcommand']];
+                }
+
+                $this->calls[] = ['command' => $command, 'args' => array_values($args)];
+
+                return true;
+            }
+
+            public function getLastError(): ?string
+            {
+                return null;
+            }
+
+            public function getOption(int $option): mixed
+            {
+                return 0;
+            }
+        };
+
+        $result = (new Fuzzer())->run(
+            [$client],
+            new RunConfiguration(
+                maxSteps: 1,
+                seed: 42,
+                commands: ['rawcommand'],
+                rawChaos: true,
+            ),
+        );
+
+        self::assertSame('raw-chaos', $result->outcomes[0]->operation);
+        self::assertSame('rawcommand', $client->calls[0]['command']);
+        foreach ($client->calls[0]['args'] as $argument) {
+            self::assertTrue(is_scalar($argument));
+        }
+    }
+
     public function testRelayCacheSaturationRunsAlongsideTheNormalStepBudget(): void
     {
         $result = (new Fuzzer())->run(

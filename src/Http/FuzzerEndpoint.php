@@ -97,6 +97,7 @@ final class FuzzerEndpoint
             saturateSteps: $this->configuration->saturateSteps,
             saturateTarget: $this->configuration->saturateTarget,
             saturateMode: $this->configuration->saturateMode,
+            rawChaos: $this->configuration->rawChaos,
         );
     }
 

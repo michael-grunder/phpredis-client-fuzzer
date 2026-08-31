@@ -53,6 +53,7 @@ final class Fuzzer
                 $executionClients,
                 $command,
                 $configuration->raw,
+                $configuration->rawChaos,
             ) !== [],
         );
         if (count($registry) === 0) {
@@ -121,6 +122,8 @@ final class Fuzzer
                 'phpredis-version' => phpversion('redis') ?: 'not-loaded',
                 'relay-version' => phpversion('relay') ?: 'not-loaded',
                 'invocation-mode' => $configuration->invocationMode->value,
+                'raw' => $configuration->raw,
+                'raw-chaos' => $configuration->rawChaos,
                 'saturate-chance' => $configuration->saturateChance,
                 'saturate-steps' => $configuration->saturateSteps ?? 'keyspace',
                 'saturate-target' => $configuration->saturateTarget ?? 'disabled',
@@ -143,7 +146,12 @@ final class Fuzzer
             );
             while ($this->withinLimits($steps, $started, $configuration)) {
                 $command = $selector->pick();
-                $eligible = $this->eligibleClients($executionClients, $command, $configuration->raw);
+                $eligible = $this->eligibleClients(
+                    $executionClients,
+                    $command,
+                    $configuration->raw,
+                    $configuration->rawChaos,
+                );
 
                 $client = $eligible[array_rand($eligible)];
                 $operations = [];
@@ -153,6 +161,9 @@ final class Fuzzer
                 if ($configuration->raw && $command instanceof FuzzRawInterface) {
                     $operations[] = 'raw';
                 }
+                if ($configuration->rawChaos) {
+                    $operations[] = 'raw-chaos';
+                }
                 if ($operations === []) {
                     throw new \LogicException('An eligible command has no executable operation');
                 }
@@ -160,7 +171,7 @@ final class Fuzzer
 
                 /* Decide how this command's generated keys map onto cluster
                    hash slots before it builds any arguments. */
-                $slotPolicy = $arguments->beginCommand($command, $operation === 'raw');
+                $slotPolicy = $arguments->beginCommand($command, $operation !== 'fuzz');
                 if ($slotPolicy === SlotPolicy::CrossSlot) {
                     $crossSlotSteps++;
                 }
@@ -178,7 +189,7 @@ final class Fuzzer
                 $differentialOracle?->beginStep(
                     $steps,
                     $name,
-                    $operation === 'raw' ? 'raw' : 'normal',
+                    $operation === 'fuzz' ? 'normal' : $operation,
                 );
                 $replyType = null;
                 $replySummary = null;
@@ -188,6 +199,8 @@ final class Fuzzer
                 try {
                     if ($operation === 'raw' && $command instanceof FuzzRawInterface) {
                         $reply = $command->fuzzRaw($client, $arguments);
+                    } elseif ($operation === 'raw-chaos') {
+                        $reply = $command->fuzzRawChaos($client, $arguments);
                     } elseif ($command instanceof FuzzInterface) {
                         $reply = $command->fuzz($client, $arguments);
                     } else {
@@ -225,7 +238,7 @@ final class Fuzzer
                         clientId: $client::class . '#' . $clientIndex,
                         clientIndex: $clientIndex,
                         clientClass: $client::class,
-                        operation: $operation === 'raw' ? 'raw' : 'normal',
+                        operation: $operation === 'fuzz' ? 'normal' : $operation,
                         replyType: $replyType,
                         reply: $replySummary,
                         redisErrors: $redisErrors,
@@ -462,13 +475,19 @@ final class Fuzzer
      * @param non-empty-list<Redis|RedisCluster|Relay|Cluster> $clients
      * @return list<Redis|RedisCluster|Relay|Cluster>
      */
-    private function eligibleClients(array $clients, Command $command, bool $raw): array
+    private function eligibleClients(
+        array $clients,
+        Command $command,
+        bool $raw,
+        bool $rawChaos,
+    ): array
     {
         return array_values(array_filter(
             $clients,
             static fn (Redis|RedisCluster|Relay|Cluster $client): bool =>
                 ($command instanceof FuzzInterface && method_exists($client, $command->name()))
-                || ($raw && $command instanceof FuzzRawInterface),
+                || ($raw && $command instanceof FuzzRawInterface)
+                || $rawChaos,
         ));
     }
 

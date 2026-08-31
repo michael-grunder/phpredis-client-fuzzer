@@ -37,6 +37,7 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame(100, $configuration->maxSteps);
         self::assertFalse($configuration->raw);
+        self::assertFalse($configuration->rawChaos);
         self::assertFalse($configuration->includeAdmin);
         self::assertFalse($configuration->includeFlush);
         self::assertFalse($configuration->includeCrashing);
@@ -52,6 +53,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame([], $configuration->scenarios);
         self::assertSame(InvocationMode::Strict, $configuration->invocationMode);
         self::assertSame('strict', $configuration->jsonSerialize()['invocationMode']);
+        self::assertFalse($configuration->jsonSerialize()['rawChaos']);
     }
 
     public function testInvocationModesAreParsedExplicitly(): void

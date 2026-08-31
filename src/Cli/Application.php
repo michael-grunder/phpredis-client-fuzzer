@@ -54,7 +54,7 @@ final class Application
     ];
 
     private const FLAG_OPTIONS = [
-        'help', 'verbose', 'raw', 'include-blocking', 'include-local',
+        'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking', 'include-local',
         'include-admin', 'include-flush', 'include-crashing', 'include-stateful',
         'no-relay-compatibility', 'differential',
     ];
@@ -230,6 +230,7 @@ final class Application
                 differentialPollIntervalMs: $options->number('differential-poll-ms', 1.0),
                 scenarios: $options->csv('scenarios'),
                 invocationMode: $invocationMode,
+                rawChaos: $options->has('raw-chaos'),
             ));
 
             $this->write((new ResultFormatter())->format($result, $outputMode));
@@ -367,6 +368,7 @@ Run configuration:
   --differential-poll-ms=N   Delay between convergence attempts (default: 1)
   --output=MODE              json, simple, or detailed (default: json)
   --raw                      Enable raw-protocol command paths
+  --raw-chaos                Enable rawCommand calls with arbitrary scalar arguments
   --include-blocking         Enable blocking commands
   --include-local            Enable commands that alter local client state
   --include-admin            Enable Redis administrative commands

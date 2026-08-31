@@ -70,13 +70,17 @@ echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
 ```
 
 The same call accepts a mixed client list, for example `[$redis, $relay]`. A
-command runs only on a selected client that exposes the normal method or can
-execute that command through its raw-protocol implementation.
+command runs only on a selected client that exposes the normal method, can
+execute that command through its structured raw-protocol implementation, or
+has `rawCommand()` when raw chaos is enabled. `rawChaos` adds a third operation
+which keeps the selected command name (and cluster routing argument)
+deterministic while filling the remaining argument positions with seeded,
+arbitrary scalar values.
 `FuzzResult::$outcomes` contains one `InvocationOutcome` for every scheduled
-step. Each outcome attributes the command, client index/class, normal or raw
-operation, reply, Redis errors, PHP warnings, exception, duration, client mode,
-and slot policy. `variant` is currently `null` until commands expose the named
-cases described in the robustness plan.
+step. Each outcome attributes the command, client index/class, normal, raw, or
+raw-chaos operation, reply, Redis errors, PHP warnings, exception, duration,
+client mode, and slot policy. `variant` is currently `null` until commands
+expose the named cases described in the robustness plan.
 
 Reply values are safe to persist in JSON: strings use a base64 preview plus a
 SHA-256 digest, while arrays are depth- and item-limited. Aggregate command
@@ -608,6 +612,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `weights` | `[]` | Command or flag weights |
 | `raw` | `false` | Enable raw-protocol paths and raw commands |
+| `rawChaos` | `false` | Enable raw-protocol calls with a real command name and arbitrary scalar arguments |
 | `includeBlocking` | `false` | Include blocking commands |
 | `includeLocal` | `false` | Include client-local state changes, including runtime option mutation and Relay cluster slot-cache invalidation |
 | `includeAdmin` | `false` | Include administrative commands |

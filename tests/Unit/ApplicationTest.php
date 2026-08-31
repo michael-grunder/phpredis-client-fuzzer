@@ -27,6 +27,7 @@ final class ApplicationTest extends TestCase
         self::assertStringContainsString('--saturate-steps=N', self::contents($output));
         self::assertStringContainsString('--saturate-target=TARGET', self::contents($output));
         self::assertStringContainsString('--saturate-mode=MODE', self::contents($output));
+        self::assertStringContainsString('--raw-chaos', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));
         self::assertSame('', self::contents($error));
     }

@@ -138,6 +138,61 @@ final class CommandRegressionTest extends TestCase
         self::assertContains($client->calls[0]['command'], ['get', 'smembers', 'hgetall', 'lrange']);
     }
 
+    public function testRawChaosUsesStandaloneArgumentOrderAndScalarExtras(): void
+    {
+        $client = new class extends \Redis {
+            /** @var list<array{command: string, args: list<mixed>}> */
+            public array $calls = [];
+
+            public function rawCommand(string $command, mixed ...$args): mixed
+            {
+                $this->calls[] = ['command' => $command, 'args' => array_values($args)];
+
+                return true;
+            }
+
+            public function getLastError(): ?string
+            {
+                return null;
+            }
+        };
+        $config = new FuzzConfig();
+        $command = new GetCommand();
+        mt_srand(42);
+        $config->beginCommand($command, raw: true);
+
+        $command->fuzzRawChaos($client, $config);
+
+        self::assertSame('get', $client->calls[0]['command']);
+        self::assertLessThanOrEqual(7, count($client->calls[0]['args']));
+        foreach ($client->calls[0]['args'] as $argument) {
+            self::assertTrue(is_scalar($argument));
+        }
+    }
+
+    public function testRawChaosPrependsAClusterRouteBeforeTheCommand(): void
+    {
+        $client = new class extends \RedisCluster {
+            use RecordsRawClusterCommands;
+        };
+        $config = $this->rawClusterConfiguration();
+        $command = new GetCommand();
+        mt_srand(42);
+        $config->beginCommand($command, raw: true);
+
+        $command->fuzzRawChaos($client, $config);
+
+        self::assertIsString($client->calls[0]['route']);
+        self::assertMatchesRegularExpression(
+            '/^phpredis-command-fuzzer:\\{[0-9]+}:route$/',
+            $client->calls[0]['route'],
+        );
+        self::assertSame('get', $client->calls[0]['command']);
+        foreach ($client->calls[0]['args'] as $argument) {
+            self::assertTrue(is_scalar($argument));
+        }
+    }
+
     public function testRawClusterRoutingIsNotDuplicatedInCommandArguments(): void
     {
         $client = new class extends \RedisCluster {

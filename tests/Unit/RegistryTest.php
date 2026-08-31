@@ -60,6 +60,18 @@ final class RegistryTest extends TestCase
         self::assertNotNull($registry->get('discard'));
     }
 
+    public function testRawChaosEnablesCommandsThatRequireRawExecution(): void
+    {
+        $registry = (new CommandFilter())->apply(
+            new Registry(),
+            new RunConfiguration(rawChaos: true),
+        );
+
+        self::assertNotNull($registry->get('append'));
+        self::assertNotNull($registry->get('getrange'));
+        self::assertNull($registry->get('flushall'));
+    }
+
     public function testSafetyFlagsStillApplyToExplicitCommandNames(): void
     {
         $this->expectException(\UnderflowException::class);

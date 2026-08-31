@@ -44,6 +44,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public ?int $saturateSteps = null,
         public ?int $saturateTarget = null,
         public SaturationMode $saturateMode = SaturationMode::Natural,
+        public bool $rawChaos = false,
     ) {
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -119,6 +120,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'commands' => $this->commands,
             'weights' => $this->weights,
             'raw' => $this->raw,
+            'rawChaos' => $this->rawChaos,
             'includeBlocking' => $this->includeBlocking,
             'includeLocal' => $this->includeLocal,
             'includeAdmin' => $this->includeAdmin,

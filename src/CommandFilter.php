@@ -14,7 +14,7 @@ final class CommandFilter
         $this->applyPatterns($registry, $configuration->commands);
 
         $excludedFlags = Command::RAW;
-        if ($configuration->raw) {
+        if ($configuration->raw || $configuration->rawChaos) {
             $excludedFlags &= ~Command::RAW;
         }
         if (!$configuration->includeBlocking) {
