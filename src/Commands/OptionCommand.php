@@ -32,6 +32,37 @@ abstract class OptionCommand extends Command {
         'Relay\\Relay::OPT_IGNORE_PATTERNS',
     ];
 
+    private const RELAY_CLUSTER_OPTS = [
+        'Relay\\Cluster::OPT_DISTRIBUTE',
+        'Relay\\Cluster::OPT_FAILOVER',
+        'Relay\\Cluster::OPT_NODE_READ_TIMEOUT',
+        'Relay\\Cluster::OPT_MULTIKEY_REORDERING',
+        'Relay\\Cluster::OPT_AVAILABILITY_ZONE',
+    ];
+
+    private const RELAY_CLUSTER_DISTRIBUTE = [
+        'Relay\\Cluster::DISTRIBUTE_NONE',
+        'Relay\\Cluster::DISTRIBUTE_RANDOM',
+        'Relay\\Cluster::DISTRIBUTE_RANDOM_REPLICA',
+        'Relay\\Cluster::DISTRIBUTE_REPLICAS',
+        'Relay\\Cluster::DISTRIBUTE_ALL',
+    ];
+
+    private const RELAY_CLUSTER_FAILOVER = [
+        'Relay\\Cluster::FAILOVER_NONE',
+        'Relay\\Cluster::FAILOVER_PRIMARY',
+        'Relay\\Cluster::FAILOVER_RANDOM_REPLICA',
+        'Relay\\Cluster::FAILOVER_REPLICAS',
+        'Relay\\Cluster::FAILOVER_ALL',
+    ];
+
+    private const RELAY_CLUSTER_MULTIKEY_REORDERING = [
+        'Relay\\Cluster::MULTIKEY_REORDER_NONE',
+        'Relay\\Cluster::MULTIKEY_REORDER_READS',
+        'Relay\\Cluster::MULTIKEY_REORDER_WRITES',
+        'Relay\\Cluster::MULTIKEY_REORDER_ALL',
+    ];
+
     private const UNSTABLE_OPTS = [
         'Redis::OPT_NULL_MULTIBULK_AS_NULL',
         'Redis::OPT_REPLY_LITERAL',
@@ -78,6 +109,8 @@ abstract class OptionCommand extends Command {
     private array $redis_opts = [];
     /** @var list<int> */
     private array $relay_opts = [];
+    /** @var list<int> */
+    private array $relay_cluster_opts = [];
 
     private function isDebugBuild(): bool {
         ob_start();
@@ -94,6 +127,12 @@ abstract class OptionCommand extends Command {
         $this->relay_opts = $this->constantValues(array_merge(
             self::REDIS_OPTS,
             self::RELAY_OPTS,
+            $extra,
+        ));
+        $this->relay_cluster_opts = $this->constantValues(array_merge(
+            self::REDIS_OPTS,
+            self::RELAY_OPTS,
+            self::RELAY_CLUSTER_OPTS,
             $extra,
         ));
     }
@@ -118,8 +157,22 @@ abstract class OptionCommand extends Command {
         return $this->randomConstant(self::SCAN_OPTIONS);
     }
 
+    protected function randomRelayClusterDistribute(): int {
+        return $this->randomConstant(self::RELAY_CLUSTER_DISTRIBUTE);
+    }
+
+    protected function randomRelayClusterFailover(): int {
+        return $this->randomConstant(self::RELAY_CLUSTER_FAILOVER);
+    }
+
+    protected function randomRelayClusterMultikeyReordering(): int {
+        return $this->randomConstant(self::RELAY_CLUSTER_MULTIKEY_REORDERING);
+    }
+
     protected function randomOption(Redis|RedisCluster|Relay|Cluster $client): int
     {
+        if ($client instanceof Cluster)
+            return $this->relay_cluster_opts[array_rand($this->relay_cluster_opts)];
         if ($this->isRelay($client))
             return $this->relay_opts[array_rand($this->relay_opts)];
         return $this->redis_opts[array_rand($this->redis_opts)];

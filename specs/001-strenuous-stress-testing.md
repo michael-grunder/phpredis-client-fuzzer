@@ -105,10 +105,10 @@ that do not currently have catalog workloads include:
 - persistent cluster connection reuse;
 - subscribe/unsubscribe state machines.
 
-Cluster-specific options are randomized at construction, but `setoption` does
-not currently mutate `OPT_DISTRIBUTE`, `OPT_FAILOVER`,
-`OPT_NODE_READ_TIMEOUT`, `OPT_MULTIKEY_REORDERING`, or
-`OPT_AVAILABILITY_ZONE` during a run.
+When local commands are enabled, `setoption` mutates Relay cluster distribution,
+failover, per-node read timeout, multi-key reordering, and availability-zone
+options during a run. Availability-zone preference behavior still requires a
+cluster with multiple replicas that advertise their zones.
 
 ### Crash-free is necessary but not sufficient
 
@@ -135,8 +135,8 @@ The observations above are grounded in these current implementation points:
   produces strings or one-element arrays as values.
 - `src/ClientFactory.php` constructs all cluster clients with
   `persistent: false`.
-- `src/Commands/OptionCommand.php` and the `setoption` command omit Relay's
-  cluster-specific runtime options.
+- `src/Commands/OptionCommand.php` and the `setoption` command exercise Relay's
+  capability-gated cluster-specific runtime options when local commands are enabled.
 - Relay's `src/commands.c`, in `relayClusterProcessCommand()`, explicitly notes
   that uncommitted transactions on previously touched nodes still need cleanup
   when starting `MULTI` on a later node fails.

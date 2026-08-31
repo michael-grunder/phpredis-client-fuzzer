@@ -595,7 +595,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `weights` | `[]` | Command or flag weights |
 | `raw` | `false` | Enable raw-protocol paths and raw commands |
 | `includeBlocking` | `false` | Include blocking commands |
-| `includeLocal` | `false` | Include client-local state changes |
+| `includeLocal` | `false` | Include client-local state changes, including runtime `setOption()` mutation |
 | `includeAdmin` | `false` | Include administrative commands |
 | `includeFlush` | `false` | Include `FLUSHDB` and `FLUSHALL` |
 | `includeCrashing` | `false` | Include deliberately crashing commands |

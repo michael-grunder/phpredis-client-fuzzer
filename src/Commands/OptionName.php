@@ -33,6 +33,11 @@ class OptionName extends ScriptArg {
         'Relay\\Relay::OPT_CLIENT_INVALIDATIONS',
         'Relay\\Relay::OPT_ALLOW_PATTERNS',
         'Relay\\Relay::OPT_IGNORE_PATTERNS',
+        'Relay\\Cluster::OPT_DISTRIBUTE',
+        'Relay\\Cluster::OPT_FAILOVER',
+        'Relay\\Cluster::OPT_NODE_READ_TIMEOUT',
+        'Relay\\Cluster::OPT_MULTIKEY_REORDERING',
+        'Relay\\Cluster::OPT_AVAILABILITY_ZONE',
     ];
 
     public function __construct(private mixed $value) {}

@@ -83,6 +83,20 @@ class setoption extends OptionCommand implements FuzzInterface {
                     rand() & 7 ? null : '*' . $config->getRandomType() . '*',
             ];
         }
+        if ($client instanceof Cluster) {
+            $constants += [
+                'Relay\\Cluster::OPT_DISTRIBUTE' => fn (): int =>
+                    $this->randomRelayClusterDistribute(),
+                'Relay\\Cluster::OPT_FAILOVER' => fn (): int =>
+                    $this->randomRelayClusterFailover(),
+                'Relay\\Cluster::OPT_NODE_READ_TIMEOUT' => fn (): float =>
+                    rand() & 1 ? 0.0 : $this->randFloatInRange(0.0005, 1.5),
+                'Relay\\Cluster::OPT_MULTIKEY_REORDERING' => fn (): int =>
+                    $this->randomRelayClusterMultikeyReordering(),
+                'Relay\\Cluster::OPT_AVAILABILITY_ZONE' => fn (): string =>
+                    rand() & 3 ? $config->getRandomString() : '',
+            ];
+        }
 
         foreach ($constants as $constant => $value) {
             if (defined($constant) && constant($constant) === $option) {
