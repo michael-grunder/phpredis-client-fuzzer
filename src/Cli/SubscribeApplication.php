@@ -27,6 +27,40 @@ final class SubscribeApplication
         $config = new ClientConfiguration(type: $type, host: $host, port: $port, seeds: $seeds);
         $client = $factory->create($config);
         $control = 'fuzz:control:' . mt_rand();
+        $isRelay = in_array($type, [ClientType::Relay, ClientType::RelayCluster], true);
+        if ($isRelay) {
+            if (defined('Relay\\Relay::OPT_PHPREDIS_COMPATIBILITY')) {
+                $client->setOption(\Relay\Relay::OPT_PHPREDIS_COMPATIBILITY, false);
+            }
+            $active = [$control];
+            $callback = null;
+            $callback = function ($c, $channel, $message) use (&$callback, &$active, $steps): void {
+                static $n = 0;
+                if (++$n > $steps) { $c->unsubscribe(); return; }
+                try {
+                    if ($n === $steps) {
+                        foreach ($active as $sub) { $c->unsubscribe([$sub]); }
+                        $c->unsubscribe();
+                        return;
+                    }
+                    if (count($active) === 1) {
+                        $sub = 'fuzz:inner:' . mt_rand(1, 16); $active[] = $sub;
+                        $c->subscribe([$sub], $callback);
+                        $c->publish($sub, 'unsubscribe');
+                    } elseif ($message === 'unsubscribe') {
+                        $sub = (string) $channel;
+                        $c->unsubscribe([$sub]);
+                        array_pop($active);
+                        if (count($active) > 1) $c->publish((string) $active[count($active)-1], 'unsubscribe');
+                        else $c->publish((string) $active[0], 'unsubscribe');
+                    } else {
+                        $c->publish((string) $channel, 'unsubscribe');
+                    }
+                } catch (\Throwable $e) { fwrite(STDERR, "subscribe error: {$e->getMessage()}\n"); }
+            };
+            $client->subscribe([$control], $callback);
+            return 0;
+        }
         $pid = pcntl_fork();
         if ($pid < 0) throw new \RuntimeException('pcntl_fork failed');
         if ($pid === 0) {
@@ -35,14 +69,14 @@ final class SubscribeApplication
             }
             $channels = [$control];
             $callback = static function (): void {};
-            $handler = function (\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster $c, string $channel, string $payload) use (&$channels, $type, &$callback): void {
+            $handler = function (\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster $c, string $channel, string $payload) use (&$channels, $isRelay, &$callback): void {
                 $message = json_decode($payload, true);
                 if (!is_array($message)) return;
                 try {
                     switch ($message['action'] ?? '') {
                         case 'subscribe': $sub = is_string($message['channel'] ?? null) ? $message['channel'] : 'fuzz:room'; $channels[] = $sub; $c->subscribe([$sub], $callback); break;
                         case 'unsubscribe': $sub = is_string($message['channel'] ?? null) ? $message['channel'] : 'fuzz:room'; $c->unsubscribe([$sub]); break;
-                        case 'command': if ($type === ClientType::Relay || $type === ClientType::RelayCluster) $c->set('fuzz:side', $message['value'] ?? 'x'); break;
+                        case 'command': if ($isRelay) $c->set('fuzz:side', $message['value'] ?? 'x'); break;
                         case 'quit': $c->unsubscribe(); return;
                     }
                 } catch (\Throwable $e) { fwrite(STDERR, "subscribe error: {$e->getMessage()}\n"); }
