@@ -99,11 +99,16 @@ final class JobRunner
             return;
         }
 
+        if ($this->options->capturesLeaks()) {
+            $job->leak = LeakReport::scan($job->workDir . '/stderr.log');
+        }
+
         $verdict = FailureClassifier::fromExit(
             $status['signaled'],
             $job->signal,
             $job->exitCode,
             $job->timedOut,
+            $job->leak !== null,
         );
         $this->resolve($job, $verdict);
     }
@@ -153,8 +158,11 @@ final class JobRunner
             RrTrace::awaitComplete($traceDir, $this->options->traceTimeout);
         }
 
+        $leaked = $this->options->capturesLeaks()
+            && LeakReport::scan($workDir . '/stderr.log') !== null;
+
         return new JobOutcome(
-            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false),
+            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false, $leaked),
             $workDir,
             $traceDir,
             microtime(true) - $started,
@@ -224,12 +232,16 @@ final class JobRunner
             return;
         }
 
-        $capture = $this->options->onlyCrashes ? $verdict->crashed : true;
+        $kind = $verdict->kind();
+        $capture = match ($kind) {
+            'crash' => $this->options->capturesCrashes(),
+            'leak' => $this->options->capturesLeaks(),
+            'hang', 'failure' => $this->options->capturesFailures(),
+            default => false,
+        };
         if (!$capture) {
             $job->status = JobStatus::Skipped;
-            $job->note = $verdict->timedOut
-                ? 'hang (not captured)'
-                : 'exit ' . ($verdict->exitCode ?? '?') . ' (not captured)';
+            $job->note = $this->describeVerdict($job, $verdict) . ' (not captured)';
             $this->discard($job);
             return;
         }
@@ -243,12 +255,13 @@ final class JobRunner
         $job->signal ??= $verdict->signal;
 
         $job->reproDir = $this->store->capture($job, $verdict, $this->meta($job, $verdict));
-        $job->status = $verdict->crashed
-            ? JobStatus::Crashed
-            : ($verdict->timedOut ? JobStatus::TimedOut : JobStatus::Failed);
-        $job->note = $verdict->crashed
-            ? $verdict->signalName()
-            : ($verdict->timedOut ? 'hang' : 'exit ' . ($verdict->exitCode ?? '?'));
+        $job->status = match ($kind) {
+            'crash' => JobStatus::Crashed,
+            'hang' => JobStatus::TimedOut,
+            'leak' => JobStatus::Leaked,
+            default => JobStatus::Failed,
+        };
+        $job->note = $this->describeVerdict($job, $verdict);
 
         // Logs and trace have been moved into the reproducer directory; only an
         // empty work directory is left behind.
@@ -263,6 +276,19 @@ final class JobRunner
             return;
         }
         Fs::removeTree($job->workDir);
+    }
+
+    /** A short human label for how a run ended, e.g. "SIGSEGV", "hang", "leak 2 (2048 bytes)". */
+    private function describeVerdict(Job $job, FailureClassifier $verdict): string
+    {
+        return match ($verdict->kind()) {
+            'crash' => $verdict->signalName(),
+            'hang' => 'hang',
+            'leak' => $job->leak !== null
+                ? sprintf('leak %d (%d bytes)', $job->leak->count, $job->leak->bytes)
+                : 'leak',
+            default => 'exit ' . ($verdict->exitCode ?? '?'),
+        };
     }
 
     /** @return array<string, mixed> */
@@ -280,6 +306,10 @@ final class JobRunner
             'exit_code' => $verdict->exitCode,
             'crashed' => $verdict->crashed,
             'timed_out' => $verdict->timedOut,
+            'leaked' => $verdict->leaked,
+            'leak_count' => $job->leak?->count,
+            'leak_bytes' => $job->leak?->bytes,
+            'leak_site' => $job->leak?->firstSite,
             'duration_seconds' => round($job->duration(), 3),
             'rr' => $this->rrBinary !== null,
             'rr_chaos' => $this->options->rrChaos,

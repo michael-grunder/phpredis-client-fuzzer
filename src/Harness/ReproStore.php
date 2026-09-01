@@ -25,9 +25,12 @@ final class ReproStore
      */
     public function capture(Job $job, FailureClassifier $verdict, array $meta): string
     {
-        $label = $verdict->crashed
-            ? strtolower($verdict->signalName())
-            : ($verdict->timedOut ? 'timeout' : 'exit' . ($verdict->exitCode ?? 0));
+        $label = match ($verdict->kind()) {
+            'crash' => strtolower($verdict->signalName()),
+            'hang' => 'timeout',
+            'leak' => 'leak',
+            default => 'exit' . ($verdict->exitCode ?? 0),
+        };
 
         $dir = sprintf(
             '%s/repro-%s-%s-seed%d-run%d',
@@ -84,6 +87,7 @@ final class ReproStore
                 : null,
             'exit_code' => $outcome->verdict->exitCode,
             'crashed' => $outcome->verdict->crashed,
+            'leaked' => $outcome->verdict->leaked,
             'duration_seconds' => round($outcome->duration, 3),
             'captured_at' => date('c'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");

@@ -6,8 +6,10 @@ namespace Mgrunder\PhpredisCommandFuzzer\Harness;
 
 /**
  * Turns a finished child's raw exit information into a verdict the scheduler
- * can act on: did the run fail, and was the failure a hard process crash as
- * opposed to the fuzzer exiting non-zero after catching a diagnostic.
+ * can act on: did the run fail, and what kind of failure was it — a hard
+ * process crash, a hang killed by the harness, a Zend MM memory leak reported
+ * by a debug PHP build, or the fuzzer exiting non-zero after catching a
+ * diagnostic.
  */
 final class FailureClassifier
 {
@@ -32,6 +34,7 @@ final class FailureClassifier
         public readonly bool $failed,
         public readonly bool $crashed,
         public readonly bool $timedOut,
+        public readonly bool $leaked,
         public readonly ?int $signal,
         public readonly ?int $exitCode,
     ) {
@@ -42,12 +45,14 @@ final class FailureClassifier
      * @param int|null $termSignal proc_get_status()['termsig'] when signaled
      * @param int|null $exitCode proc_get_status()['exitcode'] otherwise
      * @param bool $timedOut the harness killed the run for exceeding --run-timeout
+     * @param bool $leaked a debug PHP build printed a Zend MM leak report
      */
     public static function fromExit(
         bool $signaled,
         ?int $termSignal,
         ?int $exitCode,
         bool $timedOut = false,
+        bool $leaked = false,
     ): self {
         $signal = null;
         if ($signaled && $termSignal !== null && $termSignal > 0) {
@@ -59,9 +64,34 @@ final class FailureClassifier
 
         $crashed = $signal !== null && in_array($signal, self::CRASH_SIGNALS, true);
         $nonZeroExit = $exitCode !== null && $exitCode !== 0;
-        $failed = $crashed || $timedOut || $nonZeroExit || $signal !== null;
+        $failed = $crashed || $timedOut || $leaked || $nonZeroExit || $signal !== null;
 
-        return new self($failed, $crashed, $timedOut, $signal, $exitCode);
+        return new self($failed, $crashed, $timedOut, $leaked, $signal, $exitCode);
+    }
+
+    /**
+     * The single most significant category of this outcome, used to pick the
+     * reproducer label and to gate capture against `--capture`. Precedence:
+     * crash, then hang, then leak, then a plain non-zero exit.
+     *
+     * @return 'pass'|'crash'|'hang'|'leak'|'failure'
+     */
+    public function kind(): string
+    {
+        if ($this->crashed) {
+            return 'crash';
+        }
+        if ($this->timedOut) {
+            return 'hang';
+        }
+        if ($this->leaked) {
+            return 'leak';
+        }
+        if ($this->failed) {
+            return 'failure';
+        }
+
+        return 'pass';
     }
 
     public function signalName(): string
@@ -100,6 +130,9 @@ final class FailureClassifier
         }
         if ($this->timedOut || $other->timedOut) {
             return $other->timedOut;
+        }
+        if ($this->leaked || $other->leaked) {
+            return $this->leaked && $other->leaked;
         }
 
         return $other->failed && $other->exitCode === $this->exitCode;

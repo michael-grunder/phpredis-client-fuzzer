@@ -141,9 +141,7 @@ final class TuiView implements View
         if ($state->rr) {
             $mode[] = $state->rrChaos ? 'rr+chaos' : 'rr';
         }
-        if ($state->onlyCrashes) {
-            $mode[] = 'only-crashes';
-        }
+        $mode[] = 'capture:' . implode('+', $state->capture);
         if ($state->reduce !== null) {
             $mode[] = 'reduce:' . $state->reduce;
         }
@@ -164,19 +162,11 @@ final class TuiView implements View
                 $stats->passed,
                 $stats->skipped,
             ),
-            sprintf(
-                '<fg=yellow>failures</> %d   <fg=red>crashes</> %d   <fg=magenta>hangs</> %d   '
-                . '<fg=green>reproducers</> %d   <fg=cyan>reduced</> %d',
-                $stats->failures,
-                $stats->crashes,
-                $stats->timeouts,
-                $stats->reproducers,
-                $stats->reductions,
-            ),
+            $this->counterLine($stats, $state),
             sprintf(
                 '<fg=cyan>ports</> %s   <fg=cyan>mode</> %s   <fg=cyan>stop-after</> %s',
                 $state->ports === [] ? '-' : implode(',', $state->ports),
-                $mode === [] ? 'plain' : implode(' ', $mode),
+                implode(' ', $mode),
                 $limits === [] ? 'never' : implode(', ', $limits),
             ),
             sprintf('<fg=cyan>php</> %s', $state->phpVersion),
@@ -189,6 +179,22 @@ final class TuiView implements View
             ->widget(ParagraphWidget::fromLines(
                 ...array_map(static fn (string $line): Line => Line::parse($line), $lines),
             ));
+    }
+
+    private function counterLine(Stats $stats, DashboardState $state): string
+    {
+        $parts = [
+            sprintf('<fg=yellow>failures</> %d', $stats->failures),
+            sprintf('<fg=red>crashes</> %d', $stats->crashes),
+            sprintf('<fg=magenta>hangs</> %d', $stats->timeouts),
+        ];
+        if (in_array('leaks', $state->capture, true)) {
+            $parts[] = sprintf('<fg=blue>leaks</> %d', $stats->leaks);
+        }
+        $parts[] = sprintf('<fg=green>reproducers</> %d', $stats->reproducers);
+        $parts[] = sprintf('<fg=cyan>reduced</> %d', $stats->reductions);
+
+        return implode('   ', $parts);
     }
 
     private function runs(DashboardState $state): Widget
@@ -240,6 +246,7 @@ final class TuiView implements View
             JobStatus::Failed => ['FAIL', 'yellow'],
             JobStatus::Crashed => ['CRASH', 'red'],
             JobStatus::TimedOut => ['HANG', 'magenta'],
+            JobStatus::Leaked => ['LEAK', 'blue'],
         };
 
         $steps = $job->reducedSteps !== null

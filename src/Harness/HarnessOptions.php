@@ -18,7 +18,7 @@ final class HarnessOptions
 {
     /** @var list<string> */
     private const FLAGS = [
-        'help', 'rr', 'rr-chaos', 'only-crashes', 'isolate-ports',
+        'help', 'rr', 'rr-chaos', 'isolate-ports',
         'keep-work', 'no-tui', 'no-core-check', 'quiet',
     ];
 
@@ -26,13 +26,18 @@ final class HarnessOptions
     private const SINGLE = [
         'jobs', 'php', 'reduce', 'steps', 'seed', 'output', 'runs', 'seconds',
         'reproducers', 'trace-timeout', 'reduce-timeout', 'run-timeout', 'port-select',
+        'capture',
     ];
+
+    /** Categories accepted by --capture. */
+    public const CAPTURE_KINDS = ['crashes', 'leaks', 'failures'];
 
     /** @var list<string> */
     private const MULTI = ['port'];
 
     /**
      * @param list<int> $ports
+     * @param list<'crashes'|'leaks'|'failures'> $capture
      * @param list<string> $command
      */
     private function __construct(
@@ -54,13 +59,31 @@ final class HarnessOptions
         public readonly bool $isolatePorts,
         public readonly bool $rr,
         public readonly bool $rrChaos,
-        public readonly bool $onlyCrashes,
+        public readonly array $capture,
         public readonly bool $keepWork,
         public readonly bool $noTui,
         public readonly bool $noCoreCheck,
         public readonly bool $quiet,
         public readonly array $command,
     ) {
+    }
+
+    /** Whether crashing signals are captured as reproducers. */
+    public function capturesCrashes(): bool
+    {
+        return in_array('crashes', $this->capture, true);
+    }
+
+    /** Whether debug-build Zend MM leak reports are captured as reproducers. */
+    public function capturesLeaks(): bool
+    {
+        return in_array('leaks', $this->capture, true);
+    }
+
+    /** Whether non-crash failures (non-zero exits and --run-timeout hangs) are captured. */
+    public function capturesFailures(): bool
+    {
+        return in_array('failures', $this->capture, true);
     }
 
     /** @param list<string> $argv Arguments after the program name. */
@@ -152,6 +175,8 @@ final class HarnessOptions
             throw new \InvalidArgumentException('--port-select must be cycle or random');
         }
 
+        $capture = self::captureList($values['capture'] ?? 'crashes');
+
         $jobs = self::intValue($values, 'jobs', 1);
         if ($jobs < 1) {
             throw new \InvalidArgumentException('--jobs must be at least 1');
@@ -182,7 +207,7 @@ final class HarnessOptions
             isolatePorts: isset($flags['isolate-ports']),
             rr: isset($flags['rr']) || $rrChaos,
             rrChaos: $rrChaos,
-            onlyCrashes: isset($flags['only-crashes']),
+            capture: $capture,
             keepWork: isset($flags['keep-work']),
             noTui: isset($flags['no-tui']),
             noCoreCheck: isset($flags['no-core-check']),
@@ -219,6 +244,38 @@ final class HarnessOptions
         }
 
         return $number;
+    }
+
+    /**
+     * @return list<'crashes'|'leaks'|'failures'>
+     */
+    private static function captureList(string $raw): array
+    {
+        $requested = array_map('trim', explode(',', $raw));
+
+        foreach ($requested as $kind) {
+            if ($kind !== '' && !in_array($kind, self::CAPTURE_KINDS, true)) {
+                throw new \InvalidArgumentException(
+                    '--capture values must be one of ' . implode(', ', self::CAPTURE_KINDS) . ", got: {$kind}",
+                );
+            }
+        }
+
+        // Take the canonical order from CAPTURE_KINDS; this also deduplicates.
+        $kinds = [];
+        foreach (self::CAPTURE_KINDS as $kind) {
+            if (in_array($kind, $requested, true)) {
+                $kinds[] = $kind;
+            }
+        }
+
+        if ($kinds === []) {
+            throw new \InvalidArgumentException(
+                '--capture needs at least one of ' . implode(', ', self::CAPTURE_KINDS),
+            );
+        }
+
+        return $kinds;
     }
 
     /**

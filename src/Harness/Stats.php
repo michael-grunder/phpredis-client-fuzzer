@@ -23,6 +23,8 @@ final class Stats
 
     public int $timeouts = 0;
 
+    public int $leaks = 0;
+
     public int $reproducers = 0;
 
     public int $reductions = 0;

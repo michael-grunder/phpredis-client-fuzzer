@@ -247,16 +247,17 @@ KILL` disconnects live connections.
 ### Parallel fuzzing harness
 
 `phpredis-fuzz-harness` runs many `phpredis-fuzz*` workers in parallel behind an
-AFL-style dashboard, and turns any crash, hang, or non-zero exit into a saved
-reproducer directory. It never interprets the workload itself — it launches the
-command you give it after `--`, substituting a few placeholders per run.
+AFL-style dashboard, and turns a crash, hang, memory leak, or non-zero exit into
+a saved reproducer directory. It never interprets the workload itself — it
+launches the command you give it after `--`, substituting a few placeholders per
+run.
 
 ```bash
 vendor/bin/phpredis-fuzz-harness \
     --jobs 4 \
     --reduce steps \
     --rr --rr-chaos \
-    --only-crashes \
+    --capture crashes,leaks \
     --php "$(farmroot)/sapi/cli/php" \
     --port 7000 7001 7002 7003 --isolate-ports \
     -- \
@@ -277,16 +278,27 @@ the shared-target edge cases; with `--isolate-ports` a port is only ever handed
 to one running job at a time, so runs are isolated in Redis and effective
 concurrency is capped at the number of ports.
 
-A run is captured when it dies from a crashing signal
-(`SIGSEGV`/`SIGABRT`/`SIGBUS`/`SIGILL`/`SIGFPE`/`SIGSYS`/`SIGTRAP`, or a
-`128 + signal` exit), when it exceeds `--run-timeout` seconds, or when it simply
-exits non-zero (the fuzzer's own "caught a diagnostic" exit). `--only-crashes`
-narrows capture to crashing signals alone. Each capture becomes
-`<output>/repro-<time>-<signal>-seed<seed>-run<n>/` containing `command.txt`,
-`meta.json`, `stdout.log`, `stderr.log`, any matching core dump, and — under
-`--rr` — the finalised `rr-trace/` (the harness waits for rr's `incomplete`
-sentinel to clear, up to `--trace-timeout`). Work directories and rr traces for
-runs that do **not** fail are deleted; `--keep-work` keeps them.
+`--capture` is a comma list of what to save as a reproducer; the default is
+`crashes`. The kinds are:
+
+- `crashes` — the run dies from a crashing signal
+  (`SIGSEGV`/`SIGABRT`/`SIGBUS`/`SIGILL`/`SIGFPE`/`SIGSYS`/`SIGTRAP`, or a
+  `128 + signal` exit).
+- `leaks` — a **debug** PHP build printed a Zend memory-manager leak report
+  (`=== Total N memory leaks detected ===`) to stderr. Leaks do not change the
+  exit code, so the harness only scans for them when `leaks` is requested, and
+  warns at startup if `--php` is not a debug build. The reproducer's `meta.json`
+  records `leak_count`, `leak_bytes`, and `leak_site`.
+- `failures` — any other non-zero exit (the fuzzer's own "caught a diagnostic"
+  exit) or a run killed for exceeding `--run-timeout`.
+
+`--capture crashes,leaks,failures` captures everything. Each capture becomes
+`<output>/repro-<time>-<label>-seed<seed>-run<n>/` (label is the signal name,
+`leak`, `timeout`, or `exit<code>`) containing `command.txt`, `meta.json`,
+`stdout.log`, `stderr.log`, any matching core dump, and — under `--rr` — the
+finalised `rr-trace/` (the harness waits for rr's `incomplete` sentinel to
+clear, up to `--trace-timeout`). Work directories and rr traces for runs that
+are not captured are deleted; `--keep-work` keeps them.
 
 With `--reduce steps` a capture is followed by a binary search for the smallest
 `{steps}` value that still reproduces the same failure with the same seed and
@@ -304,9 +316,10 @@ collected automatically. `--rr` requires the `rr` binary on `PATH`;
 Stop conditions are `--runs N`, `--seconds N`, and `--reproducers N` (any that
 are set; unlimited otherwise), or pressing `q`/`Esc`/`Ctrl-C` in the dashboard.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
-the harness prints a line per finished run and a periodic summary. The process
-exits non-zero when at least one reproducer was captured. Point it only at a
-disposable Redis target.
+the harness prints a line per finished run and a periodic summary. The dashboard
+tallies failures, crashes, hangs, reproducers, and reductions, plus a `leaks`
+count whenever `leaks` is in `--capture`. The process exits non-zero when at
+least one reproducer was captured. Point it only at a disposable Redis target.
 
 ### Choosing a setting at random
 

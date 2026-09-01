@@ -101,6 +101,13 @@ final class HarnessApplication
         $workRoot = $outputDir . '/.work';
         Fs::ensureDir($workRoot);
 
+        if ($options->capturesLeaks() && !$this->phpIsDebug($php)) {
+            $this->write(
+                "warning: --capture leaks needs a debug PHP build; this php will not emit Zend MM leak reports\n",
+                true,
+            );
+        }
+
         $phpVersion = $this->probePhp($php);
         $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $rrBinary, $core);
 
@@ -191,7 +198,7 @@ final class HarnessApplication
             'ports: ' . ($options->ports === [] ? '(none)' : implode(', ', $options->ports)),
             'port select: ' . $options->portSelect . ($options->isolatePorts ? ' (isolated)' : ' (shared)'),
             'rr: ' . ($rrBinary ?? 'disabled') . ($options->rrChaos ? ' --chaos' : ''),
-            'only crashes: ' . ($options->onlyCrashes ? 'yes' : 'no'),
+            'capture: ' . implode(', ', $options->capture),
             'reduce: ' . ($options->reduce ?? 'disabled'),
             'core_pattern: ' . $core->raw,
             'command: ' . implode(' ', $template->tokens()),
@@ -218,6 +225,16 @@ final class HarnessApplication
         return is_string($extensions) && trim($extensions) !== ''
             ? $line . '  (' . trim($extensions) . ')'
             : $line;
+    }
+
+    /** Whether $php is a debug build (only those emit Zend MM leak reports). */
+    private function phpIsDebug(string $php): bool
+    {
+        $out = @shell_exec(
+            escapeshellarg($php) . ' -r ' . escapeshellarg('echo PHP_DEBUG ? "1" : "0";') . ' 2>/dev/null',
+        );
+
+        return is_string($out) && trim($out) === '1';
     }
 
     private function locate(string $name): ?string
@@ -266,7 +283,8 @@ final class HarnessApplication
 
     private const HELP = <<<'HELP'
 phpredis-fuzz-harness - run many phpredis-fuzz workers in parallel with a live
-dashboard, capturing crashes, hangs, and non-zero exits as reproducers.
+dashboard, capturing crashes, hangs, memory leaks, and non-zero exits as
+reproducers.
 
 Usage:
   phpredis-fuzz-harness [harness options] -- <fuzzer command template...>
@@ -292,7 +310,11 @@ Harness options:
   --runs N              Stop after N runs have been started (default: unlimited)
   --seconds N           Stop after N seconds (default: unlimited)
   --reproducers N       Stop after N reproducers captured (default: unlimited)
-  --only-crashes        Only capture crashing signals, not non-zero exits/hangs
+  --capture LIST        Comma list of what to save as reproducers (default:
+                        crashes). Kinds: crashes (crashing signals), leaks
+                        (Zend MM leak reports from a debug PHP build), failures
+                        (non-zero exits and --run-timeout hangs). e.g.
+                        --capture crashes,leaks
   --run-timeout N       Kill and capture a single run after N seconds (0: off)
   --rr                  Record each run with `rr record`
   --rr-chaos            Imply --rr and pass --chaos to it
@@ -310,7 +332,7 @@ that produced it) unless --no-core-check is given.
 
 Example:
   phpredis-fuzz-harness \
-      --jobs 4 --reduce steps --rr --rr-chaos --only-crashes \
+      --jobs 4 --reduce steps --rr --rr-chaos --capture crashes,leaks \
       --php "$(farmroot)/sapi/cli/php" \
       --port 7000 7001 7002 7003 --isolate-ports \
       -- \

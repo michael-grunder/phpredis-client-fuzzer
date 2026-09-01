@@ -46,8 +46,35 @@ final class HarnessOptionsTest extends TestCase
         self::assertNull($options->reduce);
         self::assertSame('cycle', $options->portSelect);
         self::assertFalse($options->rr);
-        self::assertFalse($options->onlyCrashes);
+        self::assertSame(['crashes'], $options->capture);
+        self::assertTrue($options->capturesCrashes());
+        self::assertFalse($options->capturesLeaks());
+        self::assertFalse($options->capturesFailures());
         self::assertSame([], $options->ports);
+    }
+
+    public function testCaptureParsesACommaListAndNormalisesOrder(): void
+    {
+        $options = HarnessOptions::parse(['--capture', 'failures,crashes,leaks,crashes', '--', 'x']);
+
+        self::assertSame(['crashes', 'leaks', 'failures'], $options->capture);
+        self::assertTrue($options->capturesCrashes());
+        self::assertTrue($options->capturesLeaks());
+        self::assertTrue($options->capturesFailures());
+    }
+
+    public function testCaptureRejectsAnUnknownKind(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        HarnessOptions::parse(['--capture', 'crashes,segfaults', '--', 'x']);
+    }
+
+    public function testCaptureRejectsAnEmptyList(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        HarnessOptions::parse(['--capture', ',', '--', 'x']);
     }
 
     public function testUnknownOptionIsRejected(): void

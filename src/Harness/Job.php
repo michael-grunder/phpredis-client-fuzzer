@@ -20,6 +20,9 @@ final class Job
 
     public bool $timedOut = false;
 
+    /** Parsed Zend MM leak report from the child's stderr, when one was found. */
+    public ?LeakReport $leak = null;
+
     /** True once the run has been judged a failure, regardless of capture. */
     public bool $failure = false;
 

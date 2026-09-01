@@ -96,7 +96,8 @@ final class Scheduler
             match ($job->status) {
                 JobStatus::Passed => $this->stats->passed++,
                 JobStatus::Skipped => $this->stats->skipped++,
-                JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut => $this->onCapture($job),
+                JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut, JobStatus::Leaked
+                    => $this->onCapture($job),
                 JobStatus::Running => null,
             };
 
@@ -118,6 +119,9 @@ final class Scheduler
         }
         if ($job->status === JobStatus::TimedOut) {
             $this->stats->timeouts++;
+        }
+        if ($job->status === JobStatus::Leaked) {
+            $this->stats->leaks++;
         }
         $this->stats->reproducers++;
 
@@ -267,7 +271,7 @@ final class Scheduler
             ports: $this->ports->all(),
             rr: $this->options->rr,
             rrChaos: $this->options->rrChaos,
-            onlyCrashes: $this->options->onlyCrashes,
+            capture: $this->options->capture,
             reduce: $this->options->reduce,
             output: $this->outputDir,
             phpVersion: $this->phpVersion,
@@ -297,6 +301,9 @@ final class Scheduler
             JobStatus::Crashed => $head . 'CRASH ' . FailureClassifier::signalLabel($job->signal) . $repro . $min,
             JobStatus::Failed => $head . 'FAIL exit ' . ($job->exitCode ?? '?') . $repro . $min,
             JobStatus::TimedOut => $head . 'HANG' . $repro . $min,
+            JobStatus::Leaked => $head . 'LEAK '
+                . ($job->leak !== null ? $job->leak->count . ' (' . $job->leak->bytes . ' bytes)' : '')
+                . $repro . $min,
             JobStatus::Running => $head . 'running',
         };
     }
@@ -306,11 +313,12 @@ final class Scheduler
         $lines = [
             '',
             sprintf(
-                'harness: %d runs, %d failures, %d crashes, %d hangs, %d reproducers, %d reduced in %s',
+                'harness: %d runs, %d failures, %d crashes, %d hangs, %d leaks, %d reproducers, %d reduced in %s',
                 $this->stats->completed,
                 $this->stats->failures,
                 $this->stats->crashes,
                 $this->stats->timeouts,
+                $this->stats->leaks,
                 $this->stats->reproducers,
                 $this->stats->reductions,
                 $this->stats->formatElapsed(),

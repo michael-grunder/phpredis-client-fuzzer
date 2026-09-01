@@ -11,6 +11,7 @@ final class DashboardState
 {
     /**
      * @param list<int> $ports
+     * @param list<'crashes'|'leaks'|'failures'> $capture
      * @param list<Job> $active Currently running jobs.
      * @param list<Job> $recent Finished jobs, newest first.
      */
@@ -20,7 +21,7 @@ final class DashboardState
         public readonly array $ports,
         public readonly bool $rr,
         public readonly bool $rrChaos,
-        public readonly bool $onlyCrashes,
+        public readonly array $capture,
         public readonly ?string $reduce,
         public readonly string $output,
         public readonly string $phpVersion,

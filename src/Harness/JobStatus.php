@@ -11,8 +11,8 @@ enum JobStatus: string
     /** Finished cleanly (exit 0). */
     case Passed = 'passed';
 
-    /** Failed, but not captured (a non-crash failure while --only-crashes is set,
-     *  or a run discarded during shutdown). */
+    /** Failed, but not captured (its category is not in --capture, or the run
+     *  was discarded during shutdown). */
     case Skipped = 'skipped';
 
     /** Non-crash failure (the fuzzer exited non-zero), captured as a reproducer. */
@@ -23,4 +23,7 @@ enum JobStatus: string
 
     /** Exceeded --run-timeout and was killed, captured as a reproducer. */
     case TimedOut = 'timedout';
+
+    /** A debug PHP build reported a Zend MM memory leak, captured as a reproducer. */
+    case Leaked = 'leaked';
 }
