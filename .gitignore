@@ -3,3 +3,4 @@ vendor/
 .agents.md
 *.stub.php
 stubs/
+phpredis-fuzz-repros
