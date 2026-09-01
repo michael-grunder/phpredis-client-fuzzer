@@ -17,6 +17,7 @@
         "bin/phpredis-fuzz",
         "bin/phpredis-fuzz-coercive",
         "bin/phpredis-fuzz-killer",
+        "bin/phpredis-fuzz-harness",
         "bin/phpredis-commands",
         "bin/phpredis-coverage"
         ,"bin/phpredis-fuzz-subscribe"
@@ -30,10 +31,12 @@
     "require": {
         "php": ">=8.4",
         "ext-json": "*",
-        "ext-redis": "*"
+        "ext-redis": "*",
+        "php-tui/php-tui": "^0.2.1"
     },
     "suggest": {
         "ext-posix": "Required by the phpredis-fuzz-killer process signal utility",
+        "ext-pcntl": "Lets phpredis-fuzz-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
         "ext-relay": "Required to fuzz Relay\\Relay or Relay\\Cluster clients"
     },
     "require-dev": {

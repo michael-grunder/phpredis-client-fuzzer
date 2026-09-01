@@ -104,7 +104,8 @@ and live in `DiagnosticNormalizer`.
 
 Composer installs `vendor/bin/phpredis-fuzz`,
 `vendor/bin/phpredis-fuzz-coercive`, `vendor/bin/phpredis-fuzz-killer`,
-`vendor/bin/phpredis-commands`, and `vendor/bin/phpredis-coverage`.
+`vendor/bin/phpredis-fuzz-harness`, `vendor/bin/phpredis-commands`, and
+`vendor/bin/phpredis-coverage`.
 The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
 defaults to one and the total is limited to 10,000 clients. Each step selects
@@ -242,6 +243,70 @@ client mode requires PHP's redis extension. The utility runs until stopped. Use
 it only with disposable fuzzer workers and Redis targets; signals such as
 `SIGQUIT` may produce core dumps or other diagnostic artifacts, and `CLIENT
 KILL` disconnects live connections.
+
+### Parallel fuzzing harness
+
+`phpredis-fuzz-harness` runs many `phpredis-fuzz*` workers in parallel behind an
+AFL-style dashboard, and turns any crash, hang, or non-zero exit into a saved
+reproducer directory. It never interprets the workload itself — it launches the
+command you give it after `--`, substituting a few placeholders per run.
+
+```bash
+vendor/bin/phpredis-fuzz-harness \
+    --jobs 4 \
+    --reduce steps \
+    --rr --rr-chaos \
+    --only-crashes \
+    --php "$(farmroot)/sapi/cli/php" \
+    --port 7000 7001 7002 7003 --isolate-ports \
+    -- \
+    vendor/bin/phpredis-fuzz-coercive \
+        --client=relay-cluster --seconds 2 --steps {steps} \
+        --host=127.0.0.1 --port={port}
+```
+
+Placeholders in the template are replaced for every run: `{port}` (a port drawn
+from `--port`), `{steps}` (the current step budget), `{seed}` (the run's seed,
+also appended as `--seed=N` when the template does not set it), `{job}` (the job
+slot, `0 .. jobs-1`), and `{run}` (the global run counter).
+
+Port handling is deliberately two-mode. Give one or more `--port` values;
+`--port-select` is `cycle` (round-robin, default) or `random`. Without
+`--isolate-ports` several concurrent runs may share a server, which exercises
+the shared-target edge cases; with `--isolate-ports` a port is only ever handed
+to one running job at a time, so runs are isolated in Redis and effective
+concurrency is capped at the number of ports.
+
+A run is captured when it dies from a crashing signal
+(`SIGSEGV`/`SIGABRT`/`SIGBUS`/`SIGILL`/`SIGFPE`/`SIGSYS`/`SIGTRAP`, or a
+`128 + signal` exit), when it exceeds `--run-timeout` seconds, or when it simply
+exits non-zero (the fuzzer's own "caught a diagnostic" exit). `--only-crashes`
+narrows capture to crashing signals alone. Each capture becomes
+`<output>/repro-<time>-<signal>-seed<seed>-run<n>/` containing `command.txt`,
+`meta.json`, `stdout.log`, `stderr.log`, any matching core dump, and — under
+`--rr` — the finalised `rr-trace/` (the harness waits for rr's `incomplete`
+sentinel to clear, up to `--trace-timeout`). Work directories and rr traces for
+runs that do **not** fail are deleted; `--keep-work` keeps them.
+
+With `--reduce steps` a capture is followed by a binary search for the smallest
+`{steps}` value that still reproduces the same failure with the same seed and
+port; the minimised re-run's artifacts are written to
+`<repro>/minimized/`. The template must contain `{steps}` for this to work, and
+the search is bounded by `--reduce-timeout` seconds.
+
+The kernel `core_pattern` must contain `%p` so a core produced by one concurrent
+run can be matched to it by PID; the harness aborts at startup otherwise. Pass
+`--no-core-check` to bypass that (core collection then becomes best-effort). A
+piped `core_pattern` (systemd-coredump and similar) is allowed but cores are not
+collected automatically. `--rr` requires the `rr` binary on `PATH`;
+`--rr-chaos` implies `--rr` and adds `rr record --chaos`.
+
+Stop conditions are `--runs N`, `--seconds N`, and `--reproducers N` (any that
+are set; unlimited otherwise), or pressing `q`/`Esc`/`Ctrl-C` in the dashboard.
+The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
+the harness prints a line per finished run and a periodic summary. The process
+exits non-zero when at least one reproducer was captured. Point it only at a
+disposable Redis target.
 
 ### Choosing a setting at random
 
@@ -854,6 +919,7 @@ find src tests bin -type f -exec php -l {} +
 vendor/bin/phpstan analyse --debug --no-progress
 vendor/bin/phpunit
 bin/phpredis-fuzz --help
+bin/phpredis-fuzz-harness --help
 bin/phpredis-commands --help
 bin/phpredis-coverage --help
 ```

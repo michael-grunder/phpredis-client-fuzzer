@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+
+/**
+ * A non-interactive view: periodic summary lines plus an event line per run.
+ * Used when stdout is not a TTY or `--no-tui` is set.
+ */
+final class PlainView implements View
+{
+    /** @var resource */
+    private $out;
+
+    private float $lastSummary = 0.0;
+
+    private readonly bool $quiet;
+
+    /** @param resource|null $out */
+    public function __construct(bool $quiet = false, $out = null)
+    {
+        $this->quiet = $quiet;
+        $this->out = $out ?? STDOUT;
+    }
+
+    public function start(): void
+    {
+        $this->line('harness: starting');
+    }
+
+    public function render(Stats $stats, DashboardState $state): void
+    {
+        $now = microtime(true);
+        if ($now - $this->lastSummary < 2.0) {
+            return;
+        }
+        $this->lastSummary = $now;
+
+        $this->line(sprintf(
+            '[%s] runs=%d active=%d/%d exec/s=%.1f failures=%d crashes=%d hangs=%d repros=%d',
+            $stats->formatElapsed(),
+            $stats->completed,
+            count($state->active),
+            $state->jobs,
+            $stats->execPerSecond(),
+            $stats->failures,
+            $stats->crashes,
+            $stats->timeouts,
+            $stats->reproducers,
+        ));
+    }
+
+    public function note(string $message): void
+    {
+        if ($this->quiet && !str_contains($message, 'CRASH') && !str_contains($message, 'FAIL')
+            && !str_contains($message, 'HANG')) {
+            return;
+        }
+        $this->line('harness: ' . $message);
+    }
+
+    public function quitRequested(): bool
+    {
+        return false;
+    }
+
+    public function stop(): void
+    {
+    }
+
+    private function line(string $message): void
+    {
+        fwrite($this->out, $message . "\n");
+    }
+}
