@@ -72,7 +72,7 @@ abstract class OptionCommand extends Command {
         'Redis::SERIALIZER_NONE',
         'Redis::SERIALIZER_PHP',
         'Redis::SERIALIZER_IGBINARY',
-        'Redis::SERIALIZER_MSGPACK',
+//        'Redis::SERIALIZER_MSGPACK',
         'Redis::SERIALIZER_JSON',
     ];
 

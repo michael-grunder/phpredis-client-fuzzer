@@ -115,35 +115,64 @@ bin/phpredis-fuzz \
     --steps=100000
 ```
 
-The included `hooks/no-msgpack.php` example prevents
+The included `hooks/no-msgpack.php` example prevents any `setOption()` argument
+tuple that PhpRedis or Relay would coerce to
 `setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_MSGPACK)`. It registers
 nothing when the loaded PhpRedis does not define the optional msgpack constant.
 It uses symbolic constants rather than numeric values so it remains correct
-across extension builds.
+across extension builds. Invocation hooks do not wrap initial `ClientFactory`
+configuration, so pair this hook with the default `--serializer=none` or an
+explicit `--serializer=none,php,igbinary,json` subset when startup selection is
+randomized.
 
 A hook file may return a callable that accepts a `HookRegistry`, or one
 `InvocationHook` object whose registration ID is derived from the filename. The
-registry form can declare several hooks and its exact-tuple helper is sufficient
-for the msgpack exclusion:
+registry form can declare several hooks. Safety policies should use
+`addGuard()` so they inspect the final arguments after every ordinary hook has
+had an opportunity to replace them:
 
 ```php
 <?php
 
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
 
 return static function (HookRegistry $hooks): void {
     if (!defined('Redis::SERIALIZER_MSGPACK')) {
         return;
     }
 
-    $hooks->deny(
-        id: 'no-msgpack-serializer',
-        method: 'setOption',
-        arguments: [
+    $hooks->addGuard(
+        'no-msgpack-serializer',
+        new readonly class(
             Redis::OPT_SERIALIZER,
             constant('Redis::SERIALIZER_MSGPACK'),
-        ],
-        reason: 'Known memory leaks and crashes in the msgpack serializer',
+        ) implements InvocationHook {
+            public function __construct(
+                private int $serializerOption,
+                private int $msgpackSerializer,
+            ) {
+            }
+
+            public function beforeInvocation(PendingInvocation $call): HookDecision
+            {
+                if (strcasecmp($call->method, 'setOption') !== 0
+                    || count($call->arguments) < 2
+                    || $this->integerValue($call->arguments[0]) !== $this->serializerOption
+                    || $this->integerValue($call->arguments[1]) !== $this->msgpackSerializer) {
+                    return HookDecision::allow();
+                }
+
+                return HookDecision::reject('Value would select the msgpack serializer');
+            }
+
+            private function integerValue(mixed $value): int
+            {
+                return is_object($value) ? 1 : (int) $value;
+            }
+        },
     );
 };
 ```
@@ -152,7 +181,9 @@ For dynamic behavior, implement `InvocationHook` and register it with
 `$hooks->add($id, $hook)`. Its `beforeInvocation(PendingInvocation $call)`
 method returns `HookDecision::allow()`, `HookDecision::reject($reason)`, or
 `HookDecision::replace($arguments)`. Replacements are passed to subsequent
-hooks in registration order; the first rejection wins. Hook source paths and
+hooks in registration order; the first rejection wins. Guards registered with
+`$hooks->addGuard($id, $guard)` then inspect the final invocation and may allow
+or reject it, but may not replace its arguments. Hook source paths and
 SHA-256 hashes are reported under `configuration.hooks`, while rejection counts
 and reasons are reported under `hook_rejections`. Rejected candidates consume
 seeded randomness but do not consume the executed-step budget. Ten thousand

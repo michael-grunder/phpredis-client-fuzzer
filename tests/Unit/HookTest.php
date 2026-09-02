@@ -128,6 +128,57 @@ final class HookTest extends TestCase
         self::assertSame('replacement was visible', $decision->reason);
     }
 
+    public function testGuardsRunAfterAllReplacementHooks(): void
+    {
+        $client = new \Redis();
+        $hooks = new HookRegistry();
+        $hooks->addGuard('deny-final-tuple', new class implements InvocationHook {
+            public function beforeInvocation(PendingInvocation $invocation): HookDecision
+            {
+                return $invocation->arguments === [2, 3]
+                    ? HookDecision::reject('guard saw final arguments')
+                    : HookDecision::allow();
+            }
+        });
+        $hooks->add('replace-after-guard-registration', new class implements InvocationHook {
+            public function beforeInvocation(PendingInvocation $invocation): HookDecision
+            {
+                return HookDecision::replace([2, 3]);
+            }
+        });
+
+        $decision = $hooks->beforeInvocation(new PendingInvocation(
+            'setoption',
+            $client,
+            'setOption',
+            [1, 0],
+        ));
+
+        self::assertSame('reject', $decision->action->value);
+        self::assertSame('guard saw final arguments', $decision->reason);
+    }
+
+    public function testGuardsCannotReplaceArguments(): void
+    {
+        $hooks = new HookRegistry();
+        $hooks->addGuard('invalid-replacement', new class implements InvocationHook {
+            public function beforeInvocation(PendingInvocation $invocation): HookDecision
+            {
+                return HookDecision::replace([]);
+            }
+        });
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Invocation guard invalid-replacement cannot replace arguments');
+
+        $hooks->beforeInvocation(new PendingInvocation(
+            'ping',
+            new \Redis(),
+            'ping',
+            [],
+        ));
+    }
+
     public function testBundledNoMsgpackHookLoadsExplicitly(): void
     {
         $path = dirname(__DIR__, 2) . '/hooks/no-msgpack.php';
@@ -142,11 +193,12 @@ final class HookTest extends TestCase
         if (defined('Redis::SERIALIZER_MSGPACK')) {
             self::assertSame(['no-msgpack-serializer'], $metadata['ids']);
             $client = new class extends \Redis {
-                public int $calls = 0;
+                /** @var list<array{int, mixed}> */
+                public array $calls = [];
 
                 public function setOption(int $option, mixed $value): bool
                 {
-                    $this->calls++;
+                    $this->calls[] = [$option, $value];
 
                     return true;
                 }
@@ -154,24 +206,49 @@ final class HookTest extends TestCase
             $command = Command::object('setoption');
             $command->setInvocationHook($hooks);
             try {
-                $command->exec(
-                    $client,
-                    new OptionName(\Redis::OPT_SERIALIZER),
-                    new OptionValue(
-                        \Redis::OPT_SERIALIZER,
-                        constant('Redis::SERIALIZER_MSGPACK'),
-                    ),
-                );
-                self::fail('The bundled msgpack hook did not reject its tuple');
-            } catch (InvocationRejected $rejected) {
-                self::assertSame(
-                    'Known memory leaks and crashes in the msgpack serializer',
-                    $rejected->reason,
-                );
+                $msgpack = constant('Redis::SERIALIZER_MSGPACK');
+                $rejectedValues = [
+                    $msgpack,
+                    (float) $msgpack,
+                    (float) $msgpack + 0.9,
+                    (string) $msgpack,
+                    '0' . $msgpack,
+                    $msgpack . 'random-value',
+                ];
+                foreach ($rejectedValues as $value) {
+                    try {
+                        $command->exec(
+                            $client,
+                            new OptionName(\Redis::OPT_SERIALIZER),
+                            new OptionValue(\Redis::OPT_SERIALIZER, $value),
+                        );
+                        self::fail('The bundled msgpack guard did not reject a coercible value');
+                    } catch (InvocationRejected $rejected) {
+                        self::assertSame(
+                            'Value would select the msgpack serializer',
+                            $rejected->reason,
+                        );
+                    }
+                }
+
+                $allowedValues = [null, false, true, [], 'random-value', -1, 999];
+                foreach ($allowedValues as $value) {
+                    $command->exec(
+                        $client,
+                        new OptionName(\Redis::OPT_SERIALIZER),
+                        new OptionValue(\Redis::OPT_SERIALIZER, $value),
+                    );
+                }
             } finally {
                 $command->setInvocationHook(null);
             }
-            self::assertSame(0, $client->calls);
+            self::assertCount(count($allowedValues), $client->calls);
+            self::assertSame([
+                'no-msgpack-serializer' => [
+                    'count' => count($rejectedValues),
+                    'reason' => 'Value would select the msgpack serializer',
+                ],
+            ], $hooks->rejections());
 
             return;
         }
