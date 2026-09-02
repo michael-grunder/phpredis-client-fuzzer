@@ -381,7 +381,9 @@ final class Scheduler
             JobStatus::Failed => $head . 'FAIL exit ' . ($job->exitCode ?? '?') . $repro . $min,
             JobStatus::TimedOut => $head . 'HANG' . $repro . $min,
             JobStatus::Leaked => $head . 'LEAK '
-                . ($job->leak !== null ? $job->leak->count . ' (' . $job->leak->bytes . ' bytes)' : '')
+                . ($job->leak !== null
+                    ? $job->leak->count . ' (' . $job->leak->bytes . ' bytes, ' . $job->leak->source . ')'
+                    : '')
                 . $repro . $min,
             JobStatus::Running => $head . 'running',
         };

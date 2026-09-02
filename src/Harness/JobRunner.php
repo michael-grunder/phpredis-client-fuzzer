@@ -158,15 +158,17 @@ final class JobRunner
             RrTrace::awaitComplete($traceDir, $this->options->traceTimeout);
         }
 
-        $leaked = $this->options->capturesLeaks()
-            && LeakReport::scan($workDir . '/stderr.log') !== null;
+        $leak = $this->options->capturesLeaks()
+            ? LeakReport::scan($workDir . '/stderr.log')
+            : null;
 
         return new JobOutcome(
-            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false, $leaked),
+            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false, $leak !== null),
             $workDir,
             $traceDir,
             microtime(true) - $started,
             $status['pid'],
+            $leak,
         );
     }
 
@@ -285,7 +287,7 @@ final class JobRunner
             'crash' => $verdict->signalName(),
             'hang' => 'hang',
             'leak' => $job->leak !== null
-                ? sprintf('leak %d (%d bytes)', $job->leak->count, $job->leak->bytes)
+                ? sprintf('leak %d (%d bytes, %s)', $job->leak->count, $job->leak->bytes, $job->leak->source)
                 : 'leak',
             default => 'exit ' . ($verdict->exitCode ?? '?'),
         };
@@ -310,6 +312,7 @@ final class JobRunner
             'leak_count' => $job->leak?->count,
             'leak_bytes' => $job->leak?->bytes,
             'leak_site' => $job->leak?->firstSite,
+            'leak_source' => $job->leak?->source,
             'duration_seconds' => round($job->duration(), 3),
             'rr' => $this->rrBinary !== null,
             'rr_chaos' => $this->options->rrChaos,

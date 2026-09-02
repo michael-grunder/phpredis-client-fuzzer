@@ -15,6 +15,7 @@ final class JobOutcome
         public readonly ?string $traceDir,
         public readonly float $duration,
         public readonly ?int $pid,
+        public readonly ?LeakReport $leak = null,
     ) {
     }
 }

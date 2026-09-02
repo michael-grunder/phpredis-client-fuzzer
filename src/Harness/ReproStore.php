@@ -88,6 +88,7 @@ final class ReproStore
             'exit_code' => $outcome->verdict->exitCode,
             'crashed' => $outcome->verdict->crashed,
             'leaked' => $outcome->verdict->leaked,
+            'leak_source' => $outcome->leak?->source,
             'duration_seconds' => round($outcome->duration, 3),
             'captured_at' => date('c'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");

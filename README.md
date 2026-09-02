@@ -346,11 +346,15 @@ concurrency is capped at the number of ports.
 - `crashes` — the run dies from a crashing signal
   (`SIGSEGV`/`SIGABRT`/`SIGBUS`/`SIGILL`/`SIGFPE`/`SIGSYS`/`SIGTRAP`, or a
   `128 + signal` exit).
-- `leaks` — a **debug** PHP build printed a Zend memory-manager leak report
-  (`=== Total N memory leaks detected ===`) to stderr. Leaks do not change the
-  exit code, so the harness only scans for them when `leaks` is requested, and
-  warns at startup if `--php` is not a debug build. The reproducer's `meta.json`
-  records `leak_count`, `leak_bytes`, and `leak_site`.
+- `leaks` — a leak report was printed to stderr, from either allocator: a
+  **debug** PHP build's Zend memory manager
+  (`=== Total N memory leaks detected ===`), or Relay's own shared allocator
+  built with `RELAY_SH_TRACK_LEAKS`
+  (`relay.c:5636 leaked block of 112 bytes at 0x… allocated by pid …`). Leaks do
+  not change the exit code, so the harness only scans for them when `leaks` is
+  requested, and warns at startup if `--php` is not a debug build. The
+  reproducer's `meta.json` records `leak_count`, `leak_bytes`, `leak_site`, and
+  `leak_source` (`zend-mm` or `relay-shm`).
 - `failures` — any other non-zero exit (the fuzzer's own "caught a diagnostic"
   exit) or a run killed for exceeding `--run-timeout`.
 
