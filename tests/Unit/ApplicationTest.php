@@ -28,6 +28,7 @@ final class ApplicationTest extends TestCase
         self::assertStringContainsString('--saturate-target=TARGET', self::contents($output));
         self::assertStringContainsString('--saturate-mode=MODE', self::contents($output));
         self::assertStringContainsString('--raw-chaos', self::contents($output));
+        self::assertStringContainsString('--hook=FILE', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));
         self::assertSame('', self::contents($error));
     }
@@ -80,6 +81,24 @@ final class ApplicationTest extends TestCase
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             'Unknown saturation mode: synthetic',
+            self::contents($error),
+        );
+    }
+
+    public function testUnreadableHookIsRejectedBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--hook=/definitely/missing/phpredis-fuzzer-hook.php',
+            '--port=0',
+        ]);
+
+        self::assertSame(1, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString(
+            'Hook file is not readable',
             self::contents($error),
         );
     }

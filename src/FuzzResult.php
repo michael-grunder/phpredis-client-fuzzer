@@ -19,6 +19,7 @@ final readonly class FuzzResult implements \JsonSerializable
      * @param list<\Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulOutcome> $statefulOutcomes
      * @param array{samples: int, hits: int, misses: int, oom: int, memory: array{total: int, limit: int, active: int, used: int, peak_active: int, peak_used: int}}|null $relayStats
      * @param list<InvocationOutcome> $saturationOutcomes
+     * @param array<string, array{count: int, reason: string}> $hookRejections
      */
     public function __construct(
         public int $seed,
@@ -39,6 +40,7 @@ final readonly class FuzzResult implements \JsonSerializable
         public ?array $relayStats = null,
         public int $saturationEvents = 0,
         public array $saturationOutcomes = [],
+        public array $hookRejections = [],
     ) {
     }
 
@@ -60,6 +62,7 @@ final readonly class FuzzResult implements \JsonSerializable
             'differential_outcomes' => $this->differentialOutcomes,
             'stateful_outcomes' => $this->statefulOutcomes,
             'saturation_outcomes' => $this->saturationOutcomes,
+            'hook_rejections' => $this->hookRejections,
             'relay_stats' => $this->relayStats,
             'problematic_commands' => $this->problematicCommands,
             'warnings' => $this->warnings,

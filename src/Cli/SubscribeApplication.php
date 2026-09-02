@@ -33,12 +33,17 @@ final class SubscribeApplication
                 $client->setOption(\Relay\Relay::OPT_PHPREDIS_COMPATIBILITY, false);
             }
             $active = [$control];
+            $invocations = 0;
             $callback = null;
-            $callback = function ($c, $channel, $message) use (&$callback, &$active, $steps): void {
-                static $n = 0;
-                if (++$n > $steps) { $c->unsubscribe(); return; }
+            $callback = function (
+                \Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster $c,
+                string $channel,
+                string $message,
+            ) use (&$callback, &$active, &$invocations, $steps): void {
+                $invocations++;
+                if ($invocations > $steps) { $c->unsubscribe(); return; }
                 try {
-                    if ($n === $steps) {
+                    if ($invocations === $steps) {
                         foreach ($active as $sub) { $c->unsubscribe([$sub]); }
                         $c->unsubscribe();
                         return;

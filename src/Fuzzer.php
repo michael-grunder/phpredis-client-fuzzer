@@ -11,6 +11,9 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
 use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
 use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
 use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
 use Redis;
 use RedisCluster;
@@ -20,6 +23,11 @@ use Relay\Relay;
 final class Fuzzer
 {
     private const RELAY_STATS_SAMPLE_INTERVAL = 100;
+    private const MAX_CONSECUTIVE_HOOK_REJECTIONS = 10000;
+
+    public function __construct(private readonly ?HookRegistry $hooks = null)
+    {
+    }
 
     /**
      * @param list<object> $clients
@@ -41,11 +49,13 @@ final class Fuzzer
 
         $seed = $configuration->seed ?? random_int(0, PHP_INT_MAX);
         mt_srand($seed);
+        $this->hooks?->resetRejections();
 
         $registry = (new CommandFilter())->apply(new Registry(), $configuration);
         $registry->apply(
-            static function (Command $command) use ($clientInvoker): void {
+            function (Command $command) use ($clientInvoker): void {
                 $command->setClientInvoker($clientInvoker);
+                $command->setInvocationHook($this->hooks);
             },
         );
         $registry->filter(
@@ -128,6 +138,7 @@ final class Fuzzer
                 'saturate-steps' => $configuration->saturateSteps ?? 'keyspace',
                 'saturate-target' => $configuration->saturateTarget ?? 'disabled',
                 'saturate-mode' => $configuration->saturateMode->value,
+                'hooks' => implode(',', $this->hooks?->metadata()['ids'] ?? []),
             ], $clients, invocationMode: $configuration->invocationMode);
         }
 
@@ -137,6 +148,7 @@ final class Fuzzer
         $commandWarnings = [];
         $caughtDiagnostic = null;
         $statefulOutcomes = [];
+        $consecutiveHookRejections = 0;
         $relayStats?->sample();
         try {
             $statefulOutcomes = (new StatefulScenarioRunner($clientInvoker))->run(
@@ -194,6 +206,7 @@ final class Fuzzer
                 $replyType = null;
                 $replySummary = null;
                 $exceptionDetails = null;
+                $invocationRejected = false;
                 $redisErrors = [];
                 $invocationWarnings = [];
                 try {
@@ -212,6 +225,10 @@ final class Fuzzer
                     if ($reply === false) {
                         $falseReplyClients[$name][spl_object_id($client)] = true;
                     }
+                } catch (InvocationRejected) {
+                    $invocationRejected = true;
+                } catch (HookExecutionFailed $failure) {
+                    throw $failure;
                 } catch (\Throwable $throwable) {
                     $exception = $throwable::class . ': ' . $throwable->getMessage();
                     $results[$name]['exceptions'][$exception] = ($results[$name]['exceptions'][$exception] ?? 0) + 1;
@@ -231,27 +248,49 @@ final class Fuzzer
                         Command::capturedWarnings(),
                     );
                     $clientIndex = $clientIndexes[spl_object_id($client)];
-                    $outcomes[] = new InvocationOutcome(
-                        sequence: $steps,
-                        command: $name,
-                        variant: null,
-                        clientId: $client::class . '#' . $clientIndex,
-                        clientIndex: $clientIndex,
-                        clientClass: $client::class,
-                        operation: $operation === 'fuzz' ? 'normal' : $operation,
-                        replyType: $replyType,
-                        reply: $replySummary,
-                        redisErrors: $redisErrors,
-                        warnings: $invocationWarnings,
-                        exception: $exceptionDetails,
-                        durationSeconds: $duration,
-                        modeBefore: $modeBefore,
-                        modeAfter: $this->clientMode($client),
-                        slotPolicy: $slotPolicy->value,
-                    );
+                    if (!$invocationRejected) {
+                        $outcomes[] = new InvocationOutcome(
+                            sequence: $steps,
+                            command: $name,
+                            variant: null,
+                            clientId: $client::class . '#' . $clientIndex,
+                            clientIndex: $clientIndex,
+                            clientClass: $client::class,
+                            operation: $operation === 'fuzz' ? 'normal' : $operation,
+                            replyType: $replyType,
+                            reply: $replySummary,
+                            redisErrors: $redisErrors,
+                            warnings: $invocationWarnings,
+                            exception: $exceptionDetails,
+                            durationSeconds: $duration,
+                            modeBefore: $modeBefore,
+                            modeAfter: $this->clientMode($client),
+                            slotPolicy: $slotPolicy->value,
+                        );
+                    }
                     Command::setCapturedWarningCommand(null);
                     $differentialOracle?->finishStep();
                 }
+
+                if ($invocationRejected) {
+                    $steps--;
+                    $results[$name]['count']--;
+                    if ($results[$name]['count'] === 0) {
+                        unset($results[$name]);
+                    }
+                    if ($slotPolicy === SlotPolicy::CrossSlot) {
+                        $crossSlotSteps--;
+                    }
+                    $consecutiveHookRejections++;
+                    if ($consecutiveHookRejections >= self::MAX_CONSECUTIVE_HOOK_REJECTIONS) {
+                        throw new \UnderflowException(sprintf(
+                            'Hooks rejected %d consecutive generated invocations; the selected workload may be impossible',
+                            self::MAX_CONSECUTIVE_HOOK_REJECTIONS,
+                        ));
+                    }
+                    continue;
+                }
+                $consecutiveHookRejections = 0;
 
                 if ($caughtDiagnostic === null) {
                     foreach ($redisErrors as $redisError) {
@@ -309,6 +348,11 @@ final class Fuzzer
             }
         } finally {
             Command::setDifferentialOracle(null);
+            $registry->apply(
+                static function (Command $command): void {
+                    $command->setInvocationHook(null);
+                },
+            );
             $warnings = Command::finishCapturedWarnings();
             $commandWarnings = Command::capturedWarningsByCommand();
             if ($scriptLogging) {
@@ -319,6 +363,12 @@ final class Fuzzer
 
         $elapsed = (hrtime(true) - $started) / 1e9;
 
+        $serializedConfiguration = $configuration->jsonSerialize();
+        $serializedConfiguration['hooks'] = $this->hooks?->metadata() ?? [
+            'sources' => [],
+            'ids' => [],
+        ];
+
         return new FuzzResult(
             $seed,
             $steps,
@@ -327,7 +377,7 @@ final class Fuzzer
             $warnings,
             array_values($registry->names()),
             $this->environment($clients),
-            $configuration->jsonSerialize(),
+            $serializedConfiguration,
             $crossSlotSteps,
             $commandWarnings,
             $caughtDiagnostic,
@@ -343,6 +393,7 @@ final class Fuzzer
             $relayStats?->statistics(),
             $saturationEvents,
             $saturationOutcomes,
+            $this->hooks?->rejections() ?? [],
         );
     }
 

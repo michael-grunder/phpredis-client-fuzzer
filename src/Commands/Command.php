@@ -10,6 +10,10 @@ use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
 use Mgrunder\PhpredisCommandFuzzer\HasWeight;
 use Mgrunder\PhpredisCommandFuzzer\WarningCollector;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookAction;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
 
 use Relay\Relay;
 use Relay\Cluster;
@@ -83,6 +87,8 @@ abstract class Command implements HasWeight {
 
     private ?ClientInvoker $clientInvoker = null;
 
+    private ?InvocationHook $invocationHook = null;
+
     /* RedisCluster and Relay\Cluster require rawCommand() to start with a
        routing key (or node address). FuzzConfig refreshes this for every
        command scope before arguments are generated. */
@@ -115,6 +121,10 @@ abstract class Command implements HasWeight {
 
     final public function setClientInvoker(ClientInvoker $clientInvoker): void {
         $this->clientInvoker = $clientInvoker;
+    }
+
+    final public function setInvocationHook(?InvocationHook $invocationHook): void {
+        $this->invocationHook = $invocationHook;
     }
 
     protected function randomType(): string {
@@ -435,13 +445,37 @@ abstract class Command implements HasWeight {
     final public function cmd(Redis|RedisCluster|Relay|Cluster $client,
                               string $cmd, mixed ...$args): mixed
     {
-        ScriptLogger::log($client, $cmd, $args);
-
+        $scriptArgs = $args;
         foreach ($args as $i => $arg) {
             if ($arg instanceof ScriptArg)
                 $args[$i] = $arg->value();
         }
         $args = array_values($args);
+
+        if ($this->invocationHook !== null) {
+            $decision = $this->invocationHook->beforeInvocation(new PendingInvocation(
+                $this->name(),
+                $client,
+                $cmd,
+                $args,
+            ));
+            if ($decision->action === HookAction::Reject) {
+                throw new InvocationRejected(
+                    $this->name(),
+                    $cmd,
+                    $decision->reason ?? 'Rejected without a reason',
+                );
+            }
+            if ($decision->action === HookAction::Replace) {
+                if ($decision->arguments === null) {
+                    throw new \LogicException('A replacement hook did not provide arguments');
+                }
+                $args = $decision->arguments;
+                $scriptArgs = $args;
+            }
+        }
+
+        ScriptLogger::log($client, $cmd, $scriptArgs);
 
         $oracle = self::$differentialOracle;
         $oraclePrepared = $oracle?->prepare($this, $client, $cmd, $args) ?? false;

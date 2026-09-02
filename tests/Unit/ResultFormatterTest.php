@@ -35,6 +35,7 @@ final class ResultFormatterTest extends TestCase
             'differential_outcomes',
             'stateful_outcomes',
             'saturation_outcomes',
+            'hook_rejections',
             'relay_stats',
             'problematic_commands',
             'warnings',
@@ -51,6 +52,7 @@ final class ResultFormatterTest extends TestCase
         self::assertStringContainsString('Warnings:                 2 (1 unique)', $output);
         self::assertStringContainsString('Redis errors:             3 (2 unique)', $output);
         self::assertStringContainsString('Exceptions:               2 (1 unique)', $output);
+        self::assertStringContainsString('Hook rejections:          0', $output);
         self::assertStringContainsString('Relay hits:               12', $output);
         self::assertStringContainsString('Relay misses:             8', $output);
         self::assertStringContainsString('Relay OOM:                2', $output);

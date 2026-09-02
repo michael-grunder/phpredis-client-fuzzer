@@ -69,6 +69,11 @@ final class ResultFormatter
             sprintf('  %-25s %d', 'Unique commands executed:', count($result->commands)),
             sprintf('  %-25s %d', 'Selected commands:', count($result->selectedCommands)),
             sprintf('  %-25s %d', 'Cross-slot steps:', $result->crossSlotSteps),
+            sprintf(
+                '  %-25s %d',
+                'Hook rejections:',
+                array_sum(array_column($result->hookRejections, 'count')),
+            ),
             sprintf('  %-25s %.6f seconds', 'Elapsed:', $result->elapsedSeconds),
             sprintf(
                 '  %-25s %d (%d unique)',

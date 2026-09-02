@@ -8,6 +8,7 @@ use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
 use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
@@ -47,7 +48,7 @@ final class Application
         'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
         'invocation-mode',
         'differential-tolerance-ms', 'differential-poll-ms',
-        'scenarios',
+        'scenarios', 'hook',
         'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
         'relay-multikey-reordering',
@@ -59,7 +60,7 @@ final class Application
         'no-relay-compatibility', 'differential',
     ];
 
-    private const REPEATABLE_OPTIONS = ['weight'];
+    private const REPEATABLE_OPTIONS = ['weight', 'hook'];
 
     private const RELAY_CLUSTER_OPTIONS = [
         'relay-failover',
@@ -124,6 +125,8 @@ final class Application
             // those settings by name.
             $seed = $options->optionalInteger('seed') ?? random_int(0, PHP_INT_MAX);
             mt_srand($seed);
+
+            $hooks = HookLoader::load($options->repeated('hook'));
 
             $hasRelayClient = in_array(ClientType::Relay, $clientTypes, true)
                 || in_array(ClientType::RelayCluster, $clientTypes, true);
@@ -197,7 +200,7 @@ final class Application
             }
 
             /** @var non-empty-list<\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster> $clients */
-            $result = (new Fuzzer())->run($clients, new RunConfiguration(
+            $result = (new Fuzzer($hooks))->run($clients, new RunConfiguration(
                 maxSteps: $options->integer('steps', 100),
                 maxSeconds: $options->number('seconds', 0.0),
                 seed: $seed,
@@ -358,6 +361,7 @@ Run configuration:
   --invocation-mode=MODE     Client call typing: strict or coercive
                              (default: {invocation-default})
   --script-log=FILE          Write an executable PHP reproduction script
+  --hook=FILE                Load trusted PHP invocation hooks; repeatable
   --catch=STRING             Stop after a Redis error, warning, or exception
                              contains STRING (case-insensitive; exits nonzero)
   --differential             Compare cacheable reads using an ordered pair:
@@ -389,6 +393,12 @@ Choosing a setting at random:
   the loaded extension does not support are never picked. Pass a comma-separated
   subset, such as --serializer=none,php,igbinary,json, to choose randomly from
   only those values.
+
+Invocation hooks:
+  Hook files are trusted PHP code and must return a callable accepting a
+  HookRegistry or an InvocationHook object. Hooks run after generated ScriptArg
+  values are resolved and before reproduction logging or client dispatch. See
+  hooks/no-msgpack.php.
 
 The target is mutated. Use only an explicitly selected disposable Redis instance.
 HELP;

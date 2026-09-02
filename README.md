@@ -100,6 +100,68 @@ only: `FuzzResult::$outcomes` retains the exact warning, Redis error, and
 exception text for reproduction. Normalization rules are deliberately narrow
 and live in `DiagnosticNormalizer`.
 
+## Invocation hooks
+
+Trusted PHP hook files can allow, reject, or replace generated client
+invocations immediately before reproduction logging and client dispatch. This
+provides a final safety boundary regardless of which randomized branch produced
+the arguments. Load one or more files explicitly with repeatable `--hook`
+options:
+
+```bash
+bin/phpredis-fuzz \
+    --include-local \
+    --hook=hooks/no-msgpack.php \
+    --steps=100000
+```
+
+The included `hooks/no-msgpack.php` example prevents
+`setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_MSGPACK)`. It registers
+nothing when the loaded PhpRedis does not define the optional msgpack constant.
+It uses symbolic constants rather than numeric values so it remains correct
+across extension builds.
+
+A hook file may return a callable that accepts a `HookRegistry`, or one
+`InvocationHook` object whose registration ID is derived from the filename. The
+registry form can declare several hooks and its exact-tuple helper is sufficient
+for the msgpack exclusion:
+
+```php
+<?php
+
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
+
+return static function (HookRegistry $hooks): void {
+    if (!defined('Redis::SERIALIZER_MSGPACK')) {
+        return;
+    }
+
+    $hooks->deny(
+        id: 'no-msgpack-serializer',
+        method: 'setOption',
+        arguments: [
+            Redis::OPT_SERIALIZER,
+            constant('Redis::SERIALIZER_MSGPACK'),
+        ],
+        reason: 'Known memory leaks and crashes in the msgpack serializer',
+    );
+};
+```
+
+For dynamic behavior, implement `InvocationHook` and register it with
+`$hooks->add($id, $hook)`. Its `beforeInvocation(PendingInvocation $call)`
+method returns `HookDecision::allow()`, `HookDecision::reject($reason)`, or
+`HookDecision::replace($arguments)`. Replacements are passed to subsequent
+hooks in registration order; the first rejection wins. Hook source paths and
+SHA-256 hashes are reported under `configuration.hooks`, while rejection counts
+and reasons are reported under `hook_rejections`. Rejected candidates consume
+seeded randomness but do not consume the executed-step budget. Ten thousand
+consecutive rejections fail the run as an impossible workload.
+
+Embedded callers can construct a `HookRegistry` directly and pass it to
+`new Fuzzer($hooks)`. Hook files execute arbitrary PHP and are never discovered
+or loaded automatically; only load files you trust.
+
 ## CLI
 
 Composer installs `vendor/bin/phpredis-fuzz`,
