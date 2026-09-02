@@ -7,9 +7,9 @@ namespace Mgrunder\PhpredisCommandFuzzer\Harness;
 /**
  * Turns a finished child's raw exit information into a verdict the scheduler
  * can act on: did the run fail, and what kind of failure was it — a hard
- * process crash, a hang killed by the harness, a Zend MM memory leak reported
- * by a debug PHP build, or the fuzzer exiting non-zero after catching a
- * diagnostic.
+ * process crash, a run the harness killed for exceeding --run-timeout, a Zend
+ * MM memory leak reported by a debug PHP build, or the fuzzer exiting non-zero
+ * after catching a diagnostic.
  */
 final class FailureClassifier
 {
@@ -72,9 +72,9 @@ final class FailureClassifier
     /**
      * The single most significant category of this outcome, used to pick the
      * reproducer label and to gate capture against `--capture`. Precedence:
-     * crash, then hang, then leak, then a plain non-zero exit.
+     * crash, then timeout, then leak, then a plain non-zero exit.
      *
-     * @return 'pass'|'crash'|'hang'|'leak'|'failure'
+     * @return 'pass'|'crash'|'timeout'|'leak'|'failure'
      */
     public function kind(): string
     {
@@ -82,7 +82,7 @@ final class FailureClassifier
             return 'crash';
         }
         if ($this->timedOut) {
-            return 'hang';
+            return 'timeout';
         }
         if ($this->leaked) {
             return 'leak';

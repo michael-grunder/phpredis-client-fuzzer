@@ -57,7 +57,7 @@ final class HarnessFailureClassifierTest extends TestCase
         self::assertTrue($verdict->failed);
         self::assertTrue($verdict->timedOut);
         self::assertFalse($verdict->crashed);
-        self::assertSame('hang', $verdict->kind());
+        self::assertSame('timeout', $verdict->kind());
     }
 
     public function testLeakOnAnOtherwiseCleanExitIsAFailure(): void
@@ -76,6 +76,23 @@ final class HarnessFailureClassifierTest extends TestCase
         $verdict = FailureClassifier::fromExit(true, 11, -1, false, true);
 
         self::assertSame('crash', $verdict->kind());
+    }
+
+    public function testTimeoutOutranksLeakInKind(): void
+    {
+        $verdict = FailureClassifier::fromExit(false, null, null, true, true);
+
+        self::assertSame('timeout', $verdict->kind());
+    }
+
+    public function testMatchesTreatsTimeoutAsItsOwnClass(): void
+    {
+        $timeout = FailureClassifier::fromExit(false, null, null, true);
+        $timeoutRerun = FailureClassifier::fromExit(false, null, null, true);
+        $exitRerun = FailureClassifier::fromExit(false, null, 1);
+
+        self::assertTrue($timeout->matches($timeoutRerun));
+        self::assertFalse($timeout->matches($exitRerun));
     }
 
     public function testMatchesTreatsLeakAsItsOwnClass(): void

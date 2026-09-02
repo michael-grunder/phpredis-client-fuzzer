@@ -82,7 +82,7 @@ final class JobRunner
                 return;
             }
 
-            $this->terminate($job);
+            $job->killSignal = $this->terminate($job);
             $job->timedOut = $expired;
             $status = $this->status($job);
         }
@@ -200,14 +200,22 @@ final class JobRunner
         return $status;
     }
 
-    private function terminate(Job $job): void
+    /**
+     * Escalating termination: SIGTERM first for a clean shutdown, then SIGKILL
+     * if the child is still alive after the grace period. Returns the signal
+     * that actually ended it — 15 when it stopped politely, 9 when it had to be
+     * forced.
+     */
+    private function terminate(Job $job): int
     {
         proc_terminate($job->process, 15);
         if ($this->waitForExit($job, 3.0)) {
-            return;
+            return 15;
         }
         proc_terminate($job->process, 9);
         $this->waitForExit($job, 2.0);
+
+        return 9;
     }
 
     private function waitForExit(Job $job, float $seconds): bool
@@ -238,7 +246,8 @@ final class JobRunner
         $capture = match ($kind) {
             'crash' => $this->options->capturesCrashes(),
             'leak' => $this->options->capturesLeaks(),
-            'hang', 'failure' => $this->options->capturesFailures(),
+            'timeout' => $this->options->capturesTimeouts(),
+            'failure' => $this->options->capturesFailures(),
             default => false,
         };
         if (!$capture) {
@@ -259,7 +268,7 @@ final class JobRunner
         $job->reproDir = $this->store->capture($job, $verdict, $this->meta($job, $verdict));
         $job->status = match ($kind) {
             'crash' => JobStatus::Crashed,
-            'hang' => JobStatus::TimedOut,
+            'timeout' => JobStatus::TimedOut,
             'leak' => JobStatus::Leaked,
             default => JobStatus::Failed,
         };
@@ -280,12 +289,12 @@ final class JobRunner
         Fs::removeTree($job->workDir);
     }
 
-    /** A short human label for how a run ended, e.g. "SIGSEGV", "hang", "leak 2 (2048 bytes)". */
+    /** A short human label for how a run ended, e.g. "SIGSEGV", "timeout", "leak 2 (2048 bytes)". */
     private function describeVerdict(Job $job, FailureClassifier $verdict): string
     {
         return match ($verdict->kind()) {
             'crash' => $verdict->signalName(),
-            'hang' => 'hang',
+            'timeout' => $job->killSignal === 9 ? 'timeout (SIGKILL)' : 'timeout',
             'leak' => $job->leak !== null
                 ? sprintf('leak %d (%d bytes, %s)', $job->leak->count, $job->leak->bytes, $job->leak->source)
                 : 'leak',
@@ -308,6 +317,11 @@ final class JobRunner
             'exit_code' => $verdict->exitCode,
             'crashed' => $verdict->crashed,
             'timed_out' => $verdict->timedOut,
+            'run_timeout_seconds' => $verdict->timedOut ? $this->options->runTimeout : null,
+            'kill_signal' => $job->killSignal,
+            'kill_signal_name' => $job->killSignal !== null
+                ? FailureClassifier::signalLabel($job->killSignal)
+                : null,
             'leaked' => $verdict->leaked,
             'leak_count' => $job->leak?->count,
             'leak_bytes' => $job->leak?->bytes,

@@ -379,7 +379,8 @@ final class Scheduler
             JobStatus::Skipped => $head . ($job->note !== '' ? $job->note : 'skipped'),
             JobStatus::Crashed => $head . 'CRASH ' . FailureClassifier::signalLabel($job->signal) . $repro . $min,
             JobStatus::Failed => $head . 'FAIL exit ' . ($job->exitCode ?? '?') . $repro . $min,
-            JobStatus::TimedOut => $head . 'HANG' . $repro . $min,
+            JobStatus::TimedOut => $head . 'TIMEOUT'
+                . ($job->killSignal === 9 ? ' (SIGKILL)' : '') . $repro . $min,
             JobStatus::Leaked => $head . 'LEAK '
                 . ($job->leak !== null
                     ? $job->leak->count . ' (' . $job->leak->bytes . ' bytes, ' . $job->leak->source . ')'
@@ -394,7 +395,7 @@ final class Scheduler
         $lines = [
             '',
             sprintf(
-                'harness: %d runs, %d failures, %d crashes, %d hangs, %d leaks, %d reproducers, %d reduced in %s',
+                'harness: %d runs, %d failures, %d crashes, %d timeouts, %d leaks, %d reproducers, %d reduced in %s',
                 $this->stats->completed,
                 $this->stats->failures,
                 $this->stats->crashes,

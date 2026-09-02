@@ -309,8 +309,8 @@ KILL` disconnects live connections.
 ### Parallel fuzzing harness
 
 `phpredis-fuzz-harness` runs many `phpredis-fuzz*` workers in parallel behind an
-AFL-style dashboard, and turns a crash, hang, memory leak, or non-zero exit into
-a saved reproducer directory. It never interprets the workload itself — it
+AFL-style dashboard, and turns a crash, timeout, memory leak, or non-zero exit
+into a saved reproducer directory. It never interprets the workload itself — it
 launches the command you give it after `--`, substituting a few placeholders per
 run.
 
@@ -319,7 +319,8 @@ vendor/bin/phpredis-fuzz-harness \
     --jobs 4 \
     --reduce steps \
     --rr --rr-chaos \
-    --capture crashes,leaks \
+    --capture crashes,leaks,timeouts \
+    --run-timeout 120 \
     --php "$(farmroot)/sapi/cli/php" \
     --port 7000 7001 7002 7003 --isolate-ports \
     -- \
@@ -355,10 +356,16 @@ concurrency is capped at the number of ports.
   requested, and warns at startup if `--php` is not a debug build. The
   reproducer's `meta.json` records `leak_count`, `leak_bytes`, `leak_site`, and
   `leak_source` (`zend-mm` or `relay-shm`).
+- `timeouts` — the run was still going when it hit `--run-timeout` and the
+  harness killed it. Termination escalates: `SIGTERM` first for a clean exit,
+  then `SIGKILL` after a short grace period if it is still alive. The
+  reproducer's `meta.json` records `run_timeout_seconds` and `kill_signal`
+  (`SIGTERM` or `SIGKILL`, so a genuinely wedged process is visible). Runs only
+  time out when `--run-timeout` is set.
 - `failures` — any other non-zero exit (the fuzzer's own "caught a diagnostic"
-  exit) or a run killed for exceeding `--run-timeout`.
+  exit).
 
-`--capture crashes,leaks,failures` captures everything. Each capture becomes
+`--capture crashes,leaks,timeouts,failures` captures everything. Each capture becomes
 `<output>/repro-<time>-<label>-seed<seed>-run<n>/` (label is the signal name,
 `leak`, `timeout`, or `exit<code>`) containing `command.txt`, `meta.json`,
 `stdout.log`, `stderr.log`, any matching core dump, and — under `--rr` — the
@@ -389,7 +396,7 @@ the drain has been running a while only re-arms that double-tap and prints the
 hint, so a slow-draining run reads differently from a wedged one.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
 the harness prints a line per finished run and a periodic summary. The dashboard
-tallies failures, crashes, hangs, reproducers, and reductions, plus a `leaks`
+tallies failures, crashes, timeouts, reproducers, and reductions, plus a `leaks`
 count whenever `leaks` is in `--capture`. The process exits non-zero when at
 least one reproducer was captured. Point it only at a disposable Redis target.
 

@@ -30,14 +30,14 @@ final class HarnessOptions
     ];
 
     /** Categories accepted by --capture. */
-    public const CAPTURE_KINDS = ['crashes', 'leaks', 'failures'];
+    public const CAPTURE_KINDS = ['crashes', 'leaks', 'timeouts', 'failures'];
 
     /** @var list<string> */
     private const MULTI = ['port'];
 
     /**
      * @param list<int> $ports
-     * @param list<'crashes'|'leaks'|'failures'> $capture
+     * @param list<'crashes'|'leaks'|'timeouts'|'failures'> $capture
      * @param list<string> $command
      */
     private function __construct(
@@ -80,7 +80,13 @@ final class HarnessOptions
         return in_array('leaks', $this->capture, true);
     }
 
-    /** Whether non-crash failures (non-zero exits and --run-timeout hangs) are captured. */
+    /** Whether runs the harness killed for exceeding --run-timeout are captured. */
+    public function capturesTimeouts(): bool
+    {
+        return in_array('timeouts', $this->capture, true);
+    }
+
+    /** Whether non-crash, non-timeout failures (the fuzzer's own non-zero exits) are captured. */
     public function capturesFailures(): bool
     {
         return in_array('failures', $this->capture, true);
@@ -247,7 +253,7 @@ final class HarnessOptions
     }
 
     /**
-     * @return list<'crashes'|'leaks'|'failures'>
+     * @return list<'crashes'|'leaks'|'timeouts'|'failures'>
      */
     private static function captureList(string $raw): array
     {

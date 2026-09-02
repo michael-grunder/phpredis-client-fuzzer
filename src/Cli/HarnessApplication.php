@@ -199,6 +199,7 @@ final class HarnessApplication
             'port select: ' . $options->portSelect . ($options->isolatePorts ? ' (isolated)' : ' (shared)'),
             'rr: ' . ($rrBinary ?? 'disabled') . ($options->rrChaos ? ' --chaos' : ''),
             'capture: ' . implode(', ', $options->capture),
+            'run timeout: ' . ($options->runTimeout > 0.0 ? $options->runTimeout . 's' : 'disabled'),
             'reduce: ' . ($options->reduce ?? 'disabled'),
             'core_pattern: ' . $core->raw,
             'command: ' . implode(' ', $template->tokens()),
@@ -283,7 +284,7 @@ final class HarnessApplication
 
     private const HELP = <<<'HELP'
 phpredis-fuzz-harness - run many phpredis-fuzz workers in parallel with a live
-dashboard, capturing crashes, hangs, memory leaks, and non-zero exits as
+dashboard, capturing crashes, timeouts, memory leaks, and non-zero exits as
 reproducers.
 
 Usage:
@@ -312,10 +313,12 @@ Harness options:
   --reproducers N       Stop after N reproducers captured (default: unlimited)
   --capture LIST        Comma list of what to save as reproducers (default:
                         crashes). Kinds: crashes (crashing signals), leaks
-                        (Zend MM leak reports from a debug PHP build), failures
-                        (non-zero exits and --run-timeout hangs). e.g.
-                        --capture crashes,leaks
-  --run-timeout N       Kill and capture a single run after N seconds (0: off)
+                        (leak reports from a debug PHP build or Relay's shared
+                        allocator), timeouts (runs killed for exceeding
+                        --run-timeout), failures (any other non-zero exit).
+                        e.g. --capture crashes,leaks,timeouts
+  --run-timeout N       Kill a run once it has run for N seconds (0: off);
+                        SIGTERM then SIGKILL. Save these with --capture timeouts
   --rr                  Record each run with `rr record`
   --rr-chaos            Imply --rr and pass --chaos to it
   --trace-timeout N     Max seconds to wait for an rr trace to finalise (60)
@@ -332,7 +335,8 @@ that produced it) unless --no-core-check is given.
 
 Example:
   phpredis-fuzz-harness \
-      --jobs 4 --reduce steps --rr --rr-chaos --capture crashes,leaks \
+      --jobs 4 --reduce steps --rr --rr-chaos \
+      --capture crashes,leaks,timeouts --run-timeout 120 \
       --php "$(farmroot)/sapi/cli/php" \
       --port 7000 7001 7002 7003 --isolate-ports \
       -- \

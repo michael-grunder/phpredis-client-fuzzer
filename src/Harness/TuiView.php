@@ -190,7 +190,7 @@ final class TuiView implements View
         $parts = [
             sprintf('<fg=yellow>failures</> %d', $stats->failures),
             sprintf('<fg=red>crashes</> %d', $stats->crashes),
-            sprintf('<fg=magenta>hangs</> %d', $stats->timeouts),
+            sprintf('<fg=magenta>timeouts</> %d', $stats->timeouts),
         ];
         if (in_array('leaks', $state->capture, true)) {
             $parts[] = sprintf('<fg=blue>leaks</> %d', $stats->leaks);
@@ -249,7 +249,7 @@ final class TuiView implements View
             JobStatus::Skipped => ['skip', 'white'],
             JobStatus::Failed => ['FAIL', 'yellow'],
             JobStatus::Crashed => ['CRASH', 'red'],
-            JobStatus::TimedOut => ['HANG', 'magenta'],
+            JobStatus::TimedOut => ['TIMEOUT', 'magenta'],
             JobStatus::Leaked => ['LEAK', 'blue'],
         };
 

@@ -49,18 +49,43 @@ final class HarnessOptionsTest extends TestCase
         self::assertSame(['crashes'], $options->capture);
         self::assertTrue($options->capturesCrashes());
         self::assertFalse($options->capturesLeaks());
+        self::assertFalse($options->capturesTimeouts());
         self::assertFalse($options->capturesFailures());
         self::assertSame([], $options->ports);
     }
 
     public function testCaptureParsesACommaListAndNormalisesOrder(): void
     {
-        $options = HarnessOptions::parse(['--capture', 'failures,crashes,leaks,crashes', '--', 'x']);
+        $options = HarnessOptions::parse(['--capture', 'failures,crashes,timeouts,leaks,crashes', '--', 'x']);
 
-        self::assertSame(['crashes', 'leaks', 'failures'], $options->capture);
+        self::assertSame(['crashes', 'leaks', 'timeouts', 'failures'], $options->capture);
         self::assertTrue($options->capturesCrashes());
         self::assertTrue($options->capturesLeaks());
+        self::assertTrue($options->capturesTimeouts());
         self::assertTrue($options->capturesFailures());
+    }
+
+    public function testCaptureTimeoutsIsIndependentOfFailures(): void
+    {
+        $options = HarnessOptions::parse(['--capture', 'timeouts', '--', 'x']);
+
+        self::assertSame(['timeouts'], $options->capture);
+        self::assertTrue($options->capturesTimeouts());
+        self::assertFalse($options->capturesFailures());
+        self::assertFalse($options->capturesCrashes());
+    }
+
+    public function testRunTimeoutDefaultsToOffAndParsesSeconds(): void
+    {
+        self::assertSame(0.0, HarnessOptions::parse(['--', 'x'])->runTimeout);
+        self::assertSame(90.0, HarnessOptions::parse(['--run-timeout', '90', '--', 'x'])->runTimeout);
+    }
+
+    public function testRunTimeoutRejectsANegativeValue(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        HarnessOptions::parse(['--run-timeout', '-1', '--', 'x']);
     }
 
     public function testCaptureRejectsAnUnknownKind(): void

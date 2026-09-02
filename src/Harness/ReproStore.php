@@ -27,7 +27,7 @@ final class ReproStore
     {
         $label = match ($verdict->kind()) {
             'crash' => strtolower($verdict->signalName()),
-            'hang' => 'timeout',
+            'timeout' => 'timeout',
             'leak' => 'leak',
             default => 'exit' . ($verdict->exitCode ?? 0),
         };
@@ -87,6 +87,7 @@ final class ReproStore
                 : null,
             'exit_code' => $outcome->verdict->exitCode,
             'crashed' => $outcome->verdict->crashed,
+            'timed_out' => $outcome->verdict->timedOut,
             'leaked' => $outcome->verdict->leaked,
             'leak_source' => $outcome->leak?->source,
             'duration_seconds' => round($outcome->duration, 3),

@@ -20,6 +20,13 @@ final class Job
 
     public bool $timedOut = false;
 
+    /**
+     * The signal that actually ended the run when the harness terminated it
+     * (SIGTERM if it stopped on the polite request, SIGKILL if it had to be
+     * forced). Null unless the harness killed it.
+     */
+    public ?int $killSignal = null;
+
     /** Parsed Zend MM leak report from the child's stderr, when one was found. */
     public ?LeakReport $leak = null;
 
