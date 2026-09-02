@@ -30,6 +30,7 @@ final class DashboardState
         public readonly ?int $maxRuns,
         public readonly ?int $maxReproducers,
         public readonly ?float $maxSeconds,
+        public readonly ?string $shutdown = null,
     ) {
     }
 }

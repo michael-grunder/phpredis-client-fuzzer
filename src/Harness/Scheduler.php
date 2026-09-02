@@ -22,6 +22,15 @@ final class Scheduler
 
     private bool $stopping = false;
 
+    /** microtime of the most recent operator interrupt while already stopping. */
+    private float $lastInterruptAt = 0.0;
+
+    /**
+     * Seconds within which a second interrupt (right after entering shutdown, or
+     * a quick double-tap after a reminder) escalates to an immediate exit.
+     */
+    private const INTERRUPT_WINDOW = 2.0;
+
     private ?int $seedCursor;
 
     public function __construct(
@@ -49,7 +58,7 @@ final class Scheduler
                     pcntl_signal_dispatch();
                 }
                 if ($this->view->quitRequested()) {
-                    $this->stopping = true;
+                    $this->requestStop();
                 }
 
                 $this->reap();
@@ -77,6 +86,59 @@ final class Scheduler
         $this->summary();
 
         return $this->stats->reproducers > 0 ? 1 : 0;
+    }
+
+    /**
+     * Handle an operator stop request (Ctrl+C, or q/Esc in the TUI). The first
+     * request begins a graceful shutdown that stops spawning and lets in-flight
+     * runs finish. A further request while the shutdown is already under way —
+     * immediately, or a quick double-tap once the reminder has been shown —
+     * forces an immediate exit and leaves child cleanup to the OS. A lone
+     * request after the window has lapsed only re-arms it and prints a hint, so
+     * an operator can tell "still draining a slow run" from "wedged".
+     */
+    private function requestStop(): void
+    {
+        $now = microtime(true);
+
+        if (!$this->stopping) {
+            $this->stopping = true;
+            $this->lastInterruptAt = $now;
+            $this->view->note('stopping — letting in-flight runs finish; interrupt again to exit now');
+            return;
+        }
+
+        if ($now - $this->lastInterruptAt <= self::INTERRUPT_WINDOW) {
+            $this->forceQuit();
+        }
+
+        $this->lastInterruptAt = $now;
+        $this->view->note('still shutting down — interrupt twice quickly to exit immediately');
+    }
+
+    /**
+     * Abandon the graceful drain: best-effort, non-blocking kill of whatever is
+     * still running (so isolated ports and redis-servers are not left behind),
+     * restore the terminal, and exit. Anything still lingering is the OS's to
+     * reap.
+     */
+    private function forceQuit(): never
+    {
+        $signal = defined('SIGKILL') ? SIGKILL : 9;
+        $left = 0;
+        foreach ($this->active as $job) {
+            if ($job->isRunning()) {
+                @proc_terminate($job->process, $signal);
+                $left++;
+            }
+        }
+
+        $this->view->stop();
+        fwrite(STDOUT, sprintf(
+            "\nharness: forced exit on operator interrupt — %d run(s) left for the OS to reap\n",
+            $left,
+        ));
+        exit(130);
     }
 
     private function reap(): void
@@ -280,7 +342,24 @@ final class Scheduler
             maxRuns: $this->options->maxRuns > 0 ? $this->options->maxRuns : null,
             maxReproducers: $this->options->maxReproducers > 0 ? $this->options->maxReproducers : null,
             maxSeconds: $this->options->maxSeconds > 0.0 ? $this->options->maxSeconds : null,
+            shutdown: $this->shutdownBanner(),
         );
+    }
+
+    /** A header line shown while a graceful shutdown is draining in-flight runs. */
+    private function shutdownBanner(): ?string
+    {
+        if (!$this->stopping) {
+            return null;
+        }
+
+        $armed = microtime(true) - $this->lastInterruptAt <= self::INTERRUPT_WINDOW;
+        $hint = $armed ? 'press again to exit now' : 'press twice quickly to exit now';
+        $running = count($this->active);
+
+        return $running > 0
+            ? sprintf('shutting down — %d run(s) still draining · %s', $running, $hint)
+            : 'shutting down · ' . $hint;
     }
 
     private function describe(Job $job): string
@@ -339,7 +418,7 @@ final class Scheduler
 
         pcntl_async_signals(true);
         $handler = function (): void {
-            $this->stopping = true;
+            $this->requestStop();
         };
 
         if (defined('SIGINT')) {

@@ -173,6 +173,10 @@ final class TuiView implements View
             sprintf('<fg=cyan>out</> %s', $state->output),
         ];
 
+        if ($state->shutdown !== null) {
+            array_unshift($lines, '<fg=red>' . $state->shutdown . '</>');
+        }
+
         return BlockWidget::default()
             ->borders(Borders::ALL)
             ->titles(Title::fromString(' phpredis-fuzz-harness '))

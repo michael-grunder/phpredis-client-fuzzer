@@ -377,6 +377,12 @@ collected automatically. `--rr` requires the `rr` binary on `PATH`;
 
 Stop conditions are `--runs N`, `--seconds N`, and `--reproducers N` (any that
 are set; unlimited otherwise), or pressing `q`/`Esc`/`Ctrl-C` in the dashboard.
+The first stop request drains in-flight runs and then exits; interrupting again
+while that shutdown is running — immediately, or a quick double-tap after the
+"still shutting down" hint — abandons the drain, kills whatever is left, and
+exits `130`, leaving any stragglers for the OS to reap. A lone interrupt once
+the drain has been running a while only re-arms that double-tap and prints the
+hint, so a slow-draining run reads differently from a wedged one.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
 the harness prints a line per finished run and a periodic summary. The dashboard
 tallies failures, crashes, hangs, reproducers, and reductions, plus a `leaks`
