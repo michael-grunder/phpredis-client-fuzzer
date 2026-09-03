@@ -251,6 +251,7 @@ final class TuiView implements View
             JobStatus::Crashed => ['CRASH', 'red'],
             JobStatus::TimedOut => ['TIMEOUT', 'magenta'],
             JobStatus::Leaked => ['LEAK', 'blue'],
+            JobStatus::StartupFailed => ['STARTUP', 'red'],
         };
 
         $steps = $job->reducedSteps !== null

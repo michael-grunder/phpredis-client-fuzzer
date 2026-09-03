@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Harness;
 
+use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
+
 /**
  * Turns a finished child's raw exit information into a verdict the scheduler
  * can act on: did the run fail, and what kind of failure was it — a hard
  * process crash, a run the harness killed for exceeding --run-timeout, a Zend
- * MM memory leak reported by a debug PHP build, or the fuzzer exiting non-zero
- * after catching a diagnostic.
+ * MM memory leak reported by a debug PHP build, the fuzzer exiting non-zero
+ * after catching a diagnostic, or a startup failure where the fuzzer rejected
+ * the command line and never ran a single command.
  */
 final class FailureClassifier
 {
@@ -37,6 +40,7 @@ final class FailureClassifier
         public readonly bool $leaked,
         public readonly ?int $signal,
         public readonly ?int $exitCode,
+        public readonly bool $startupError = false,
     ) {
     }
 
@@ -66,15 +70,23 @@ final class FailureClassifier
         $nonZeroExit = $exitCode !== null && $exitCode !== 0;
         $failed = $crashed || $timedOut || $leaked || $nonZeroExit || $signal !== null;
 
-        return new self($failed, $crashed, $timedOut, $leaked, $signal, $exitCode);
+        // The fuzzer binaries reserve ExitCode::STARTUP for "the command line
+        // was rejected"; a run that never started cannot have died of anything
+        // else, so a signal or a timeout outranks the code.
+        $startupError = $signal === null
+            && !$timedOut
+            && $exitCode === ExitCode::STARTUP;
+
+        return new self($failed, $crashed, $timedOut, $leaked, $signal, $exitCode, $startupError);
     }
 
     /**
      * The single most significant category of this outcome, used to pick the
      * reproducer label and to gate capture against `--capture`. Precedence:
-     * crash, then timeout, then leak, then a plain non-zero exit.
+     * crash, then timeout, then leak, then a rejected command line, then a
+     * plain non-zero exit.
      *
-     * @return 'pass'|'crash'|'timeout'|'leak'|'failure'
+     * @return 'pass'|'crash'|'timeout'|'leak'|'startup'|'failure'
      */
     public function kind(): string
     {
@@ -86,6 +98,9 @@ final class FailureClassifier
         }
         if ($this->leaked) {
             return 'leak';
+        }
+        if ($this->startupError) {
+            return 'startup';
         }
         if ($this->failed) {
             return 'failure';

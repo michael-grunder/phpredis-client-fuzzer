@@ -247,6 +247,17 @@ those scenarios to a random subset of the named choices.
 Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
 help path does not connect to Redis.
 
+The fuzzer binaries (`phpredis-fuzz`, `phpredis-fuzz-coercive`, and
+`phpredis-fuzz-killer`) exit `0` when the run finished with nothing caught, `1`
+when the run executed and something failed (a caught diagnostic, a differential
+divergence, or a failed scenario), and `78` for a *startup failure*: the command
+line was rejected, or it described an unusable configuration, so no command was
+executed. Only command-line handling produces `78` — a target that cannot be
+reached is a normal `1`, because the same invocation may well work against a
+reachable server. Supervisors, and `phpredis-fuzz-harness` in particular, use
+that distinction to tell "this invocation is broken" from "this run found
+something".
+
 To inspect the command catalog without connecting to Redis, run
 `vendor/bin/phpredis-commands`. It prints each command's type, category flags,
 and available client, raw-protocol, and proxy-sampling surfaces. Its optional
@@ -416,6 +427,15 @@ run can be matched to it by PID; the harness aborts at startup otherwise. Pass
 piped `core_pattern` (systemd-coredump and similar) is allowed but cores are not
 collected automatically. `--rr` requires the `rr` binary on `PATH`;
 `--rr-chaos` implies `--rr` and adds `rr record --chaos`.
+
+A run that exits `78` is treated as a startup failure rather than a finding: the
+fuzzer rejected its command line and never executed a command, so every later run
+of that template would fail identically. The harness stops the campaign, prints
+the fuzzer's own error message and the exact command it was given, and exits
+`78` itself — a mistyped option shows up as one legible error instead of an
+endless column of failures. Nothing is captured as a reproducer for it. The
+harness also refuses to start when the template's fuzzer script does not exist,
+so a mistyped path is caught before any run is spawned.
 
 Stop conditions are `--runs N`, `--seconds N`, and `--reproducers N` (any that
 are set; unlimited otherwise), or pressing `q`/`Esc`/`Ctrl-C` in the dashboard.

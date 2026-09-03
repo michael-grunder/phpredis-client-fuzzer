@@ -170,6 +170,10 @@ final class FuzzKillerApplication
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
+        // Flipped once the command line has been fully validated, so a
+        // rejected invocation can exit with ExitCode::STARTUP.
+        $configured = false;
+
         try {
             $options = Options::parse($arguments, self::VALUE_OPTIONS, self::FLAG_OPTIONS);
 
@@ -199,14 +203,18 @@ final class FuzzKillerApplication
 
             $this->checkCapabilities($signalProcesses, $killClients);
 
+            $host = $options->string('host', '127.0.0.1');
+            $port = $options->integer('port', 6379);
+            if ($killClients && ($port < 1 || $port > 65535)) {
+                throw new \InvalidArgumentException('--port must be between 1 and 65535');
+            }
+
+            // Everything the command line asked for is valid; contacting the
+            // target and signalling workers is runtime work.
+            $configured = true;
+
             $nodes = [];
             if ($killClients) {
-                $host = $options->string('host', '127.0.0.1');
-                $port = $options->integer('port', 6379);
-                if ($port < 1 || $port > 65535) {
-                    throw new \InvalidArgumentException('--port must be between 1 and 65535');
-                }
-
                 $nodes = ($this->nodeResolver)($this->formatAddress($host, $port));
                 $this->reportNodes($nodes);
             }
@@ -233,7 +241,7 @@ final class FuzzKillerApplication
             }
         } catch (\Throwable $throwable) {
             $this->write('phpredis-fuzz-killer: ' . $throwable->getMessage() . "\n", true);
-            return 1;
+            return $configured ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
     }
 

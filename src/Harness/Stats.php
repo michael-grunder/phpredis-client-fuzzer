@@ -29,6 +29,9 @@ final class Stats
 
     public int $reductions = 0;
 
+    /** Runs that exited with ExitCode::STARTUP without fuzzing anything. */
+    public int $startupFailures = 0;
+
     private readonly float $startedAt;
 
     public function __construct()

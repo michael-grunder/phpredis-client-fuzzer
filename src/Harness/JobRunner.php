@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Harness;
 
+use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
+
 /**
  * Launches fuzzer child processes, polls them without blocking, classifies how
  * they ended, and hands captured failures to the {@see ReproStore}. Also
@@ -243,6 +245,18 @@ final class JobRunner
         }
 
         $kind = $verdict->kind();
+
+        // A rejected command line is not a finding: nothing was fuzzed, and
+        // every further run would be rejected the same way. Keep the child's
+        // own diagnostic so the scheduler can show the operator what is wrong.
+        if ($kind === 'startup') {
+            $job->status = JobStatus::StartupFailed;
+            $job->startupError = $this->childDiagnostic($job);
+            $job->note = 'startup failure (exit ' . ExitCode::STARTUP . ')';
+            $this->discard($job);
+            return;
+        }
+
         $capture = match ($kind) {
             'crash' => $this->options->capturesCrashes(),
             'leak' => $this->options->capturesLeaks(),
@@ -279,6 +293,43 @@ final class JobRunner
         if (!$this->options->keepWork) {
             Fs::removeTree($job->workDir);
         }
+    }
+
+    /**
+     * The message a child printed before giving up. stderr is where the
+     * binaries write their errors; stdout is a fallback for a child that does
+     * not. The tail is kept so a long log still ends with the failure.
+     */
+    private function childDiagnostic(Job $job): ?string
+    {
+        foreach (['stderr.log', 'stdout.log'] as $log) {
+            $contents = @file_get_contents($job->workDir . '/' . $log);
+            if (!is_string($contents) || trim($contents) === '') {
+                continue;
+            }
+
+            return self::tail(trim($contents), 20, 4000);
+        }
+
+        return null;
+    }
+
+    /** The last $lines lines of $text, further truncated to $characters. */
+    private static function tail(string $text, int $lines, int $characters): string
+    {
+        $split = preg_split('/\R/', $text);
+        if ($split === false) {
+            $split = [$text];
+        }
+        if (count($split) > $lines) {
+            $split = array_slice($split, -$lines);
+        }
+
+        $tail = implode("\n", $split);
+
+        return strlen($tail) > $characters
+            ? '...' . substr($tail, -$characters)
+            : $tail;
     }
 
     private function discard(Job $job): void

@@ -65,6 +65,7 @@ final class HarnessApplication
     {
         $template = new CommandTemplate($options->command);
         $template->validate();
+        $this->assertScriptExists($template);
 
         $php = $this->locate($options->php);
         if ($php === null) {
@@ -126,6 +127,31 @@ final class HarnessApplication
             if (!$options->keepWork) {
                 Fs::removeTree($workRoot);
             }
+        }
+    }
+
+    /**
+     * The script the template actually runs. {@see JobRunner} always launches it
+     * through the chosen PHP binary, so a mistyped path would turn every run of
+     * the campaign into "Could not open input file"; catch it before spawning
+     * anything.
+     */
+    private function assertScriptExists(CommandTemplate $template): void
+    {
+        $tokens = $template->tokens();
+        $script = $tokens[0] ?? '';
+        if (preg_match('/^php\d*(?:\.\d+)?$/', basename($script)) === 1) {
+            $script = $tokens[1] ?? '';
+        }
+
+        if ($script === '') {
+            throw new \RuntimeException('the fuzzer command after -- has no script to run');
+        }
+        if (str_contains($script, '{')) {
+            return; // built from placeholders; only resolvable per run
+        }
+        if (!is_file($script)) {
+            throw new \RuntimeException("fuzzer script not found: {$script}");
         }
     }
 
@@ -332,6 +358,11 @@ Harness options:
 
 The kernel core_pattern must contain %p (so a core can be matched to the run
 that produced it) unless --no-core-check is given.
+
+A run that exits 78 is a startup failure: the fuzzer rejected its command line
+and never executed a command. Because every later run would be rejected the same
+way, the harness stops the campaign and prints the fuzzer's own error message
+along with the command it was given.
 
 Example:
   phpredis-fuzz-harness \

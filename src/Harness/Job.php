@@ -33,6 +33,12 @@ final class Job
     /** True once the run has been judged a failure, regardless of capture. */
     public bool $failure = false;
 
+    /**
+     * What the child printed before exiting with ExitCode::STARTUP, so the
+     * operator can see which option the fuzzer rejected.
+     */
+    public ?string $startupError = null;
+
     public ?float $finishedAt = null;
 
     public ?string $reproDir = null;

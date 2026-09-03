@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Cli\Application;
+use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
 use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -64,7 +65,7 @@ final class ApplicationTest extends TestCase
             '--port=0',
         ]);
 
-        self::assertSame(1, $status);
+        self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             'Unknown invocation mode: weak',
@@ -82,7 +83,7 @@ final class ApplicationTest extends TestCase
             '--port=0',
         ]);
 
-        self::assertSame(1, $status);
+        self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             'Unknown saturation mode: synthetic',
@@ -100,7 +101,7 @@ final class ApplicationTest extends TestCase
             '--port=0',
         ]);
 
-        self::assertSame(1, $status);
+        self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             'Hook file is not readable',
@@ -118,7 +119,7 @@ final class ApplicationTest extends TestCase
             '--port=0',
         ]);
 
-        self::assertSame(1, $status);
+        self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             '--saturate-target percentage must be greater than 0 and at most 100',
@@ -137,7 +138,7 @@ final class ApplicationTest extends TestCase
             '--port=0',
         ]);
 
-        self::assertSame(1, $status);
+        self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertStringContainsString(
             'A percentage --saturate-target requires a Relay client',
@@ -167,7 +168,7 @@ final class ApplicationTest extends TestCase
             '--port=0',
         ]);
 
-        self::assertSame(1, $status);
+        self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertSame(
             "Warning: --relay-failover doesn't apply to PhpRedis, ignoring\n"
@@ -177,6 +178,53 @@ final class ApplicationTest extends TestCase
             . "phpredis-fuzz: Port must be between 1 and 65535\n",
             self::contents($error),
         );
+    }
+
+    public function testUnknownOptionIsAStartupFailure(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run(['--stpes=10']);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString('Unknown option: --stpes', self::contents($error));
+    }
+
+    public function testInvalidRunConfigurationIsAStartupFailure(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run(['--steps=0', '--seconds=0']);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertStringContainsString(
+            'At least one run limit must be greater than zero',
+            self::contents($error),
+        );
+    }
+
+    /**
+     * A target that cannot be reached is a normal failure, not a startup one:
+     * the command line was fine, so retrying it is not pointless.
+     */
+    public function testAnUnreachableTargetIsNotAStartupFailure(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--client=redis',
+            '--host=127.0.0.1',
+            '--port=1',
+            '--timeout=0.25',
+            '--steps=1',
+        ]);
+
+        self::assertSame(ExitCode::FAILURE, $status);
+        self::assertStringContainsString('phpredis-fuzz: ', self::contents($error));
     }
 
     /** @return resource */

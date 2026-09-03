@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Harness;
 
+use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
+
 /**
  * The campaign loop: keeps `--jobs` fuzzer runs in flight, reaps and classifies
  * each one, captures and (optionally) minimises failures, and stops on the
@@ -21,6 +23,13 @@ final class Scheduler
     private array $slots = [];
 
     private bool $stopping = false;
+
+    /**
+     * The first run that exited with ExitCode::STARTUP, if any. Its presence
+     * ends the campaign: the fuzzer rejected the command line, so no run can
+     * do any work.
+     */
+    private ?Job $startupFailure = null;
 
     /** microtime of the most recent operator interrupt while already stopping. */
     private float $lastInterruptAt = 0.0;
@@ -85,7 +94,11 @@ final class Scheduler
 
         $this->summary();
 
-        return $this->stats->reproducers > 0 ? 1 : 0;
+        if ($this->startupFailure !== null) {
+            return ExitCode::STARTUP;
+        }
+
+        return $this->stats->reproducers > 0 ? ExitCode::FAILURE : ExitCode::SUCCESS;
     }
 
     /**
@@ -160,6 +173,7 @@ final class Scheduler
                 JobStatus::Skipped => $this->stats->skipped++,
                 JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut, JobStatus::Leaked
                     => $this->onCapture($job),
+                JobStatus::StartupFailed => $this->onStartupFailure($job),
                 JobStatus::Running => null,
             };
 
@@ -172,6 +186,23 @@ final class Scheduler
         }
 
         $this->active = $survivors;
+    }
+
+    /**
+     * A run that never started: the fuzzer rejected its command line. Repeating
+     * it can only produce the same rejection, so stop spawning and remember the
+     * child's diagnostic for the summary.
+     */
+    private function onStartupFailure(Job $job): void
+    {
+        $this->stats->startupFailures++;
+
+        if ($this->startupFailure === null) {
+            $this->startupFailure = $job;
+            $this->view->note('STARTUP FAILURE — the fuzzer rejected its command line; stopping');
+        }
+
+        $this->stopping = true;
     }
 
     private function onCapture(Job $job): void
@@ -386,6 +417,7 @@ final class Scheduler
                     ? $job->leak->count . ' (' . $job->leak->bytes . ' bytes, ' . $job->leak->source . ')'
                     : '')
                 . $repro . $min,
+            JobStatus::StartupFailed => $head . 'STARTUP FAILURE exit ' . ($job->exitCode ?? '?'),
             JobStatus::Running => $head . 'running',
         };
     }
@@ -409,8 +441,44 @@ final class Scheduler
         if ($this->stats->reproducers > 0) {
             $lines[] = 'harness: reproducers saved under ' . $this->outputDir;
         }
+        foreach ($this->startupReport() as $line) {
+            $lines[] = $line;
+        }
 
         fwrite(STDOUT, implode("\n", $lines) . "\n");
+    }
+
+    /**
+     * The closing report for a campaign that was stopped because the fuzzer
+     * rejected its command line: what the child said, and the exact command it
+     * said it about.
+     *
+     * @return list<string>
+     */
+    private function startupReport(): array
+    {
+        $job = $this->startupFailure;
+        if ($job === null) {
+            return [];
+        }
+
+        $lines = [
+            '',
+            sprintf(
+                'harness: stopped — the fuzzer exited %d (startup failure) without running any commands.',
+                ExitCode::STARTUP,
+            ),
+            '',
+            'harness: the fuzzer reported:',
+        ];
+        foreach (explode("\n", $job->startupError ?? '(no output)') as $line) {
+            $lines[] = '    ' . $line;
+        }
+        $lines[] = '';
+        $lines[] = 'harness: the command it was given was:';
+        $lines[] = '    ' . ReproStore::formatCommand($job->argv);
+
+        return $lines;
     }
 
     private function installSignalHandlers(): void

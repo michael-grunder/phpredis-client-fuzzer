@@ -116,17 +116,28 @@ final class ReproStore
         return $found;
     }
 
-    private function commandText(Job $job): string
+    /**
+     * A copy-pasteable rendering of a child's argv, quoting only the arguments
+     * that need it.
+     *
+     * @param list<string> $argv
+     */
+    public static function formatCommand(array $argv): string
     {
         $parts = array_map(
             static fn (string $argument): string => preg_match('#^[A-Za-z0-9_@%+=:,./-]+$#', $argument) === 1
                 ? $argument
                 : escapeshellarg($argument),
-            $job->argv,
+            $argv,
         );
 
+        return implode(' ', $parts);
+    }
+
+    private function commandText(Job $job): string
+    {
         $lines = [
-            implode(' ', $parts),
+            self::formatCommand($job->argv),
             '',
             "# cwd:   {$this->coreSearchDir}",
             "# seed:  {$job->seed}",

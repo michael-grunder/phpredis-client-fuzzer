@@ -72,6 +72,12 @@ final class Application
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
+        // Everything up to the point this flips is command-line handling: a
+        // throwable before it means the run never had a chance to start, and
+        // is reported with ExitCode::STARTUP so a supervisor can tell "this
+        // invocation is broken" from "this run found something".
+        $configured = false;
+
         try {
             $options = Options::parse(
                 $arguments,
@@ -179,10 +185,9 @@ final class Application
                 'compression',
             );
 
-            $factory = new ClientFactory();
-            $clients = [];
+            $clientConfigurations = [];
             foreach ($clientTypes as $type) {
-                $clients[] = $factory->create(new ClientConfiguration(
+                $clientConfigurations[] = new ClientConfiguration(
                     type: $type,
                     host: $host,
                     port: $port,
@@ -197,11 +202,10 @@ final class Application
                     relayCluster: $type === ClientType::RelayCluster
                         ? $relayCluster
                         : new RelayClusterOptions(),
-                ));
+                );
             }
 
-            /** @var non-empty-list<\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster> $clients */
-            $result = (new Fuzzer($hooks))->run($clients, new RunConfiguration(
+            $runConfiguration = new RunConfiguration(
                 maxSteps: $options->integer('steps', 100),
                 maxSeconds: $options->number('seconds', 0.0),
                 seed: $seed,
@@ -235,17 +239,30 @@ final class Application
                 scenarios: $options->csv('scenarios'),
                 invocationMode: $invocationMode,
                 rawChaos: $options->has('raw-chaos'),
-            ));
+            );
+
+            // The command line has been fully parsed and validated; from here
+            // on a failure is a property of the target or the workload.
+            $configured = true;
+
+            $factory = new ClientFactory();
+            $clients = [];
+            foreach ($clientConfigurations as $clientConfiguration) {
+                $clients[] = $factory->create($clientConfiguration);
+            }
+
+            /** @var non-empty-list<\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster> $clients */
+            $result = (new Fuzzer($hooks))->run($clients, $runConfiguration);
 
             $this->write((new ResultFormatter())->format($result, $outputMode));
             return $result->caughtDiagnostic === null
                 && !$result->hasDifferentialDivergence()
                 && !$result->hasStatefulFailure()
-                ? 0
-                : 1;
+                ? ExitCode::SUCCESS
+                : ExitCode::FAILURE;
         } catch (\Throwable $throwable) {
             $this->write('phpredis-fuzz: ' . $throwable->getMessage() . "\n", true);
-            return 1;
+            return $configured ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
     }
 
@@ -398,6 +415,13 @@ Invocation hooks:
   HookRegistry or an InvocationHook object. Hooks run after generated ScriptArg
   values are resolved and before reproduction logging or client dispatch. See
   hooks/no-msgpack.php.
+
+Exit status:
+  0   the run finished and nothing was caught
+  1   a caught diagnostic, a differential divergence, or a failed scenario
+  78  startup failure: the command line was rejected or describes an unusable
+      configuration, and no command was executed. phpredis-fuzz-harness stops a
+      campaign when a run exits this way.
 
 The target is mutated. Use only an explicitly selected disposable Redis instance.
 HELP;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
+use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
 use Mgrunder\PhpredisCommandFuzzer\Harness\FailureClassifier;
 use PHPUnit\Framework\TestCase;
 
@@ -48,6 +49,35 @@ final class HarnessFailureClassifierTest extends TestCase
 
         self::assertTrue($verdict->failed);
         self::assertFalse($verdict->crashed);
+    }
+
+    public function testStartupExitCodeIsItsOwnKind(): void
+    {
+        $verdict = FailureClassifier::fromExit(false, null, ExitCode::STARTUP);
+
+        self::assertTrue($verdict->failed);
+        self::assertTrue($verdict->startupError);
+        self::assertFalse($verdict->crashed);
+        self::assertSame('startup', $verdict->kind());
+    }
+
+    public function testOrdinaryNonZeroExitIsNotAStartupError(): void
+    {
+        $verdict = FailureClassifier::fromExit(false, null, 1);
+
+        self::assertFalse($verdict->startupError);
+        self::assertSame('failure', $verdict->kind());
+    }
+
+    public function testKilledRunIsNotAStartupErrorEvenWithTheStartupExitCode(): void
+    {
+        $timedOut = FailureClassifier::fromExit(false, null, ExitCode::STARTUP, true);
+        self::assertFalse($timedOut->startupError);
+        self::assertSame('timeout', $timedOut->kind());
+
+        $signalled = FailureClassifier::fromExit(true, 11, ExitCode::STARTUP);
+        self::assertFalse($signalled->startupError);
+        self::assertSame('crash', $signalled->kind());
     }
 
     public function testTimeoutIsAFailure(): void

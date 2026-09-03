@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
+use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
 use Mgrunder\PhpredisCommandFuzzer\Cli\FuzzKillerApplication;
 use PHPUnit\Framework\TestCase;
 
@@ -291,7 +292,7 @@ final class FuzzKillerApplicationTest extends TestCase
             $error = self::stream();
             $status = (new FuzzKillerApplication(self::stream(), $error))->run($arguments);
 
-            self::assertSame(1, $status);
+            self::assertSame(ExitCode::STARTUP, $status);
             self::assertStringContainsString($message, self::contents($error));
         }
     }
