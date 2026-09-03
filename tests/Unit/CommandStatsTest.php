@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
+use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
+use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\CommandStats\ClusterNodesParser;
 use Mgrunder\PhpredisCommandFuzzer\CommandStats\CounterTracker;
 use Mgrunder\PhpredisCommandFuzzer\CommandStats\Node;
@@ -90,6 +92,66 @@ NODES;
 
         self::assertSame([
             ['command' => 'get', 'primary' => 1, 'replica' => 0],
+        ], $tracker->totals());
+    }
+
+    public function testSamplerReturnsAnErrorAndReconnectsAfterAnOutage(): void
+    {
+        $client = new class extends \Redis {
+            public bool $available = false;
+
+            public int $calls = 10;
+
+            public int $closes = 0;
+
+            /** @return array<string, string>|false */
+            public function info(string ...$sections): array|false
+            {
+                return $this->available
+                    ? ['cmdstat_get' => "calls={$this->calls},usec=1"]
+                    : false;
+            }
+
+            public function close(): bool
+            {
+                $this->closes++;
+
+                return true;
+            }
+        };
+        $connections = 0;
+        $sampler = new Sampler(
+            ClientType::Redis,
+            '127.0.0.1',
+            6379,
+            ['127.0.0.1:6379'],
+            1.0,
+            1.0,
+            null,
+            clientProvider: static function (ClientConfiguration $_configuration) use ($client, &$connections): object {
+                $connections++;
+
+                return $client;
+            },
+        );
+
+        $down = $sampler->sample();
+        self::assertSame([], $down->readings);
+        self::assertCount(1, $down->errors);
+        self::assertSame(1, $client->closes);
+
+        $client->available = true;
+        $baseline = $sampler->sample();
+        self::assertCount(1, $baseline->readings);
+        self::assertSame(['get' => 10], $baseline->readings[0]->calls);
+        self::assertSame(2, $connections);
+
+        $client->calls = 14;
+        $tracker = new CounterTracker();
+        $tracker->update($baseline);
+        $tracker->update($sampler->sample());
+        self::assertSame([
+            ['command' => 'get', 'primary' => 4, 'replica' => 0],
         ], $tracker->totals());
     }
 }

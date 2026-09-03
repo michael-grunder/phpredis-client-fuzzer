@@ -665,8 +665,11 @@ Cluster mode runs `CLUSTER NODES` against the configured seeds, connects to
 each advertised node directly, and aggregates command deltas into separate
 primary and replica columns. It accepts `redis-cluster` and `relay-cluster`, or
 the equivalent `redis`/`relay` with `--cluster`. Press `q`, Esc, or Ctrl-C to
-leave the dashboard. Run `vendor/bin/phpredis-commandstats --help` for all
-connection options.
+leave the dashboard. Unreachable servers and partial or complete cluster
+outages are shown in the dashboard without terminating it; connections and
+topology discovery are retried every interval, and recovered nodes resume from
+their prior counters (or establish a new baseline when first discovered). Run
+`vendor/bin/phpredis-commandstats --help` for all connection options.
 
 ## Minimal HTTP shim
 

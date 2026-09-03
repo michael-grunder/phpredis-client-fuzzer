@@ -18,9 +18,12 @@ final class Sampler
     /** @var list<Node> */
     private array $nodes;
 
+    private ?string $lastWarning = null;
+
     /**
-     * @param non-empty-list<string> $seeds
+     * @param list<string> $seeds
      * @param string|array{0: string, 1: string}|null $auth
+     * @param (\Closure(ClientConfiguration): object)|null $clientProvider
      */
     public function __construct(
         private readonly ClientType $type,
@@ -32,7 +35,25 @@ final class Sampler
         private readonly string|array|null $auth,
         private readonly ClientFactory $factory = new ClientFactory(),
         private readonly ClusterNodesParser $topologyParser = new ClusterNodesParser(),
+        private readonly ?\Closure $clientProvider = null,
     ) {
+        if ($seeds === []) {
+            throw new \InvalidArgumentException('At least one Redis seed is required');
+        }
+        if ($timeout < 0 || $readTimeout < 0) {
+            throw new \InvalidArgumentException('Timeouts cannot be negative');
+        }
+
+        $directType = $this->directType();
+        if (!class_exists($directType->className())) {
+            throw new \RuntimeException("Redis client class {$directType->className()} is not available");
+        }
+        if ($type->isCluster()) {
+            foreach ($seeds as $seed) {
+                Node::fromAddress($seed, NodeRole::Primary);
+            }
+        }
+
         $this->nodes = $type->isCluster()
             ? []
             : [new Node($host, $port, NodeRole::Primary)];
@@ -45,29 +66,23 @@ final class Sampler
             try {
                 $this->nodes = $this->discover();
             } catch (\Throwable $throwable) {
-                if ($this->nodes === []) {
-                    throw $throwable;
-                }
-                $errors[] = 'topology: ' . $throwable->getMessage();
+                $errors[] = 'topology: ' . $this->errorMessage($throwable);
             }
         }
 
         $readings = [];
         foreach ($this->nodes as $node) {
             try {
-                $reply = $this->client($node)->info('commandstats');
+                $reply = $this->invoke(fn (): Redis|Relay|array|false => $this->client($node)->info('commandstats'));
                 if (!is_array($reply)) {
-                    throw new \RuntimeException('INFO commandstats returned no data');
+                    throw new \RuntimeException($this->lastWarning ?? 'INFO commandstats returned no data');
                 }
                 $readings[] = new Reading($node, self::calls($reply));
             } catch (\Throwable $throwable) {
+                $message = $this->errorMessage($throwable);
                 $this->forget($node->key());
-                $errors[] = $node->key() . ': ' . $throwable->getMessage();
+                $errors[] = $node->key() . ': ' . $message;
             }
-        }
-
-        if ($readings === []) {
-            throw new \RuntimeException('No Redis nodes returned INFO commandstats');
         }
 
         return new Sample($readings, $errors);
@@ -112,9 +127,9 @@ final class Sampler
             $seed = null;
             try {
                 $seed = Node::fromAddress($address, NodeRole::Primary);
-                $reply = $this->client($seed)->rawCommand('CLUSTER', 'NODES');
+                $reply = $this->invoke(fn (): mixed => $this->client($seed)->rawCommand('CLUSTER', 'NODES'));
                 if (!is_string($reply)) {
-                    throw new \RuntimeException('CLUSTER NODES returned no topology');
+                    throw new \RuntimeException($this->lastWarning ?? 'CLUSTER NODES returned no topology');
                 }
                 $nodes = $this->topologyParser->parse($reply);
                 if ($nodes === []) {
@@ -123,10 +138,11 @@ final class Sampler
 
                 return $nodes;
             } catch (\Throwable $throwable) {
+                $message = $this->errorMessage($throwable);
                 if ($seed !== null) {
                     $this->forget($seed->key());
                 }
-                $failures[] = "{$address}: {$throwable->getMessage()}";
+                $failures[] = "{$address}: {$message}";
             }
         }
 
@@ -140,18 +156,18 @@ final class Sampler
             return $this->clients[$key];
         }
 
-        $client = $this->factory->create(new ClientConfiguration(
-            type: match ($this->type) {
-                ClientType::Relay, ClientType::RelayCluster => ClientType::Relay,
-                default => ClientType::Redis,
-            },
+        $configuration = new ClientConfiguration(
+            type: $this->directType(),
             host: $node->host,
             port: $node->port,
             seeds: [$key],
             timeout: $this->timeout,
             readTimeout: $this->readTimeout,
             auth: $this->auth,
-        ));
+        );
+        $client = $this->clientProvider === null
+            ? $this->factory->create($configuration)
+            : ($this->clientProvider)($configuration);
         if (!$client instanceof Redis && !$client instanceof Relay) {
             throw new \LogicException('Command stats requires a standalone Redis client');
         }
@@ -168,9 +184,47 @@ final class Sampler
         }
 
         try {
-            $client->close();
+            $this->invoke(static fn (): mixed => $client->close());
         } catch (\Throwable) {
             // The connection is already unusable.
         }
+    }
+
+    private function directType(): ClientType
+    {
+        return match ($this->type) {
+            ClientType::Relay, ClientType::RelayCluster => ClientType::Relay,
+            default => ClientType::Redis,
+        };
+    }
+
+    /** @param \Closure(): mixed $operation */
+    private function invoke(\Closure $operation): mixed
+    {
+        $this->lastWarning = null;
+        set_error_handler(function (int $severity, string $message): bool {
+            if (($severity & (E_WARNING | E_USER_WARNING)) === 0) {
+                return false;
+            }
+            $this->lastWarning = $message;
+
+            return true;
+        }, E_WARNING | E_USER_WARNING);
+
+        try {
+            return $operation();
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    private function errorMessage(\Throwable $throwable): string
+    {
+        $message = $throwable->getMessage();
+        if ($this->lastWarning !== null && !str_contains($message, $this->lastWarning)) {
+            $message .= ': ' . $this->lastWarning;
+        }
+
+        return $message;
     }
 }
