@@ -197,8 +197,8 @@ or loaded automatically; only load files you trust.
 
 Composer installs `vendor/bin/phpredis-fuzz`,
 `vendor/bin/phpredis-fuzz-coercive`, `vendor/bin/phpredis-fuzz-killer`,
-`vendor/bin/phpredis-fuzz-harness`, `vendor/bin/phpredis-commands`, and
-`vendor/bin/phpredis-coverage`.
+`vendor/bin/phpredis-fuzz-harness`, `vendor/bin/phpredis-commands`,
+`vendor/bin/phpredis-coverage`, and `vendor/bin/phpredis-commandstats`.
 The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
 defaults to one and the total is limited to 10,000 clients. Each step selects
@@ -642,6 +642,32 @@ available in process through `Coverage\CoverageAnalyzer`, which accepts a
 `ServerCommands` list, a `ClientType`, an optional `Registry`, and an optional
 `IgnoreList`.
 
+## Live command statistics
+
+`phpredis-commandstats` is a resize-aware php-tui dashboard for the calls in
+`INFO commandstats`. Its first sample is the baseline, so every displayed value
+is a cumulative delta since the dashboard started rather than a server lifetime
+counter. Commands are sorted from most to least frequent and the dashboard packs
+multiple command groups across wider terminals.
+
+```bash
+# A standalone server through PhpRedis
+vendor/bin/phpredis-commandstats --client=redis --host=127.0.0.1 --port=6379
+
+# Every connected primary and replica in a cluster, sampled through Relay
+vendor/bin/phpredis-commandstats \
+    --client=relay-cluster \
+    --seeds=127.0.0.1:7000,127.0.0.1:7001 \
+    --interval=0.5
+```
+
+Cluster mode runs `CLUSTER NODES` against the configured seeds, connects to
+each advertised node directly, and aggregates command deltas into separate
+primary and replica columns. It accepts `redis-cluster` and `relay-cluster`, or
+the equivalent `redis`/`relay` with `--cluster`. Press `q`, Esc, or Ctrl-C to
+leave the dashboard. Run `vendor/bin/phpredis-commandstats --help` for all
+connection options.
+
 ## Minimal HTTP shim
 
 `FuzzerEndpoint` is framework-neutral: give it a callable that returns one
@@ -1045,6 +1071,7 @@ bin/phpredis-fuzz --help
 bin/phpredis-fuzz-harness --help
 bin/phpredis-commands --help
 bin/phpredis-coverage --help
+bin/phpredis-commandstats --help
 ```
 
 PHPStan runs at level `max`. PHPUnit unit tests do not require a Redis server.

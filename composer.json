@@ -19,8 +19,9 @@
         "bin/phpredis-fuzz-killer",
         "bin/phpredis-fuzz-harness",
         "bin/phpredis-commands",
-        "bin/phpredis-coverage"
-        ,"bin/phpredis-fuzz-subscribe"
+        "bin/phpredis-coverage",
+        "bin/phpredis-fuzz-subscribe",
+        "bin/phpredis-commandstats"
     ],
     "authors": [
         {
