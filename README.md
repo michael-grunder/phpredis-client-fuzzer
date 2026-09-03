@@ -110,7 +110,7 @@ options:
 
 ```bash
 bin/phpredis-fuzz \
-    --include-local \
+    --include=local \
     --hook=hooks/no-msgpack.php \
     --steps=100000
 ```
@@ -576,8 +576,9 @@ missing a required method produce a structured `skipped` outcome.
 
 The `STATEFUL` command flag is separate from scenarios. Standalone random
 `MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH`, and pipeline commands are
-excluded by default; use `--include-stateful` when deliberately mixing them
-into the random stream.
+excluded by default; use `--include=stateful` when deliberately mixing them
+into the random stream. The `--include` option accepts a comma-separated list
+of `admin`, `local`, `flush`, and `stateful`; `--include=all` enables all four.
 
 ## Command coverage
 

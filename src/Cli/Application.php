@@ -46,7 +46,7 @@ final class Application
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'saturate-chance',
         'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
-        'invocation-mode',
+        'invocation-mode', 'include',
         'differential-tolerance-ms', 'differential-poll-ms',
         'scenarios', 'hook',
         'output',
@@ -55,8 +55,8 @@ final class Application
     ];
 
     private const FLAG_OPTIONS = [
-        'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking', 'include-local',
-        'include-admin', 'include-flush', 'include-crashing', 'include-stateful',
+        'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking',
+        'include-crashing',
         'no-relay-compatibility', 'differential',
     ];
 
@@ -96,6 +96,7 @@ final class Application
             $saturationTarget = $saturationTargetValue === null
                 ? null
                 : SaturationTarget::parse($saturationTargetValue);
+            $includes = IncludeCategories::parse($options->nullableString('include'));
 
             if ($options->has('verbose')) {
                 Log::setLogger(function (string $level, string $message, array $context): void {
@@ -221,11 +222,11 @@ final class Application
                 weights: $this->weights($options->repeated('weight')),
                 raw: $options->has('raw'),
                 includeBlocking: $options->has('include-blocking'),
-                includeLocal: $options->has('include-local'),
-                includeAdmin: $options->has('include-admin'),
-                includeFlush: $options->has('include-flush'),
+                includeLocal: $includes->local,
+                includeAdmin: $includes->admin,
+                includeFlush: $includes->flush,
                 includeCrashing: $options->has('include-crashing'),
-                includeStateful: $options->has('include-stateful'),
+                includeStateful: $includes->stateful,
                 scriptLog: $options->nullableString('script-log'),
                 catchPattern: $options->nullableString('catch'),
                 differential: $options->has('differential'),
@@ -374,11 +375,9 @@ Run configuration:
   --raw                      Enable raw-protocol command paths
   --raw-chaos                Enable rawCommand calls with arbitrary scalar arguments
   --include-blocking         Enable blocking commands
-  --include-local            Enable commands that alter local client state
-  --include-admin            Enable Redis administrative commands
-  --include-flush            Enable FLUSHDB/FLUSHALL
+  --include=CATEGORY,...     Enable opt-in command categories: admin, local,
+                             flush, stateful, or all (all enables these four)
   --include-crashing         Enable deliberately process-crashing commands
-  --include-stateful         Enable standalone stateful commands in random fuzzing
   --scenarios=NAME,...       Run seeded scenarios first: transaction-exec,
                              transaction-discard, watch-unwatch-discard,
                              none, or random (random may select any subset)
