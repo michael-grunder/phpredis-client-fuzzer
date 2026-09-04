@@ -808,9 +808,9 @@ and reported under `environment.clients[].relay_cluster` in the result.
 
 The equivalent CLI options are `--relay-failover`, `--relay-distribute`,
 `--relay-node-read-timeout`, and `--relay-multikey-reordering`; they require
-`--client=relay-cluster`. When a run selects only PhpRedis clients, supplied
-Relay options are ignored with a warning so the same invocation can be reused
-while switching clients.
+`--client=relay-cluster`. When a run does not select a Relay cluster client,
+supplied Relay cluster options are ignored with a warning so the same invocation
+can be reused while switching between standalone and cluster clients.
 
 ```bash
 vendor/bin/phpredis-fuzz \

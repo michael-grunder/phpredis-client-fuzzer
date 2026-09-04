@@ -137,6 +137,7 @@ final class Application
 
             $hasRelayClient = in_array(ClientType::Relay, $clientTypes, true)
                 || in_array(ClientType::RelayCluster, $clientTypes, true);
+            $hasRelayCluster = in_array(ClientType::RelayCluster, $clientTypes, true);
 
             if ($saturationTarget?->isPercentage() && !$hasRelayClient) {
                 throw new \InvalidArgumentException(
@@ -144,11 +145,11 @@ final class Application
                 );
             }
 
-            if (!$hasRelayClient) {
+            if (!$hasRelayCluster) {
                 foreach (self::RELAY_CLUSTER_OPTIONS as $name) {
                     if ($options->has($name)) {
                         $this->write(
-                            "Warning: --{$name} doesn't apply to PhpRedis, ignoring\n",
+                            "Warning: --{$name} only applies to --client=relay-cluster, ignoring\n",
                             true,
                         );
                     }
@@ -166,12 +167,6 @@ final class Application
                         'multikey reordering',
                     ),
                 );
-
-                if (!$relayCluster->isEmpty() && !in_array(ClientType::RelayCluster, $clientTypes, true)) {
-                    throw new \InvalidArgumentException(
-                        'The --relay-* cluster options require --client=relay-cluster',
-                    );
-                }
             }
 
             $serializer = OptionChoices::resolve(

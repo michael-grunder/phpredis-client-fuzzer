@@ -147,15 +147,18 @@ final class ApplicationTest extends TestCase
     }
 
     /** @return iterable<string, array{string}> */
-    public static function phpRedisClients(): iterable
+    public static function clientsWithoutRelayCluster(): iterable
     {
-        yield 'standalone' => ['redis'];
-        yield 'cluster' => ['redis-cluster'];
-        yield 'both' => ['redis,redis-cluster'];
+        yield 'PhpRedis standalone' => ['redis'];
+        yield 'PhpRedis cluster' => ['redis-cluster'];
+        yield 'PhpRedis standalone and cluster' => ['redis,redis-cluster'];
+        yield 'Relay standalone' => ['relay'];
+        yield 'multiple Relay standalone' => ['relay:2'];
+        yield 'PhpRedis and Relay standalone' => ['redis,relay'];
     }
 
-    #[DataProvider('phpRedisClients')]
-    public function testRelayOptionsWarnAndAreIgnoredForPhpRedisClients(string $clients): void
+    #[DataProvider('clientsWithoutRelayCluster')]
+    public function testRelayClusterOptionsWarnAndAreIgnoredWithoutRelayCluster(string $clients): void
     {
         $output = self::stream();
         $error = self::stream();
@@ -171,11 +174,30 @@ final class ApplicationTest extends TestCase
         self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertSame(
-            "Warning: --relay-failover doesn't apply to PhpRedis, ignoring\n"
-            . "Warning: --relay-distribute doesn't apply to PhpRedis, ignoring\n"
-            . "Warning: --relay-node-read-timeout doesn't apply to PhpRedis, ignoring\n"
-            . "Warning: --relay-multikey-reordering doesn't apply to PhpRedis, ignoring\n"
+            "Warning: --relay-failover only applies to --client=relay-cluster, ignoring\n"
+            . "Warning: --relay-distribute only applies to --client=relay-cluster, ignoring\n"
+            . "Warning: --relay-node-read-timeout only applies to --client=relay-cluster, ignoring\n"
+            . "Warning: --relay-multikey-reordering only applies to --client=relay-cluster, ignoring\n"
             . "phpredis-fuzz: Port must be between 1 and 65535\n",
+            self::contents($error),
+        );
+    }
+
+    public function testRelayClusterOptionsRemainValidatedForRelayCluster(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+        $status = (new Application($output, $error))->run([
+            '--client=relay-cluster',
+            '--relay-failover=unsupported',
+            '--port=0',
+        ]);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame('', self::contents($output));
+        self::assertSame(
+            'phpredis-fuzz: Unknown failover mode "unsupported"; expected one of '
+            . "none, primary, random_replica, replicas, all\n",
             self::contents($error),
         );
     }
