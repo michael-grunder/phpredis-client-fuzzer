@@ -31,6 +31,7 @@ final class ReproStore
         private readonly string $root,
         private readonly CorePattern $core,
         private readonly string $coreSearchDir,
+        private readonly ?string $phpIni = null,
         ?int $pid = null,
     ) {
         $resolved = $pid ?? getmypid();
@@ -62,6 +63,8 @@ final class ReproStore
         if ($job->pid !== null) {
             $this->collectCores($job->pid, $dir);
         }
+
+        $this->copyIni($dir);
 
         file_put_contents($dir . '/command.txt', $this->commandText($job));
         file_put_contents(
@@ -104,6 +107,20 @@ final class ReproStore
             'duration_seconds' => round($outcome->duration, 3),
             'captured_at' => date('c'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+    }
+
+    /**
+     * Keep the ini a campaign ran with next to the failure it produced. The
+     * file on disk can be edited or deleted long before anyone comes back to
+     * the reproducer, and without it the recorded `-c <path>` may no longer
+     * describe the run that crashed.
+     */
+    private function copyIni(string $dir): void
+    {
+        if ($this->phpIni === null) {
+            return;
+        }
+        @copy($this->phpIni, $dir . '/php.ini');
     }
 
     /**
@@ -182,6 +199,9 @@ final class ReproStore
             "# cwd:   {$this->coreSearchDir}",
             "# seed:  {$job->seed}",
         ];
+        if ($this->phpIni !== null) {
+            $lines[] = "# ini:   {$this->phpIni} (copied to php.ini)";
+        }
         if ($job->port !== null) {
             $lines[] = "# port:  {$job->port}";
         }

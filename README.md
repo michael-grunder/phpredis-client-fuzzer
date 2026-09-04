@@ -401,6 +401,7 @@ vendor/bin/phpredis-fuzz-harness \
     --capture crashes,leaks,timeouts \
     --run-timeout 120 \
     --php "$(farmroot)/sapi/cli/php" \
+    --php-ini "$(farmroot)/php.ini" --php-args -drelay.maxmemory=1g \
     --port 7000 7001 7002 7003 --isolate-ports \
     -- \
     vendor/bin/phpredis-fuzz-coercive \
@@ -412,6 +413,18 @@ Placeholders in the template are replaced for every run: `{port}` (a port drawn
 from `--port`), `{steps}` (the current step budget), `{seed}` (the run's seed,
 also appended as `--seed=N` when the template does not set it), `{job}` (the job
 slot, `0 .. jobs-1`), and `{run}` (the global run counter).
+
+`--php` picks the interpreter; `--php-args` adds startup arguments in front of
+the fuzzer script, so `--php /usr/bin/php --php-args -drelay.maxmemory=1g` runs
+every worker as `/usr/bin/php -drelay.maxmemory=1g ...`. It may be repeated, and
+a value that holds several arguments is split the way a shell would
+(`--php-args="-d a=1 -d b=2"`); nothing is passed through a shell, so quoting is
+only interpreted there. `--php-ini FILE` is shorthand for `--php-args "-c FILE"`
+— the file must exist and be readable or the harness refuses to start, and a
+copy of it is stored in every reproducer as `php.ini`, with the absolute path
+recorded in `command.txt` and `meta.json`, so a capture stays reproducible after
+the original ini is edited or deleted. The version banner and the debug-build
+check are probed with the same ini and arguments the runs use.
 
 Port handling is deliberately two-mode. Give one or more `--port` values;
 `--port-select` is `cycle` (round-robin, default) or `random`. Without
@@ -447,6 +460,7 @@ concurrency is capped at the number of ports.
 `--capture crashes,leaks,timeouts,failures` captures everything. Each capture
 becomes `<output>/<harness-pid>.<nnnnn>/` — for example `48213.00001` — holding
 `command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump,
+the `php.ini` copy when `--php-ini` was used,
 and — under `--rr` — the finalised `rr-trace/` (the harness waits for rr's
 `incomplete` sentinel to clear, up to `--trace-timeout`). The seed, run number,
 signal, exit code, and capture time all live in `meta.json`. Work directories

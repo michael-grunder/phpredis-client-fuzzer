@@ -72,6 +72,9 @@ final class HarnessApplication
             throw new \RuntimeException("php binary not found or not executable: {$options->php}");
         }
 
+        $phpIni = $options->phpIni === null ? null : $this->resolveIni($options->phpIni);
+        $phpArgs = $phpIni === null ? $options->phpArgs : ['-c', $phpIni, ...$options->phpArgs];
+
         $rrBinary = null;
         if ($options->rr) {
             $rrBinary = $this->locate('rr');
@@ -102,18 +105,18 @@ final class HarnessApplication
         $workRoot = $outputDir . '/.work';
         Fs::ensureDir($workRoot);
 
-        if ($options->capturesLeaks() && !$this->phpIsDebug($php)) {
+        if ($options->capturesLeaks() && !$this->phpIsDebug($php, $phpArgs)) {
             $this->write(
                 "warning: --capture leaks needs a debug PHP build; this php will not emit Zend MM leak reports\n",
                 true,
             );
         }
 
-        $phpVersion = $this->probePhp($php);
+        $phpVersion = $this->probePhp($php, $phpArgs);
 
-        $store = new ReproStore($outputDir, $core, $baseDir);
-        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $rrBinary, $core, $store->pid());
-        $runner = new JobRunner($options, $php, $baseDir, $template, $store, $workRoot, $rrBinary, $phpVersion);
+        $store = new ReproStore($outputDir, $core, $baseDir, $phpIni);
+        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid());
+        $runner = new JobRunner($options, $php, $phpArgs, $baseDir, $template, $store, $workRoot, $rrBinary, $phpVersion);
         $reducer = new Reducer($runner, $options->reduceTimeout);
         $ports = new PortPool($options->ports, $options->portSelect, $options->isolatePorts);
         $stats = new Stats();
@@ -153,6 +156,26 @@ final class HarnessApplication
         if (!is_file($script)) {
             throw new \RuntimeException("fuzzer script not found: {$script}");
         }
+    }
+
+    /**
+     * A missing or unreadable `--php-ini` would silently change every run's
+     * configuration — PHP warns about the path and then carries on with its
+     * built-in defaults — so it is checked before anything is spawned. The
+     * absolute path is what gets recorded with a reproducer.
+     */
+    private function resolveIni(string $path): string
+    {
+        if (!is_file($path)) {
+            throw new \RuntimeException("php ini file not found: {$path}");
+        }
+        if (!is_readable($path)) {
+            throw new \RuntimeException("php ini file is not readable: {$path}");
+        }
+
+        $resolved = realpath($path);
+
+        return $resolved === false ? $this->absolute($path) : $resolved;
     }
 
     private function resolveCorePattern(HarnessOptions $options): CorePattern
@@ -207,11 +230,13 @@ final class HarnessApplication
         }
     }
 
+    /** @param list<string> $phpArgs */
     private function writeRunInfo(
         HarnessOptions $options,
         string $outputDir,
         CommandTemplate $template,
         string $phpVersion,
+        array $phpArgs,
         ?string $rrBinary,
         CorePattern $core,
         int $pid,
@@ -221,6 +246,7 @@ final class HarnessApplication
             'harness pid: ' . $pid,
             'php: ' . $phpVersion,
             'php binary: ' . $options->php,
+            'php args: ' . ($phpArgs === [] ? '(none)' : ReproStore::formatCommand($phpArgs)),
             'jobs: ' . $options->jobs,
             'steps: ' . $options->steps,
             'ports: ' . ($options->ports === [] ? '(none)' : implode(', ', $options->ports)),
@@ -239,14 +265,16 @@ final class HarnessApplication
         file_put_contents($outputDir . '/' . $pid . '.run-info.txt', implode("\n", $info) . "\n");
     }
 
-    private function probePhp(string $php): string
+    /** @param list<string> $phpArgs */
+    private function probePhp(string $php, array $phpArgs): string
     {
-        $version = @shell_exec(escapeshellarg($php) . ' -v 2>/dev/null');
+        $binary = self::shellCommand($php, $phpArgs);
+        $version = @shell_exec($binary . ' -v 2>/dev/null');
         $first = is_string($version) ? strtok($version, "\n") : false;
         $line = $first === false ? 'unknown php' : trim($first);
 
         $extensions = @shell_exec(
-            escapeshellarg($php) . ' -r '
+            $binary . ' -r '
             . escapeshellarg(
                 'foreach (["redis","relay"] as $e) '
                 . '{ echo $e, "=", extension_loaded($e) ? (string) phpversion($e) : "n/a", " "; }',
@@ -259,14 +287,30 @@ final class HarnessApplication
             : $line;
     }
 
-    /** Whether $php is a debug build (only those emit Zend MM leak reports). */
-    private function phpIsDebug(string $php): bool
+    /**
+     * Whether $php is a debug build (only those emit Zend MM leak reports).
+     *
+     * @param list<string> $phpArgs
+     */
+    private function phpIsDebug(string $php, array $phpArgs): bool
     {
         $out = @shell_exec(
-            escapeshellarg($php) . ' -r ' . escapeshellarg('echo PHP_DEBUG ? "1" : "0";') . ' 2>/dev/null',
+            self::shellCommand($php, $phpArgs)
+            . ' -r ' . escapeshellarg('echo PHP_DEBUG ? "1" : "0";') . ' 2>/dev/null',
         );
 
         return is_string($out) && trim($out) === '1';
+    }
+
+    /**
+     * The php binary plus its startup arguments, escaped for a shell probe, so
+     * a probe sees exactly the configuration the runs will use.
+     *
+     * @param list<string> $phpArgs
+     */
+    private static function shellCommand(string $php, array $phpArgs): string
+    {
+        return implode(' ', array_map(escapeshellarg(...), [$php, ...$phpArgs]));
     }
 
     private function locate(string $name): ?string
@@ -332,6 +376,13 @@ substituted per run:
 Harness options:
   --jobs N              Concurrent runs (default: 1)
   --php PATH            PHP binary to run the fuzzer with (default: this PHP)
+  --php-args ARGS       Extra PHP startup arguments placed before the fuzzer
+                        script, e.g. --php-args -drelay.maxmemory=1g. May be
+                        repeated, and a value holding several arguments is
+                        split like a shell would: --php-args="-d a=1 -d b=2"
+  --php-ini FILE        Run each fuzzer with this php.ini (shorthand for
+                        --php-args "-c FILE"). The file must exist, and a copy
+                        of it is stored with every reproducer as php.ini
   --port P [P ...]      One or more Redis ports; also accepts --port=P,P
   --port-select MODE    cycle (round-robin, default) or random
   --isolate-ports       Never hand one port to two running jobs at once
@@ -374,6 +425,7 @@ Example:
       --jobs 4 --reduce steps --rr --rr-chaos \
       --capture crashes,leaks,timeouts --run-timeout 120 \
       --php "$(farmroot)/sapi/cli/php" \
+      --php-ini "$(farmroot)/php.ini" --php-args -drelay.maxmemory=1g \
       --port 7000 7001 7002 7003 --isolate-ports \
       -- \
       bin/phpredis-fuzz-coercive \

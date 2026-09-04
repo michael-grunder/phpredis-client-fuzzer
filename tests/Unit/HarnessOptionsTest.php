@@ -54,6 +54,73 @@ final class HarnessOptionsTest extends TestCase
         self::assertSame([], $options->ports);
     }
 
+    public function testPhpArgsDefaultToNothing(): void
+    {
+        $options = HarnessOptions::parse(['--', 'x']);
+
+        self::assertSame([], $options->phpArgs);
+        self::assertNull($options->phpIni);
+    }
+
+    public function testPhpArgsTakeOneValuePerOccurrenceAndAccumulate(): void
+    {
+        $options = HarnessOptions::parse([
+            '--php-args', '-drelay.maxmemory=1g',
+            '--php-args', '-dopcache.enable=0',
+            '--', 'x',
+        ]);
+
+        self::assertSame(['-drelay.maxmemory=1g', '-dopcache.enable=0'], $options->phpArgs);
+    }
+
+    public function testPhpArgsSplitAQuotedValueLikeAShell(): void
+    {
+        $options = HarnessOptions::parse([
+            '--php-args=-d relay.maxmemory=1g  -d "relay.key=a b"',
+            '--', 'x',
+        ]);
+
+        self::assertSame(
+            ['-d', 'relay.maxmemory=1g', '-d', 'relay.key=a b'],
+            $options->phpArgs,
+        );
+    }
+
+    public function testPhpArgsKeepCommasInsteadOfSplittingOnThem(): void
+    {
+        $options = HarnessOptions::parse(['--php-args', '-dextension=a,b', '--', 'x']);
+
+        self::assertSame(['-dextension=a,b'], $options->phpArgs);
+    }
+
+    public function testPhpArgsRejectAnUnterminatedQuote(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        HarnessOptions::parse(['--php-args=-d "relay.key=a', '--', 'x']);
+    }
+
+    public function testPhpArgsRequireAValue(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        HarnessOptions::parse(['--php-args', '--', 'x']);
+    }
+
+    public function testPhpIniIsKeptAsGiven(): void
+    {
+        $options = HarnessOptions::parse(['--php-ini', '/etc/php/fuzz.ini', '--', 'x']);
+
+        self::assertSame('/etc/php/fuzz.ini', $options->phpIni);
+    }
+
+    public function testPhpIniConflictsWithAnIniInPhpArgs(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        HarnessOptions::parse(['--php-ini', '/etc/php/fuzz.ini', '--php-args=-c /other.ini', '--', 'x']);
+    }
+
     public function testCaptureParsesACommaListAndNormalisesOrder(): void
     {
         $options = HarnessOptions::parse(['--capture', 'failures,crashes,timeouts,leaks,crashes', '--', 'x']);

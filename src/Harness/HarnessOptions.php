@@ -24,10 +24,19 @@ final class HarnessOptions
 
     /** @var list<string> */
     private const SINGLE = [
-        'jobs', 'php', 'reduce', 'steps', 'seed', 'output', 'runs', 'seconds',
+        'jobs', 'php', 'php-ini', 'reduce', 'steps', 'seed', 'output', 'runs', 'seconds',
         'reproducers', 'trace-timeout', 'reduce-timeout', 'run-timeout', 'port-select',
         'capture',
     ];
+
+    /**
+     * Options that take one value per occurrence and accumulate across them.
+     * Each value is split into argv tokens, so both
+     * `--php-args -dopcache.enable=0` and `--php-args="-d a=1 -d b=2"` work.
+     *
+     * @var list<string>
+     */
+    private const APPEND = ['php-args'];
 
     /** Categories accepted by --capture. */
     public const CAPTURE_KINDS = ['crashes', 'leaks', 'timeouts', 'failures'];
@@ -36,6 +45,7 @@ final class HarnessOptions
     private const MULTI = ['port'];
 
     /**
+     * @param list<string> $phpArgs
      * @param list<int> $ports
      * @param list<'crashes'|'leaks'|'timeouts'|'failures'> $capture
      * @param list<string> $command
@@ -44,6 +54,8 @@ final class HarnessOptions
         public readonly bool $help,
         public readonly int $jobs,
         public readonly string $php,
+        public readonly array $phpArgs,
+        public readonly ?string $phpIni,
         public readonly ?string $reduce,
         public readonly int $steps,
         public readonly ?int $seed,
@@ -127,6 +139,20 @@ final class HarnessOptions
                 continue;
             }
 
+            if (in_array($name, self::APPEND, true)) {
+                if ($inlineValue !== null) {
+                    $lists[$name][] = $inlineValue;
+                    continue;
+                }
+                if ($index + 1 >= $count || str_starts_with($harnessArgs[$index + 1], '--')) {
+                    // A value of its own that starts with -- has to use the
+                    // --name=value form, or a stray option would be swallowed.
+                    throw new \InvalidArgumentException("--{$name} requires a value");
+                }
+                $lists[$name][] = $harnessArgs[++$index];
+                continue;
+            }
+
             if (in_array($name, self::MULTI, true)) {
                 if ($inlineValue !== null) {
                     foreach (explode(',', $inlineValue) as $piece) {
@@ -193,11 +219,18 @@ final class HarnessOptions
         }
 
         $php = $values['php'] ?? PHP_BINARY;
+        $phpArgs = self::argvList($lists['php-args'] ?? []);
+        $phpIni = $values['php-ini'] ?? null;
+        if ($phpIni !== null && array_filter($phpArgs, static fn (string $a): bool => str_starts_with($a, '-c')) !== []) {
+            throw new \InvalidArgumentException('--php-ini and -c in --php-args set the same thing; use one');
+        }
 
         return new self(
             help: $help,
             jobs: $jobs,
             php: $php,
+            phpArgs: $phpArgs,
+            phpIni: $phpIni,
             reduce: $reduce,
             steps: $steps,
             seed: isset($values['seed']) ? self::intValue($values, 'seed', 0) : null,
@@ -220,6 +253,88 @@ final class HarnessOptions
             quiet: isset($flags['quiet']),
             command: $command,
         );
+    }
+
+    /**
+     * Split the raw `--php-args` values into argv tokens.
+     *
+     * @param list<string> $raw
+     * @return list<string>
+     */
+    private static function argvList(array $raw): array
+    {
+        $tokens = [];
+        foreach ($raw as $value) {
+            foreach (self::tokenize($value) as $token) {
+                $tokens[] = $token;
+            }
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * A minimal shell-style splitter: whitespace separates tokens, single and
+     * double quotes group them, and a backslash escapes the next character.
+     * The child is launched with an argv array rather than a shell, so this is
+     * the only place quoting is interpreted.
+     *
+     * @return list<string>
+     */
+    private static function tokenize(string $raw): array
+    {
+        $tokens = [];
+        $current = '';
+        $started = false;
+        $quote = null;
+
+        $length = strlen($raw);
+        for ($index = 0; $index < $length; $index++) {
+            $character = $raw[$index];
+
+            if ($quote !== null) {
+                if ($character === $quote) {
+                    $quote = null;
+                } elseif ($quote === '"' && $character === '\\' && $index + 1 < $length
+                    && ($raw[$index + 1] === '"' || $raw[$index + 1] === '\\')) {
+                    $current .= $raw[++$index];
+                } else {
+                    $current .= $character;
+                }
+                continue;
+            }
+
+            if ($character === '"' || $character === "'") {
+                $quote = $character;
+                $started = true;
+                continue;
+            }
+            if ($character === '\\' && $index + 1 < $length) {
+                $current .= $raw[++$index];
+                $started = true;
+                continue;
+            }
+            if (ctype_space($character)) {
+                if ($started) {
+                    $tokens[] = $current;
+                    $current = '';
+                    $started = false;
+                }
+                continue;
+            }
+
+            $current .= $character;
+            $started = true;
+        }
+
+        if ($quote !== null) {
+            throw new \InvalidArgumentException("--php-args has an unterminated quote: {$raw}");
+        }
+        if ($started) {
+            $tokens[] = $current;
+        }
+
+        return $tokens;
     }
 
     /** @param array<string, string> $values */

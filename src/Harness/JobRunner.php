@@ -15,9 +15,14 @@ final class JobRunner
 {
     private int $nextId = 1;
 
+    /**
+     * @param list<string> $phpArgs Startup arguments inserted between the PHP
+     *        binary and the fuzzer script (`-c <ini>` and `--php-args`).
+     */
     public function __construct(
         private readonly HarnessOptions $options,
         private readonly string $php,
+        private readonly array $phpArgs,
         private readonly string $baseDir,
         private readonly CommandTemplate $template,
         private readonly ReproStore $store,
@@ -382,6 +387,8 @@ final class JobRunner
             'rr' => $this->rrBinary !== null,
             'rr_chaos' => $this->options->rrChaos,
             'php' => $this->php,
+            'php_args' => $this->phpArgs,
+            'php_ini' => $this->options->phpIni,
             'php_version' => $this->phpVersion,
             'command' => $job->argv,
             'captured_at' => date('c'),
@@ -404,9 +411,9 @@ final class JobRunner
         // Run the fuzzer script through the chosen PHP binary unless the caller
         // already put a php interpreter first.
         if (preg_match('/^php\d*(?:\.\d+)?$/', basename($child[0])) === 1) {
-            $child = [$this->php, ...array_slice($child, 1)];
+            $child = [$this->php, ...$this->phpArgs, ...array_slice($child, 1)];
         } else {
-            $child = [$this->php, ...$child];
+            $child = [$this->php, ...$this->phpArgs, ...$child];
         }
 
         // Pin the seed so a captured failure can be reproduced and reduced.
