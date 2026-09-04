@@ -279,7 +279,7 @@ final class JobRunner
         // report the child as "signaled"; keep it for the dashboard.
         $job->signal ??= $verdict->signal;
 
-        $job->reproDir = $this->store->capture($job, $verdict, $this->meta($job, $verdict));
+        $job->reproDir = $this->store->capture($job, $this->meta($job, $verdict));
         $job->status = match ($kind) {
             'crash' => JobStatus::Crashed,
             'timeout' => JobStatus::TimedOut,

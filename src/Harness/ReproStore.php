@@ -8,39 +8,50 @@ namespace Mgrunder\PhpredisCommandFuzzer\Harness;
  * Persists a captured failure: its logs, the rr trace, any core dumps, the
  * exact command line, and a machine-readable `meta.json`. Nothing here is ever
  * deleted; these directories may be the only evidence of a client defect.
+ *
+ * Captures are named `<harness pid>.<sequence>`, so several harnesses can share
+ * one output directory and each campaign's reproducers stay grouped and ordered
+ * by age. Pids are recycled, so the sequence is not assumed to start at one:
+ * {@see allocate()} claims the first free number instead.
  */
 final class ReproStore
 {
+    /**
+     * The point at which a shared output directory has stopped being useful.
+     * Only a guard against spinning forever on a directory we cannot write to.
+     */
+    private const MAX_SEQUENCE = 999999;
+
+    private readonly int $pid;
+
+    /** Where the next allocation starts looking; never revisits a taken name. */
+    private int $next = 1;
+
     public function __construct(
         private readonly string $root,
         private readonly CorePattern $core,
         private readonly string $coreSearchDir,
+        ?int $pid = null,
     ) {
+        $resolved = $pid ?? getmypid();
+        $this->pid = $resolved === false ? 0 : $resolved;
+
         Fs::ensureDir($this->root);
+    }
+
+    /** The pid the capture directories of this campaign are named after. */
+    public function pid(): int
+    {
+        return $this->pid;
     }
 
     /**
      * @param array<string, mixed> $meta
      * @return string The created reproducer directory.
      */
-    public function capture(Job $job, FailureClassifier $verdict, array $meta): string
+    public function capture(Job $job, array $meta): string
     {
-        $label = match ($verdict->kind()) {
-            'crash' => strtolower($verdict->signalName()),
-            'timeout' => 'timeout',
-            'leak' => 'leak',
-            default => 'exit' . ($verdict->exitCode ?? 0),
-        };
-
-        $dir = sprintf(
-            '%s/repro-%s-%s-seed%d-run%d',
-            $this->root,
-            date('Ymd-His'),
-            $label,
-            $job->seed,
-            $job->id,
-        );
-        Fs::ensureDir($dir);
+        $dir = $this->allocate();
 
         foreach (['stdout.log', 'stderr.log'] as $log) {
             Fs::move($job->workDir . '/' . $log, $dir . '/' . $log);
@@ -93,6 +104,35 @@ final class ReproStore
             'duration_seconds' => round($outcome->duration, 3),
             'captured_at' => date('c'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+    }
+
+    /**
+     * Claim the next free `<pid>.<sequence>` directory.
+     *
+     * `mkdir()` without the recursive flag is the atomic primitive here: on
+     * Linux it fails with EEXIST rather than reusing a name, so a directory
+     * left behind by an older harness that happened to hold this pid, or one
+     * being claimed right now by a concurrent harness, can never be written
+     * into twice. That makes "find the first unused number" safe without a
+     * lock file or a stat-then-create race.
+     */
+    private function allocate(): string
+    {
+        for ($sequence = $this->next; $sequence <= self::MAX_SEQUENCE; $sequence++) {
+            $dir = sprintf('%s/%d.%05d', $this->root, $this->pid, $sequence);
+            if (@mkdir($dir, 0o777)) {
+                $this->next = $sequence + 1;
+
+                return $dir;
+            }
+            if (!is_dir($dir)) {
+                throw new \RuntimeException("cannot create reproducer directory: {$dir}");
+            }
+        }
+
+        throw new \RuntimeException(
+            sprintf('reproducer directory %s already holds %d captures for pid %d; use a fresh --output', $this->root, self::MAX_SEQUENCE, $this->pid),
+        );
     }
 
     private function collectCores(int $pid, string $destination): int

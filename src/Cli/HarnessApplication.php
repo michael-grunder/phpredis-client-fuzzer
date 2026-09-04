@@ -110,9 +110,9 @@ final class HarnessApplication
         }
 
         $phpVersion = $this->probePhp($php);
-        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $rrBinary, $core);
 
         $store = new ReproStore($outputDir, $core, $baseDir);
+        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $rrBinary, $core, $store->pid());
         $runner = new JobRunner($options, $php, $baseDir, $template, $store, $workRoot, $rrBinary, $phpVersion);
         $reducer = new Reducer($runner, $options->reduceTimeout);
         $ports = new PortPool($options->ports, $options->portSelect, $options->isolatePorts);
@@ -214,9 +214,11 @@ final class HarnessApplication
         string $phpVersion,
         ?string $rrBinary,
         CorePattern $core,
+        int $pid,
     ): void {
         $info = [
             'started: ' . date('c'),
+            'harness pid: ' . $pid,
             'php: ' . $phpVersion,
             'php binary: ' . $options->php,
             'jobs: ' . $options->jobs,
@@ -231,7 +233,10 @@ final class HarnessApplication
             'command: ' . implode(' ', $template->tokens()),
         ];
 
-        file_put_contents($outputDir . '/run-info.txt', implode("\n", $info) . "\n");
+        // Named after the pid, like the capture directories, so a second
+        // harness sharing this output directory cannot overwrite the record of
+        // what the first one was running.
+        file_put_contents($outputDir . '/' . $pid . '.run-info.txt', implode("\n", $info) . "\n");
     }
 
     private function probePhp(string $php): string

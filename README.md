@@ -444,13 +444,22 @@ concurrency is capped at the number of ports.
 - `failures` — any other non-zero exit (the fuzzer's own "caught a diagnostic"
   exit).
 
-`--capture crashes,leaks,timeouts,failures` captures everything. Each capture becomes
-`<output>/repro-<time>-<label>-seed<seed>-run<n>/` (label is the signal name,
-`leak`, `timeout`, or `exit<code>`) containing `command.txt`, `meta.json`,
-`stdout.log`, `stderr.log`, any matching core dump, and — under `--rr` — the
-finalised `rr-trace/` (the harness waits for rr's `incomplete` sentinel to
-clear, up to `--trace-timeout`). Work directories and rr traces for runs that
-are not captured are deleted; `--keep-work` keeps them.
+`--capture crashes,leaks,timeouts,failures` captures everything. Each capture
+becomes `<output>/<harness-pid>.<nnnnn>/` — for example `48213.00001` — holding
+`command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump,
+and — under `--rr` — the finalised `rr-trace/` (the harness waits for rr's
+`incomplete` sentinel to clear, up to `--trace-timeout`). The seed, run number,
+signal, exit code, and capture time all live in `meta.json`. Work directories
+and rr traces for runs that are not captured are deleted; `--keep-work` keeps
+them.
+
+Naming captures after the harness pid lets several harnesses share one output
+directory: each campaign's reproducers stay grouped, and the sequence numbers
+order them by age within a campaign. Directories are claimed with a
+non-recursive `mkdir()`, which fails rather than reusing an existing name, so a
+recycled pid simply continues past whatever numbers are already on disk instead
+of writing over them. The settings of each campaign are written alongside its
+captures as `<output>/<harness-pid>.run-info.txt`.
 
 With `--reduce steps` a capture is followed by a binary search for the smallest
 `{steps}` value that still reproduces the same failure with the same seed and
