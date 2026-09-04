@@ -9,6 +9,7 @@ use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
@@ -42,7 +43,7 @@ final class Application
     private const VALUE_OPTIONS = [
         'client', 'host', 'port', 'seeds', 'username', 'password', 'timeout',
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
-        'seconds', 'seed', 'commands', 'weight', 'keys', 'members', 'shards',
+        'seconds', 'seed', 'forks', 'commands', 'weight', 'keys', 'members', 'shards',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'saturate-chance',
         'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
@@ -133,6 +134,16 @@ final class Application
             $seed = $options->optionalInteger('seed') ?? random_int(0, PHP_INT_MAX);
             mt_srand($seed);
 
+            $forks = $options->integer('forks', 0);
+            if ($forks < 0 || $forks > ForkPool::MAX_FORKS) {
+                throw new \InvalidArgumentException(
+                    '--forks must be between 0 and ' . ForkPool::MAX_FORKS,
+                );
+            }
+            if ($forks > 0 && !ForkPool::supported()) {
+                throw new \RuntimeException('--forks requires the pcntl extension');
+            }
+
             $hooks = HookLoader::load($options->repeated('hook'));
 
             $hasRelayClient = in_array(ClientType::Relay, $clientTypes, true)
@@ -200,10 +211,14 @@ final class Application
                 );
             }
 
-            $runConfiguration = new RunConfiguration(
+            // Built through a factory because a forked run gives every child
+            // its own seed and its own reproduction script; everything else is
+            // shared, and validation still happens here, before the fork.
+            $scriptLog = $options->nullableString('script-log');
+            $configure = fn (int $runSeed, ?string $runScriptLog): RunConfiguration => new RunConfiguration(
                 maxSteps: $options->integer('steps', 100),
                 maxSeconds: $options->number('seconds', 0.0),
-                seed: $seed,
+                seed: $runSeed,
                 keys: $options->integer('keys', 100),
                 shards: $options->integer('shards', 16),
                 members: $options->integer('members', 10),
@@ -226,7 +241,7 @@ final class Application
                 includeFlush: $includes->flush,
                 includeCrashing: $options->has('include-crashing'),
                 includeStateful: $includes->stateful,
-                scriptLog: $options->nullableString('script-log'),
+                scriptLog: $runScriptLog,
                 catchPattern: $options->nullableString('catch'),
                 differential: $options->has('differential'),
                 differentialToleranceMs: $options->number('differential-tolerance-ms', 10.0),
@@ -235,6 +250,16 @@ final class Application
                 invocationMode: $invocationMode,
                 rawChaos: $options->has('raw-chaos'),
             );
+
+            $runConfiguration = $configure($seed, $scriptLog);
+
+            // Every child of a forked run gets its own seed, drawn from the
+            // reported one, so the processes fuzz different command streams
+            // while the whole run stays reproducible from --seed and --forks.
+            $childSeeds = [];
+            for ($index = 0; $index < $forks; $index++) {
+                $childSeeds[] = mt_rand(0, mt_getrandmax());
+            }
 
             // The command line has been fully parsed and validated; from here
             // on a failure is a property of the target or the workload.
@@ -246,19 +271,93 @@ final class Application
                 $clients[] = $factory->create($clientConfiguration);
             }
 
-            /** @var non-empty-list<\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster> $clients */
-            $result = (new Fuzzer($hooks))->run($clients, $runConfiguration);
+            if ($forks === 0) {
+                return $this->execute($clients, $runConfiguration, $hooks, $outputMode, $this->output);
+            }
 
-            $this->write((new ResultFormatter())->format($result, $outputMode));
-            return $result->caughtDiagnostic === null
-                && !$result->hasDifferentialDivergence()
-                && !$result->hasStatefulFailure()
-                ? ExitCode::SUCCESS
-                : ExitCode::FAILURE;
+            return (new ForkPool($this->output, $this->error))->run(
+                $forks,
+                /** @param resource $output */
+                function (int $index, $output) use (
+                    $clients,
+                    $clientConfigurations,
+                    $factory,
+                    $childSeeds,
+                    $configure,
+                    $scriptLog,
+                    $hooks,
+                    $outputMode,
+                ): int {
+                    // Redis and RedisCluster cannot be used after a fork: the
+                    // child inherits the parent's socket. Relay and
+                    // Relay\Cluster carry their own fork machinery, and
+                    // exercising it is the point of --forks, so those clients
+                    // are used exactly as inherited.
+                    foreach ($clients as $position => $client) {
+                        if ($client instanceof \Redis || $client instanceof \RedisCluster) {
+                            $clients[$position] = $factory->create($clientConfigurations[$position]);
+                        }
+                    }
+
+                    return $this->execute(
+                        $clients,
+                        $configure(
+                            $childSeeds[$index],
+                            $this->childScriptLog($scriptLog, $index),
+                        ),
+                        $hooks,
+                        $outputMode,
+                        $output,
+                    );
+                },
+            );
         } catch (\Throwable $throwable) {
             $this->write('phpredis-fuzz: ' . $throwable->getMessage() . "\n", true);
             return $configured ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
+    }
+
+    /**
+     * Runs one workload and writes its formatted result.
+     *
+     * @param list<\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster> $clients
+     * @param resource $output Where the result is written; a forked child
+     *        writes to its own socket instead of the shared output stream.
+     */
+    private function execute(
+        array $clients,
+        RunConfiguration $configuration,
+        HookRegistry $hooks,
+        OutputMode $outputMode,
+        $output,
+    ): int {
+        $result = (new Fuzzer($hooks))->run($clients, $configuration);
+
+        fwrite($output, (new ResultFormatter())->format($result, $outputMode));
+
+        return $result->caughtDiagnostic === null
+            && !$result->hasDifferentialDivergence()
+            && !$result->hasStatefulFailure()
+            ? ExitCode::SUCCESS
+            : ExitCode::FAILURE;
+    }
+
+    /**
+     * Gives each forked child its own reproduction script so concurrent
+     * children never overwrite one another's evidence.
+     */
+    private function childScriptLog(?string $path, int $index): ?string
+    {
+        if ($path === null) {
+            return null;
+        }
+
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+        if ($extension === '') {
+            return $path . '.' . ($index + 1);
+        }
+
+        return substr($path, 0, -(strlen($extension) + 1)) . '.' . ($index + 1) . '.' . $extension;
     }
 
     /**
@@ -348,6 +447,17 @@ Run configuration:
   --steps=N                  Maximum executed operations (default: 100)
   --seconds=N                Maximum duration; 0 disables (default: 0)
   --seed=N                   Reproducible random seed (generated when omitted)
+  --forks=N                  Run the workload in N pcntl_fork()ed children
+                             instead of this process; 0 does not fork
+                             (default: 0). Each child runs the full --steps or
+                             --seconds workload with its own seed derived from
+                             --seed, re-creating Redis and RedisCluster clients
+                             because those cannot be used after a fork, and
+                             using inherited Relay clients as-is. The parent
+                             only supervises: it prints each child's result
+                             whole as that child finishes, waits for all of
+                             them, and exits with the most severe child status.
+                             --script-log gets a per-child suffix.
   --commands=PATTERN,...     Include/exclude names, globs, or @flags
   --weight=TARGET:N          Set command or @flag weight; repeatable
   --keys=N                   Generated key space (default: 100)

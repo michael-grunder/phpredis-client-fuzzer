@@ -37,7 +37,7 @@
     },
     "suggest": {
         "ext-posix": "Required by the phpredis-fuzz-killer process signal utility",
-        "ext-pcntl": "Lets phpredis-fuzz-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
+        "ext-pcntl": "Required by phpredis-fuzz --forks; also lets phpredis-fuzz-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
         "ext-relay": "Required to fuzz Relay\\Relay or Relay\\Cluster clients"
     },
     "require-dev": {

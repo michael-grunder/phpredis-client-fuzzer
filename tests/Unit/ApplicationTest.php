@@ -6,6 +6,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Cli\Application;
 use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
+use Mgrunder\PhpredisCommandFuzzer\Cli\ForkPool;
 use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -35,6 +36,7 @@ final class ApplicationTest extends TestCase
         self::assertStringNotContainsString('--include-flush', self::contents($output));
         self::assertStringNotContainsString('--include-stateful', self::contents($output));
         self::assertStringContainsString('--hook=FILE', self::contents($output));
+        self::assertStringContainsString('--forks=N', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));
         self::assertSame('', self::contents($error));
     }
@@ -200,6 +202,35 @@ final class ApplicationTest extends TestCase
             . "none, primary, random_replica, replicas, all\n",
             self::contents($error),
         );
+    }
+
+    public function testForkCountIsValidatedBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--forks=-1',
+            '--port=0',
+        ]);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString('--forks must be between 0 and', self::contents($error));
+    }
+
+    public function testTooManyForksAreRejectedBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--forks=' . (ForkPool::MAX_FORKS + 1),
+            '--port=0',
+        ]);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertStringContainsString('--forks must be between 0 and', self::contents($error));
     }
 
     public function testUnknownOptionIsAStartupFailure(): void

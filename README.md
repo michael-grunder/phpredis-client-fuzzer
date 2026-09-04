@@ -26,6 +26,7 @@ methods and raw-protocol variants where an implementation provides both.
 - PHP 8.4 or newer
 - PhpRedis (`ext-redis`)
 - Relay (`ext-relay`) only when fuzzing Relay clients
+- `ext-pcntl` only for forked concurrent runs (`phpredis-fuzz --forks`)
 
 ```bash
 composer require mgrunder/phpredis-command-fuzzer
@@ -203,7 +204,8 @@ The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
 defaults to one and the total is limited to 10,000 clients. Each step selects
 one eligible instance at random, so `--steps` remains the total number of
-sequential operations rather than a per-client or parallel-operation count.
+sequential operations rather than a per-client or parallel-operation count. Use
+`--forks=N` to run the workload concurrently in forked child processes.
 
 ```bash
 # Standalone PhpRedis, fixed seed and focused command set
@@ -236,6 +238,41 @@ vendor/bin/phpredis-fuzz \
     --steps=500 \
     --seed=123456
 ```
+
+### Forked concurrent runs
+
+`--forks=N` runs the workload in `N` `pcntl_fork()`ed children instead of the
+current process. The parent forks and then only supervises: it never executes
+commands itself, prints each child's result whole as that child finishes, waits
+for every child, and exits with the most severe child status (`78` beats `1`
+beats `0`). A child killed by a signal fails the run and is reported on stderr
+with its signal number. `SIGINT` and `SIGTERM` are forwarded to the children; a
+second one stops supervising and takes the signal's default action.
+
+Each child runs the whole `--steps` or `--seconds` workload, so `N` children
+execute `N` times the requested operations concurrently. Child seeds are drawn
+from the reported `--seed`, so the children fuzz different command streams while
+the run as a whole stays reproducible from `--seed` and `--forks`; each child
+also reports its own seed, which reproduces that child alone when the run's
+settings are given explicitly. `--script-log=repro.php` becomes `repro.1.php`,
+`repro.2.php`, and so on, so concurrent children never overwrite one another's
+reproduction scripts.
+
+```bash
+# Eight concurrent PhpRedis workloads against a disposable target
+vendor/bin/phpredis-fuzz \
+    --client=redis \
+    --forks=8 \
+    --steps=10000 \
+    --seed=123456
+```
+
+`Redis` and `RedisCluster` connections cannot be used after a fork, so each
+child re-creates those clients from the same `--client` configuration before it
+starts fuzzing. `Relay\Relay` and `Relay\Cluster` handle forking themselves, so
+children keep the clients they inherited — exercising that machinery is a
+deliberate part of what `--forks` tests. The option requires `ext-pcntl` and
+accepts at most 1,024 children; `--forks=0` (the default) does not fork.
 
 `--scenarios` accepts `transaction-exec`, `transaction-discard`, and
 `watch-unwatch-discard`. Use `none` to explicitly disable them, or `random` to
