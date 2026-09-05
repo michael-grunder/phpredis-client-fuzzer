@@ -83,6 +83,15 @@ final class HarnessApplication
             }
         }
 
+        $setsid = $this->resolveDetach($php);
+        if ($setsid === null && $options->rr) {
+            $this->write(
+                "warning: setsid not found or unusable; runs stay in the harness' process group, "
+                . "where a terminal resize can abort an rr recording\n",
+                true,
+            );
+        }
+
         $core = $this->resolveCorePattern($options);
 
         if ($template->uses('port') && $options->ports === []) {
@@ -115,8 +124,19 @@ final class HarnessApplication
         $phpVersion = $this->probePhp($php, $phpArgs);
 
         $store = new ReproStore($outputDir, $core, $baseDir, $phpIni);
-        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid());
-        $runner = new JobRunner($options, $php, $phpArgs, $baseDir, $template, $store, $workRoot, $rrBinary, $phpVersion);
+        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid(), $setsid);
+        $runner = new JobRunner(
+            $options,
+            $php,
+            $phpArgs,
+            $baseDir,
+            $template,
+            $store,
+            $workRoot,
+            $rrBinary,
+            $phpVersion,
+            $setsid,
+        );
         $reducer = new Reducer($runner, $options->reduceTimeout);
         $ports = new PortPool($options->ports, $options->portSelect, $options->isolatePorts);
         $stats = new Stats();
@@ -240,6 +260,7 @@ final class HarnessApplication
         ?string $rrBinary,
         CorePattern $core,
         int $pid,
+        ?string $setsid,
     ): void {
         $info = [
             'started: ' . date('c'),
@@ -252,6 +273,7 @@ final class HarnessApplication
             'ports: ' . ($options->ports === [] ? '(none)' : implode(', ', $options->ports)),
             'port select: ' . $options->portSelect . ($options->isolatePorts ? ' (isolated)' : ' (shared)'),
             'rr: ' . ($rrBinary ?? 'disabled') . ($options->rrChaos ? ' --chaos' : ''),
+            'detach: ' . ($setsid ?? 'no (runs share the harness process group)'),
             'capture: ' . implode(', ', $options->capture),
             'run timeout: ' . ($options->runTimeout > 0.0 ? $options->runTimeout . 's' : 'disabled'),
             'reduce: ' . ($options->reduce ?? 'disabled'),
@@ -263,6 +285,37 @@ final class HarnessApplication
         // harness sharing this output directory cannot overwrite the record of
         // what the first one was running.
         file_put_contents($outputDir . '/' . $pid . '.run-info.txt', implode("\n", $info) . "\n");
+    }
+
+    /**
+     * A `setsid(1)` that is safe to prefix every child with, or null.
+     *
+     * Running each run in its own session keeps the terminal's signals — Ctrl+C
+     * and, more damagingly, the SIGWINCH of a window resize that makes rr abort
+     * mid-spawn — away from the children. `setsid` only forks when it is
+     * already a process group leader, which a child of ours never is, so the
+     * pid the harness tracks stays the run's own pid and its exit status and
+     * fatal signal still arrive intact. That is the property everything else
+     * here depends on, so it is verified rather than assumed: a setsid that
+     * forks would report exit 0 immediately for every run.
+     */
+    private function resolveDetach(string $php): ?string
+    {
+        $setsid = $this->locate('setsid');
+        if ($setsid === null) {
+            return null;
+        }
+
+        $code = 0;
+        $output = [];
+        @exec(
+            escapeshellarg($setsid) . ' ' . escapeshellarg($php)
+            . ' -r ' . escapeshellarg('exit(42);') . ' 2>/dev/null',
+            $output,
+            $code,
+        );
+
+        return $code === 42 ? $setsid : null;
     }
 
     /** @param list<string> $phpArgs */
@@ -403,7 +456,10 @@ Harness options:
                         SIGTERM then SIGKILL. Save these with --capture timeouts
   --rr                  Record each run with `rr record`
   --rr-chaos            Imply --rr and pass --chaos to it
-  --trace-timeout N     Max seconds to wait for an rr trace to finalise (60)
+  --trace-timeout N     Max seconds to wait for an rr trace to finalise (60).
+                        A trace that never finalises is not a reproducer: the
+                        run is parked under <output>/failed and counted as a
+                        failed reproducer instead
   --reduce-timeout N    Time budget for one reduction (default: 120)
   --output DIR          Where reproducers are written (default: ./phpredis-fuzz-repros)
   --keep-work           Keep per-run work directories and traces even on success

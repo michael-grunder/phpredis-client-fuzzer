@@ -27,6 +27,13 @@ final class Stats
 
     public int $reproducers = 0;
 
+    /**
+     * Failures whose artifacts could not be trusted (an rr trace that never
+     * finalised) and were parked under `<output>/failed/` rather than filed as
+     * reproducers.
+     */
+    public int $failedReproducers = 0;
+
     public int $reductions = 0;
 
     /** Runs that exited with ExitCode::STARTUP without fuzzing anything. */

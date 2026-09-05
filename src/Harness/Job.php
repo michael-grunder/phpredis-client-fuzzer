@@ -43,6 +43,13 @@ final class Job
 
     public ?string $reproDir = null;
 
+    /**
+     * Why this run's artifacts are not replayable (an rr trace that never
+     * finalised), when it was parked under `failed/` instead of being filed as
+     * a reproducer.
+     */
+    public ?string $traceFailure = null;
+
     public ?int $reducedSteps = null;
 
     public string $note = '';

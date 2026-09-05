@@ -32,4 +32,12 @@ enum JobStatus: string
      * command, so every run of this campaign would fail the same way.
      */
     case StartupFailed = 'startup-failed';
+
+    /**
+     * The run failed, but its artifacts are not replayable — an rr trace that
+     * never finalised, most often because rr itself died before it could
+     * record anything. Parked under `<output>/failed/` instead of being filed
+     * as a reproducer.
+     */
+    case CaptureFailed = 'capture-failed';
 }

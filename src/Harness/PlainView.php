@@ -38,7 +38,8 @@ final class PlainView implements View
         $this->lastSummary = $now;
 
         $this->line(sprintf(
-            '[%s] runs=%d active=%d/%d exec/s=%.1f failures=%d crashes=%d timeouts=%d leaks=%d repros=%d',
+            '[%s] runs=%d active=%d/%d exec/s=%.1f failures=%d crashes=%d timeouts=%d leaks=%d repros=%d'
+            . ($stats->failedReproducers > 0 ? ' failed-repros=' . $stats->failedReproducers : ''),
             $stats->formatElapsed(),
             $stats->completed,
             count($state->active),
@@ -55,7 +56,8 @@ final class PlainView implements View
     public function note(string $message): void
     {
         if ($this->quiet && !str_contains($message, 'CRASH') && !str_contains($message, 'FAIL')
-            && !str_contains($message, 'TIMEOUT') && !str_contains($message, 'LEAK')) {
+            && !str_contains($message, 'TIMEOUT') && !str_contains($message, 'LEAK')
+            && !str_contains($message, 'trace capture failed')) {
             return;
         }
         $this->line('harness: ' . $message);

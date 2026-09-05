@@ -164,28 +164,39 @@ final class Scheduler
                 continue;
             }
 
-            $this->stats->completed++;
-            if ($job->failure) {
-                $this->stats->failures++;
-            }
-            match ($job->status) {
-                JobStatus::Passed => $this->stats->passed++,
-                JobStatus::Skipped => $this->stats->skipped++,
-                JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut, JobStatus::Leaked
-                    => $this->onCapture($job),
-                JobStatus::StartupFailed => $this->onStartupFailure($job),
-                JobStatus::Running => null,
-            };
-
-            if ($job->port !== null) {
-                $this->ports->release($job->port);
-            }
-            unset($this->slots[$job->slot]);
-            $this->pushRecent($job);
-            $this->view->note($this->describe($job));
+            $this->finish($job);
         }
 
         $this->active = $survivors;
+    }
+
+    /**
+     * Account for a run that has stopped, whatever ended it. Shared by the
+     * campaign loop and the shutdown drain so a run that finished during the
+     * drain is counted and captured exactly like any other.
+     */
+    private function finish(Job $job): void
+    {
+        $this->stats->completed++;
+        if ($job->failure) {
+            $this->stats->failures++;
+        }
+        match ($job->status) {
+            JobStatus::Passed => $this->stats->passed++,
+            JobStatus::Skipped => $this->stats->skipped++,
+            JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut, JobStatus::Leaked
+                => $this->onCapture($job),
+            JobStatus::CaptureFailed => $this->onCaptureFailure($job),
+            JobStatus::StartupFailed => $this->onStartupFailure($job),
+            JobStatus::Running => null,
+        };
+
+        if ($job->port !== null) {
+            $this->ports->release($job->port);
+        }
+        unset($this->slots[$job->slot]);
+        $this->pushRecent($job);
+        $this->view->note($this->describe($job));
     }
 
     /**
@@ -203,6 +214,27 @@ final class Scheduler
         }
 
         $this->stopping = true;
+    }
+
+    /**
+     * A failure whose artifacts cannot be replayed. It is parked under
+     * `failed/`, counted on its own, and deliberately kept out of the
+     * reproducer count: it must not satisfy `--reproducers N`, must not be fed
+     * to the reducer (whose whole method is re-running it), and must not turn
+     * a campaign that found nothing into a failing exit code.
+     */
+    private function onCaptureFailure(Job $job): void
+    {
+        $this->stats->failedReproducers++;
+
+        if ($this->stats->failedReproducers === 1) {
+            $this->view->note(sprintf(
+                'trace capture failed (%s) — parked under %s/%s, not counted as a reproducer',
+                $job->traceFailure ?? 'unusable artifacts',
+                $this->outputDir,
+                ReproStore::FAILED,
+            ));
+        }
     }
 
     private function onCapture(Job $job): void
@@ -319,11 +351,7 @@ final class Scheduler
         $this->view->note('stopping — terminating ' . count($this->active) . ' run(s)…');
         foreach ($this->active as $job) {
             $this->runner->poll($job, true);
-            if ($job->port !== null) {
-                $this->ports->release($job->port);
-            }
-            unset($this->slots[$job->slot]);
-            $this->pushRecent($job);
+            $this->finish($job);
         }
         $this->active = [];
     }
@@ -417,6 +445,7 @@ final class Scheduler
                     ? $job->leak->count . ' (' . $job->leak->bytes . ' bytes, ' . $job->leak->source . ')'
                     : '')
                 . $repro . $min,
+            JobStatus::CaptureFailed => $head . 'CAPTURE FAILED ' . ($job->note !== '' ? $job->note : '') . $repro,
             JobStatus::StartupFailed => $head . 'STARTUP FAILURE exit ' . ($job->exitCode ?? '?'),
             JobStatus::Running => $head . 'running',
         };
@@ -440,6 +469,14 @@ final class Scheduler
         ];
         if ($this->stats->reproducers > 0) {
             $lines[] = 'harness: reproducers saved under ' . $this->outputDir;
+        }
+        if ($this->stats->failedReproducers > 0) {
+            $lines[] = sprintf(
+                'harness: %d failed reproducer(s) — artifacts were not replayable (see %s/%s)',
+                $this->stats->failedReproducers,
+                $this->outputDir,
+                ReproStore::FAILED,
+            );
         }
         foreach ($this->startupReport() as $line) {
             $lines[] = $line;

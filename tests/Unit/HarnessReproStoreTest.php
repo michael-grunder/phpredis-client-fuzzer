@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Harness\CorePattern;
+use Mgrunder\PhpredisCommandFuzzer\Harness\FailureClassifier;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Job;
+use Mgrunder\PhpredisCommandFuzzer\Harness\JobOutcome;
 use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
+use Mgrunder\PhpredisCommandFuzzer\Harness\RrTrace;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessReproStoreTest extends TestCase
@@ -44,6 +47,77 @@ final class HarnessReproStoreTest extends TestCase
 
         self::assertFileDoesNotExist($dir . '/php.ini');
         self::assertStringNotContainsString('# ini:', (string) file_get_contents($dir . '/command.txt'));
+    }
+
+    public function testAFailedCaptureIsParkedUnderFailedWithItsReason(): void
+    {
+        $root = $this->workspace();
+        $store = $this->store($root, null);
+
+        $good = $store->capture($this->job($root, ['php', 'fuzz']), []);
+        $bad = $store->captureFailed($this->job($root, ['php', 'fuzz']), [], 'rr trace never finalised');
+
+        self::assertSame($root . '/out', dirname($good));
+        self::assertSame($root . '/out/' . ReproStore::FAILED, dirname($bad));
+
+        // Each directory keeps its own sequence, so a failed capture never
+        // consumes a reproducer number (or the other way round).
+        self::assertSame('4242.00001', basename($good));
+        self::assertSame('4242.00001', basename($bad));
+
+        self::assertStringContainsString('rr trace never finalised', (string) file_get_contents($bad . '/FAILED.txt'));
+
+        $meta = json_decode((string) file_get_contents($bad . '/meta.json'), true);
+        self::assertIsArray($meta);
+        self::assertSame('rr trace never finalised', $meta['capture_failure']);
+    }
+
+    public function testAMinimizedRerunNeverFilesAnUnfinalisedTrace(): void
+    {
+        $root = $this->workspace();
+        $store = $this->store($root, null);
+        $dir = $store->capture($this->job($root, ['php', 'fuzz']), []);
+
+        $store->addMinimized($dir, $this->outcome($root, incomplete: true), 12);
+
+        self::assertDirectoryDoesNotExist($dir . '/minimized/rr-trace');
+        $meta = json_decode((string) file_get_contents($dir . '/minimized/meta.json'), true);
+        self::assertIsArray($meta);
+        self::assertSame('rr trace never finalised (incomplete)', $meta['trace_failure']);
+    }
+
+    public function testAMinimizedRerunKeepsAFinalisedTrace(): void
+    {
+        $root = $this->workspace();
+        $store = $this->store($root, null);
+        $dir = $store->capture($this->job($root, ['php', 'fuzz']), []);
+
+        $store->addMinimized($dir, $this->outcome($root, incomplete: false), 12);
+
+        self::assertDirectoryExists($dir . '/minimized/rr-trace');
+        $meta = json_decode((string) file_get_contents($dir . '/minimized/meta.json'), true);
+        self::assertIsArray($meta);
+        self::assertNull($meta['trace_failure']);
+    }
+
+    private function outcome(string $root, bool $incomplete): JobOutcome
+    {
+        $workDir = $root . '/reduce';
+        $trace = $workDir . '/rr-trace';
+        Fs::ensureDir($trace);
+        file_put_contents($workDir . '/stdout.log', '');
+        file_put_contents($workDir . '/stderr.log', '');
+        if ($incomplete) {
+            file_put_contents($trace . '/' . RrTrace::SENTINEL, '1');
+        }
+
+        return new JobOutcome(
+            FailureClassifier::fromExit(true, 11, null),
+            $workDir,
+            $trace,
+            0.5,
+            null,
+        );
     }
 
     private function workspace(): string

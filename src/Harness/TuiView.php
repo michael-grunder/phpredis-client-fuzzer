@@ -196,6 +196,9 @@ final class TuiView implements View
             $parts[] = sprintf('<fg=blue>leaks</> %d', $stats->leaks);
         }
         $parts[] = sprintf('<fg=green>reproducers</> %d', $stats->reproducers);
+        if ($stats->failedReproducers > 0) {
+            $parts[] = sprintf('<fg=red>failed repros</> %d', $stats->failedReproducers);
+        }
         $parts[] = sprintf('<fg=cyan>reduced</> %d', $stats->reductions);
 
         return implode('   ', $parts);
@@ -252,6 +255,7 @@ final class TuiView implements View
             JobStatus::TimedOut => ['TIMEOUT', 'magenta'],
             JobStatus::Leaked => ['LEAK', 'blue'],
             JobStatus::StartupFailed => ['STARTUP', 'red'],
+            JobStatus::CaptureFailed => ['NOTRACE', 'red'],
         };
 
         $steps = $job->reducedSteps !== null

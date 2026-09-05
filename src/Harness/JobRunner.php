@@ -18,6 +18,9 @@ final class JobRunner
     /**
      * @param list<string> $phpArgs Startup arguments inserted between the PHP
      *        binary and the fuzzer script (`-c <ini>` and `--php-args`).
+     * @param string|null $setsidBinary A verified `setsid(1)` used to run each
+     *        child in its own session, or null to launch children in the
+     *        harness' own process group. See {@see buildArgv()}.
      */
     public function __construct(
         private readonly HarnessOptions $options,
@@ -29,6 +32,7 @@ final class JobRunner
         private readonly string $workRoot,
         private readonly ?string $rrBinary,
         private readonly string $phpVersion,
+        private readonly ?string $setsidBinary = null,
     ) {
         Fs::ensureDir($this->workRoot);
     }
@@ -79,6 +83,7 @@ final class JobRunner
             return;
         }
 
+        $terminated = false;
         $status = $this->status($job);
         if ($status['running'] === true) {
             $expired = !$draining
@@ -91,6 +96,7 @@ final class JobRunner
 
             $job->killSignal = $this->terminate($job);
             $job->timedOut = $expired;
+            $terminated = true;
             $status = $this->status($job);
         }
 
@@ -99,7 +105,11 @@ final class JobRunner
         $job->exitCode = $status['exitcode'] >= 0 ? $status['exitcode'] : null;
         @proc_close($job->process);
 
-        if ($draining) {
+        // Only a run the shutdown actually had to kill is discarded. One that
+        // had already finished on its own is a normal result — and it may be a
+        // crash that landed in the last moments of the campaign, which is
+        // exactly the kind of finding worth keeping.
+        if ($draining && $terminated) {
             $job->status = JobStatus::Skipped;
             $job->note = 'stopped';
             $this->discard($job);
@@ -162,7 +172,7 @@ final class JobRunner
         $exitCode = $status['exitcode'] >= 0 ? $status['exitcode'] : null;
 
         if ($traceDir !== null) {
-            RrTrace::awaitComplete($traceDir, $this->options->traceTimeout);
+            $this->finaliseTrace($traceDir, $workDir);
         }
 
         $leak = $this->options->capturesLeaks()
@@ -177,6 +187,33 @@ final class JobRunner
             $status['pid'],
             $leak,
         );
+    }
+
+    /**
+     * Wait for rr to finalise a trace and report why it is unusable, or null
+     * when it is replayable.
+     *
+     * When rr printed a fatal error of its own there is nothing left to wait
+     * for — the recording died with it — so the `--trace-timeout` budget is
+     * skipped rather than burned on every such run.
+     */
+    private function finaliseTrace(?string $traceDir, string $workDir): ?string
+    {
+        if ($traceDir === null) {
+            return null;
+        }
+
+        $fatal = RrTrace::fatalError($workDir . '/stderr.log');
+        if ($fatal === null) {
+            RrTrace::awaitComplete($traceDir, $this->options->traceTimeout);
+        }
+
+        $problem = RrTrace::problem($traceDir);
+        if ($problem === null) {
+            return null;
+        }
+
+        return $fatal === null ? $problem : $problem . ': ' . $fatal;
     }
 
     public function cleanupOutcome(JobOutcome $outcome): void
@@ -276,13 +313,30 @@ final class JobRunner
             return;
         }
 
-        if ($job->traceDir !== null) {
-            RrTrace::awaitComplete($job->traceDir, $this->options->traceTimeout);
-        }
+        $traceFailure = $this->finaliseTrace($job->traceDir, $job->workDir);
 
         // A 128+signal exit gives us a signal number even when the OS did not
         // report the child as "signaled"; keep it for the dashboard.
         $job->signal ??= $verdict->signal;
+
+        // An unusable trace makes the whole capture untrustworthy: rr dying
+        // before it recorded anything shows up as the recorder's own SIGABRT,
+        // which is indistinguishable from a client crash until you try to
+        // replay it. Park the evidence under failed/ instead of filing a
+        // reproducer nobody can re-run.
+        if ($traceFailure !== null) {
+            $meta = $this->meta($job, $verdict);
+            $job->reproDir = $this->store->captureFailed($job, $meta, $traceFailure);
+            $job->status = JobStatus::CaptureFailed;
+            $job->note = $this->describeVerdict($job, $verdict) . ' — ' . $traceFailure;
+            $job->traceFailure = $traceFailure;
+
+            if (!$this->options->keepWork) {
+                Fs::removeTree($job->workDir);
+            }
+
+            return;
+        }
 
         $job->reproDir = $this->store->capture($job, $this->meta($job, $verdict));
         $job->status = match ($kind) {
@@ -386,6 +440,9 @@ final class JobRunner
             'duration_seconds' => round($job->duration(), 3),
             'rr' => $this->rrBinary !== null,
             'rr_chaos' => $this->options->rrChaos,
+            'rr_trace' => $job->traceDir === null
+                ? null
+                : (RrTrace::isComplete($job->traceDir) ? 'complete' : 'incomplete'),
             'php' => $this->php,
             'php_args' => $this->phpArgs,
             'php_ini' => $this->options->phpIni,
@@ -427,7 +484,21 @@ final class JobRunner
                 $rr[] = '--chaos';
             }
 
-            return [...$rr, ...$child];
+            $child = [...$rr, ...$child];
+        }
+
+        // Children inherit the harness' process group, and therefore every
+        // signal the terminal sends to it: SIGINT on Ctrl+C (which would kill
+        // the runs the graceful shutdown is trying to let finish) and SIGWINCH
+        // on every resize. A resize is the worse of the two — PHP ignores
+        // SIGWINCH, but under rr it stops the tracee in the window where
+        // `Task::spawn()` expects only SIGSTOP, and rr aborts with a fatal
+        // error, producing an empty trace and a bogus SIGABRT "crash". Running
+        // each child in its own session detaches it from the terminal so
+        // neither signal is ever delivered. The children write to files and
+        // read from /dev/null, so they have no use for a controlling terminal.
+        if ($this->setsidBinary !== null) {
+            $child = [$this->setsidBinary, ...$child];
         }
 
         return $child;

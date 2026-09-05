@@ -13,6 +13,11 @@ namespace Mgrunder\PhpredisCommandFuzzer\Harness;
  * one output directory and each campaign's reproducers stay grouped and ordered
  * by age. Pids are recycled, so the sequence is not assumed to start at one:
  * {@see allocate()} claims the first free number instead.
+ *
+ * A failure whose artifacts cannot be replayed — an rr trace that never lost
+ * its `incomplete` sentinel — is kept just as carefully, but under the
+ * `failed/` subdirectory: everything directly under the output directory is
+ * meant to be re-runnable, and a half-recorded trace is not.
  */
 final class ReproStore
 {
@@ -22,10 +27,18 @@ final class ReproStore
      */
     private const MAX_SEQUENCE = 999999;
 
+    /** The subdirectory holding failures whose artifacts are not replayable. */
+    public const FAILED = 'failed';
+
     private readonly int $pid;
 
-    /** Where the next allocation starts looking; never revisits a taken name. */
-    private int $next = 1;
+    /**
+     * Where the next allocation starts looking, per destination directory;
+     * never revisits a taken name.
+     *
+     * @var array<string, int>
+     */
+    private array $next = [];
 
     public function __construct(
         private readonly string $root,
@@ -52,7 +65,40 @@ final class ReproStore
      */
     public function capture(Job $job, array $meta): string
     {
-        $dir = $this->allocate();
+        return $this->store($job, $meta, $this->root);
+    }
+
+    /**
+     * Park a failure whose artifacts cannot be replayed under `failed/`, with a
+     * `FAILED.txt` saying why.
+     *
+     * The evidence is still worth keeping — it is how an operator sees that rr
+     * has been dying on them — it just must not sit where the reproducers that
+     * can actually be re-run live.
+     *
+     * @param array<string, mixed> $meta
+     * @return string The created directory.
+     */
+    public function captureFailed(Job $job, array $meta, string $reason): string
+    {
+        $meta['capture_failure'] = $reason;
+        $dir = $this->store($job, $meta, $this->root . '/' . self::FAILED);
+
+        file_put_contents(
+            $dir . '/FAILED.txt',
+            $reason . "\n\nThis run is not replayable and was not counted as a reproducer.\n",
+        );
+
+        return $dir;
+    }
+
+    /**
+     * @param array<string, mixed> $meta
+     * @return string The created directory.
+     */
+    private function store(Job $job, array $meta, string $root): string
+    {
+        $dir = $this->allocate($root);
 
         foreach (['stdout.log', 'stderr.log'] as $log) {
             Fs::move($job->workDir . '/' . $log, $dir . '/' . $log);
@@ -86,7 +132,8 @@ final class ReproStore
         foreach (['stdout.log', 'stderr.log'] as $log) {
             Fs::move($outcome->workDir . '/' . $log, $sub . '/' . $log);
         }
-        if ($outcome->traceDir !== null && is_dir($outcome->traceDir)) {
+        $traceProblem = RrTrace::problem($outcome->traceDir);
+        if ($outcome->traceDir !== null && $traceProblem === null) {
             Fs::move($outcome->traceDir, $sub . '/rr-trace');
         }
         if ($outcome->pid !== null) {
@@ -95,6 +142,7 @@ final class ReproStore
 
         file_put_contents($sub . '/meta.json', json_encode([
             'steps' => $steps,
+            'trace_failure' => $traceProblem,
             'signal' => $outcome->verdict->signal,
             'signal_name' => $outcome->verdict->signal !== null
                 ? FailureClassifier::signalLabel($outcome->verdict->signal)
@@ -133,12 +181,14 @@ final class ReproStore
      * into twice. That makes "find the first unused number" safe without a
      * lock file or a stat-then-create race.
      */
-    private function allocate(): string
+    private function allocate(string $root): string
     {
-        for ($sequence = $this->next; $sequence <= self::MAX_SEQUENCE; $sequence++) {
-            $dir = sprintf('%s/%d.%05d', $this->root, $this->pid, $sequence);
+        Fs::ensureDir($root);
+
+        for ($sequence = $this->next[$root] ?? 1; $sequence <= self::MAX_SEQUENCE; $sequence++) {
+            $dir = sprintf('%s/%d.%05d', $root, $this->pid, $sequence);
             if (@mkdir($dir, 0o777)) {
-                $this->next = $sequence + 1;
+                $this->next[$root] = $sequence + 1;
 
                 return $dir;
             }
@@ -148,7 +198,7 @@ final class ReproStore
         }
 
         throw new \RuntimeException(
-            sprintf('reproducer directory %s already holds %d captures for pid %d; use a fresh --output', $this->root, self::MAX_SEQUENCE, $this->pid),
+            sprintf('reproducer directory %s already holds %d captures for pid %d; use a fresh --output', $root, self::MAX_SEQUENCE, $this->pid),
         );
     }
 

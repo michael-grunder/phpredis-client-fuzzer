@@ -553,6 +553,31 @@ signal, exit code, and capture time all live in `meta.json`. Work directories
 and rr traces for runs that are not captured are deleted; `--keep-work` keeps
 them.
 
+A capture whose rr trace never finalised is **not** a reproducer. `rr replay`
+cannot open a trace that still holds its `incomplete` sentinel, and the run that
+produced it is usually not a finding at all: when rr itself dies — a terminal
+resize stopping the tracee inside `Task::spawn()` is the classic one — it aborts
+before recording anything and the harness sees the recorder's own `SIGABRT`.
+Those runs are parked under `<output>/failed/<harness-pid>.<nnnnn>/` with the
+same artifacts plus a `FAILED.txt` saying why, `capture_failure` and `rr_trace`
+fields in `meta.json`, and they are counted separately as *failed reproducers*:
+they do not count toward `--reproducers N`, are never fed to the reducer, and do
+not make the harness exit non-zero. Everything directly under `<output>/` stays
+re-runnable. A minimised re-run whose trace does not finalise records
+`trace_failure` in `<repro>/minimized/meta.json` and files no trace.
+
+To keep those recordings from failing in the first place, each run is launched
+through `setsid(1)` when one is available, so it runs in its own session instead
+of the harness' process group. The terminal's signals — `SIGINT` on Ctrl+C,
+which would kill the very runs a graceful shutdown is waiting on, and the
+`SIGWINCH` of a window resize, which is what aborts rr — then never reach the
+children. The harness verifies at startup that `setsid` execs in place rather
+than forking (a forking one would hide every run's exit status) and falls back
+to launching children directly if it does not, warning when `--rr` is on. The
+binary used, if any, is recorded in `<output>/<harness-pid>.run-info.txt` as
+`detach:`. One consequence: runs no longer die with the terminal, so a harness
+killed outright can leave a run to finish on its own.
+
 Naming captures after the harness pid lets several harnesses share one output
 directory: each campaign's reproducers stay grouped, and the sequence numbers
 order them by age within a campaign. Directories are claimed with a
@@ -585,7 +610,9 @@ so a mistyped path is caught before any run is spawned.
 
 Stop conditions are `--runs N`, `--seconds N`, and `--reproducers N` (any that
 are set; unlimited otherwise), or pressing `q`/`Esc`/`Ctrl-C` in the dashboard.
-The first stop request drains in-flight runs and then exits; interrupting again
+The first stop request drains in-flight runs and then exits; a run that finishes
+on its own during that drain is still classified and captured, so a crash landing
+in the last moments of a campaign is not thrown away; interrupting again
 while that shutdown is running — immediately, or a quick double-tap after the
 "still shutting down" hint — abandons the drain, kills whatever is left, and
 exits `130`, leaving any stragglers for the OS to reap. A lone interrupt once
@@ -594,7 +621,8 @@ hint, so a slow-draining run reads differently from a wedged one.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
 the harness prints a line per finished run and a periodic summary. The dashboard
 tallies failures, crashes, timeouts, reproducers, and reductions, plus a `leaks`
-count whenever `leaks` is in `--capture`. The process exits non-zero when at
+count whenever `leaks` is in `--capture` and a `failed repros` count once a
+capture has had to be parked under `failed/`. The process exits non-zero when at
 least one reproducer was captured. Point it only at a disposable Redis target.
 
 ### Choosing a setting at random
