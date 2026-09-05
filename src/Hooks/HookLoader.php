@@ -27,14 +27,25 @@ final class HookLoader
         $loaded = (static function (string $file): mixed {
             return require $file;
         })($resolved);
+        $id = pathinfo($resolved, PATHINFO_FILENAME);
+        /* One object may be both an invocation hook and a lifecycle hook, so
+           every surface it implements is registered under the same id. */
+        $registered = false;
         if ($loaded instanceof InvocationHook) {
-            $registry->add(pathinfo($resolved, PATHINFO_FILENAME), $loaded);
-        } elseif (is_callable($loaded)) {
+            $registry->add($id, $loaded);
+            $registered = true;
+        }
+        if (is_object($loaded) && HookRegistry::isLifecycleHook($loaded)) {
+            $registry->addLifecycleHook($id, $loaded);
+            $registered = true;
+        }
+        if (!$registered) {
+            if (!is_callable($loaded)) {
+                throw new \UnexpectedValueException(
+                    "Hook file must return a callable, an InvocationHook, or a lifecycle hook: {$resolved}",
+                );
+            }
             $loaded($registry);
-        } else {
-            throw new \UnexpectedValueException(
-                "Hook file must return a callable or InvocationHook: {$resolved}",
-            );
         }
         $sha256 = hash_file('sha256', $resolved);
         if ($sha256 === false) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer;
 
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -11,6 +12,15 @@ use Relay\Relay;
 
 final class ClientFactory
 {
+    /**
+     * @param HookRegistry|null $hooks Optional; when supplied, postConstructor
+     *        hooks see every client this factory builds, once it is connected
+     *        and fully configured.
+     */
+    public function __construct(private readonly ?HookRegistry $hooks = null)
+    {
+    }
+
     /** @return Redis|RedisCluster|Relay|Cluster */
     public function create(ClientConfiguration $configuration): object
     {
@@ -66,6 +76,8 @@ final class ClientFactory
             }
             $configuration->relayCluster->applyTo($client);
         }
+
+        $this->hooks?->dispatchPostConstructor($client);
 
         return $client;
     }

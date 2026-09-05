@@ -2,6 +2,14 @@
 
 declare(strict_types=1);
 
+/**
+ * Invocation hook example: a safety guard that rejects one argument tuple.
+ *
+ * The observational lifecycle events (postConstructor, preCommand,
+ * postCommand, preDestructor) are demonstrated in hooks/lifecycle-example.php.
+ * A single hook file can register both kinds on the same HookRegistry.
+ */
+
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
@@ -47,4 +55,15 @@ return static function (HookRegistry $hooks): void {
             }
         },
     );
+
+    /* Lifecycle hooks can be registered right here alongside the guard, for
+       instance to see every value this guard let through:
+
+       $hooks->onPreCommand('log-setoption', static function (
+           \Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation $invocation,
+       ): void {
+           if (strcasecmp($invocation->method, 'setOption') === 0) {
+               fwrite(STDERR, var_export($invocation->arguments, true) . "\n");
+           }
+       }); */
 };

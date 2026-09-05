@@ -265,7 +265,7 @@ final class Application
             // on a failure is a property of the target or the workload.
             $configured = true;
 
-            $factory = new ClientFactory();
+            $factory = new ClientFactory($hooks);
             $clients = [];
             foreach ($clientConfigurations as $clientConfiguration) {
                 $clients[] = $factory->create($clientConfiguration);
@@ -484,7 +484,8 @@ Run configuration:
   --invocation-mode=MODE     Client call typing: strict or coercive
                              (default: {invocation-default})
   --script-log=FILE          Write an executable PHP reproduction script
-  --hook=FILE                Load trusted PHP invocation hooks; repeatable
+  --hook=FILE                Load trusted PHP invocation and lifecycle hooks;
+                             repeatable
   --catch=STRING             Stop after a Redis error, warning, or exception
                              contains STRING (case-insensitive; exits nonzero)
   --differential             Compare cacheable reads using an ordered pair:
@@ -515,11 +516,22 @@ Choosing a setting at random:
   subset, such as --serializer=none,php,igbinary,json, to choose randomly from
   only those values.
 
-Invocation hooks:
+Hooks:
   Hook files are trusted PHP code and must return a callable accepting a
-  HookRegistry or an InvocationHook object. Hooks run after generated ScriptArg
-  values are resolved and before reproduction logging or client dispatch. See
-  hooks/no-msgpack.php.
+  HookRegistry, an InvocationHook object, or a lifecycle hook object.
+  Invocation hooks run after generated ScriptArg values are resolved and before
+  reproduction logging or client dispatch, and may allow, reject, or replace
+  the call. See hooks/no-msgpack.php.
+
+  Lifecycle hooks only observe, and are registered with addLifecycleHook() or
+  the onPostConstructor(), onPreCommand(), onPostCommand(), and
+  onPreDestructor() registry methods:
+    postConstructor  once per client object, before the fuzzer uses it
+    preCommand       before each client call, with the final arguments
+    postCommand      after each client call, with its reply or throwable
+    preDestructor    when the fuzzer is done with a client, while it is still
+                     connected and usable
+  See hooks/lifecycle-example.php.
 
 Exit status:
   0   the run finished and nothing was caught

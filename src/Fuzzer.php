@@ -11,9 +11,11 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
 use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
 use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookEvent;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
+use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
 use Redis;
 use RedisCluster;
@@ -35,6 +37,10 @@ final class Fuzzer
     public function run(array $clients, RunConfiguration $configuration = new RunConfiguration()): FuzzResult
     {
         $clients = $this->normalizeClients($clients);
+        /* Hand every client to postConstructor hooks before anything inspects
+           or uses it. Clients built by ClientFactory were already announced
+           there; the registry only announces each object once. */
+        $this->announceClients($clients);
         $clientInvoker = $configuration->invocationMode->invoker();
         $differentialOracle = $this->differentialOracle(
             $clients,
@@ -138,17 +144,19 @@ final class Fuzzer
                 'saturate-steps' => $configuration->saturateSteps ?? 'keyspace',
                 'saturate-target' => $configuration->saturateTarget ?? 'disabled',
                 'saturate-mode' => $configuration->saturateMode->value,
-                'hooks' => implode(',', $this->hooks?->metadata()['ids'] ?? []),
+                'hooks' => implode(',', $this->hooks?->allIds() ?? []),
             ], $clients, invocationMode: $configuration->invocationMode);
         }
 
         Command::resetCapturedWarnings();
         Command::setDifferentialOracle($differentialOracle);
+        Command::setLifecycleHooks($this->hooks);
         $warnings = [];
         $commandWarnings = [];
         $caughtDiagnostic = null;
         $statefulOutcomes = [];
         $consecutiveHookRejections = 0;
+        $runFailure = null;
         $relayStats?->sample();
         try {
             $statefulOutcomes = (new StatefulScenarioRunner($clientInvoker))->run(
@@ -346,8 +354,12 @@ final class Fuzzer
                     $relayStats?->sample();
                 }
             }
+        } catch (\Throwable $throwable) {
+            $runFailure = $throwable;
+            throw $throwable;
         } finally {
             Command::setDifferentialOracle(null);
+            Command::setLifecycleHooks(null);
             $registry->apply(
                 static function (Command $command): void {
                     $command->setInvocationHook(null);
@@ -359,6 +371,9 @@ final class Fuzzer
                 ScriptLogger::finish();
             }
             $relayStats?->sample();
+            /* Last: the clients are still connected and usable, but the run's
+               own accounting is closed, so hook traffic is not counted. */
+            $this->releaseClients($clients, $runFailure);
         }
 
         $elapsed = (hrtime(true) - $started) / 1e9;
@@ -395,6 +410,45 @@ final class Fuzzer
             $saturationOutcomes,
             $this->hooks?->rejections() ?? [],
         );
+    }
+
+    /**
+     * @param non-empty-list<Redis|RedisCluster|Relay|Cluster> $clients
+     */
+    private function announceClients(array $clients): void
+    {
+        if ($this->hooks === null || !$this->hooks->hasListeners(HookEvent::PostConstructor)) {
+            return;
+        }
+
+        foreach ($clients as $index => $client) {
+            $this->hooks->dispatchPostConstructor($client, $index);
+        }
+    }
+
+    /**
+     * Give preDestructor hooks a last crack at every client. A hook failure
+     * must not replace the throwable that ended the run, so with a run failure
+     * in flight it is reported instead of thrown.
+     *
+     * @param non-empty-list<Redis|RedisCluster|Relay|Cluster> $clients
+     */
+    private function releaseClients(array $clients, ?\Throwable $runFailure): void
+    {
+        if ($this->hooks === null || !$this->hooks->hasListeners(HookEvent::PreDestructor)) {
+            return;
+        }
+
+        foreach ($clients as $index => $client) {
+            try {
+                $this->hooks->dispatchPreDestructor($client, $index);
+            } catch (HookExecutionFailed $failure) {
+                if ($runFailure === null) {
+                    throw $failure;
+                }
+                Log::warning($failure->getMessage(), ['client' => $client::class]);
+            }
+        }
     }
 
     /**

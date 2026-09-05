@@ -10,7 +10,10 @@ use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
 use Mgrunder\PhpredisCommandFuzzer\HasWeight;
 use Mgrunder\PhpredisCommandFuzzer\WarningCollector;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookAction;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookEvent;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
@@ -108,6 +111,12 @@ abstract class Command implements HasWeight {
 
     private static ?DifferentialOracle $differentialOracle = null;
 
+    /* Held only when something is actually listening, so an invocation with no
+       registered hooks costs one static null check per event. */
+    private static ?HookRegistry $preCommandHooks = null;
+
+    private static ?HookRegistry $postCommandHooks = null;
+
     public function weight(): float {
         return $this->weight;
     }
@@ -125,6 +134,19 @@ abstract class Command implements HasWeight {
 
     final public function setInvocationHook(?InvocationHook $invocationHook): void {
         $this->invocationHook = $invocationHook;
+    }
+
+    /**
+     * Arm the observational preCommand and postCommand hooks for every
+     * command. Passing null disarms them.
+     */
+    final public static function setLifecycleHooks(?HookRegistry $hooks): void {
+        self::$preCommandHooks = $hooks?->hasListeners(HookEvent::PreCommand) === true
+            ? $hooks
+            : null;
+        self::$postCommandHooks = $hooks?->hasListeners(HookEvent::PostCommand) === true
+            ? $hooks
+            : null;
     }
 
     protected function randomType(): string {
@@ -477,11 +499,21 @@ abstract class Command implements HasWeight {
 
         ScriptLogger::log($client, $cmd, $scriptArgs);
 
+        if (self::$preCommandHooks !== null) {
+            self::$preCommandHooks->dispatchPreCommand(new PendingInvocation(
+                $this->name(),
+                $client,
+                $cmd,
+                $args,
+            ));
+        }
+
         $oracle = self::$differentialOracle;
         $oraclePrepared = $oracle?->prepare($this, $client, $cmd, $args) ?? false;
         $errorOffset = count(self::$invocationRedisErrors);
         $warningsBefore = $oraclePrepared ? self::capturedWarnings() : [];
-        $started = $oraclePrepared ? hrtime(true) : 0;
+        $timed = $oraclePrepared || self::$postCommandHooks !== null;
+        $started = $timed ? hrtime(true) : 0;
         try {
             $result = $this->invokeClient($client, $cmd, $args);
         } catch (\Throwable $throwable) {
@@ -502,6 +534,17 @@ abstract class Command implements HasWeight {
                     (hrtime(true) - $started) / 1e9,
                 );
             }
+            if (self::$postCommandHooks !== null) {
+                self::$postCommandHooks->dispatchPostCommand(new CompletedInvocation(
+                    $this->name(),
+                    $client,
+                    $cmd,
+                    $args,
+                    null,
+                    $throwable,
+                    (hrtime(true) - $started) / 1e9,
+                ));
+            }
             throw $throwable;
         }
 
@@ -517,6 +560,17 @@ abstract class Command implements HasWeight {
                 null,
                 (hrtime(true) - $started) / 1e9,
             );
+        }
+        if (self::$postCommandHooks !== null) {
+            self::$postCommandHooks->dispatchPostCommand(new CompletedInvocation(
+                $this->name(),
+                $client,
+                $cmd,
+                $args,
+                $result,
+                null,
+                (hrtime(true) - $started) / 1e9,
+            ));
         }
 
         return $result;

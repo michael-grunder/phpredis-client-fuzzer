@@ -101,7 +101,13 @@ only: `FuzzResult::$outcomes` retains the exact warning, Redis error, and
 exception text for reproduction. Normalization rules are deliberately narrow
 and live in `DiagnosticNormalizer`.
 
-## Invocation hooks
+## Hooks
+
+Hooks come in two kinds. *Invocation hooks* gate what the fuzzer is about to
+do, and *lifecycle hooks* observe what it did. Both are loaded from the same
+trusted `--hook` files, or registered directly on a `HookRegistry`.
+
+### Invocation hooks
 
 Trusted PHP hook files can allow, reject, or replace generated client
 invocations immediately before reproduction logging and client dispatch. This
@@ -126,9 +132,11 @@ configuration, so pair this hook with the default `--serializer=none` or an
 explicit `--serializer=none,php,igbinary,json` subset when startup selection is
 randomized.
 
-A hook file may return a callable that accepts a `HookRegistry`, or one
-`InvocationHook` object whose registration ID is derived from the filename. The
-registry form can declare several hooks. Safety policies should use
+A hook file may return a callable that accepts a `HookRegistry`, or a single
+hook object whose registration ID is derived from the filename. An object is
+registered under every surface it implements, so one object can be both an
+`InvocationHook` and a lifecycle hook. The registry form can declare several
+hooks. Safety policies should use
 `addGuard()` so they inspect the final arguments after every ordinary hook has
 had an opportunity to replace them:
 
@@ -193,6 +201,84 @@ consecutive rejections fail the run as an impossible workload.
 Embedded callers can construct a `HookRegistry` directly and pass it to
 `new Fuzzer($hooks)`. Hook files execute arbitrary PHP and are never discovered
 or loaded automatically; only load files you trust.
+
+### Lifecycle events
+
+Lifecycle hooks observe the run. They cannot reject or rewrite anything, so
+they never change which commands execute or what the fuzzer reports. Four
+events are available:
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `postConstructor` | `ClientEvent` | Once per client object, before the fuzzer inspects or uses it |
+| `preCommand` | `PendingInvocation` | Immediately before each client call, with the final arguments |
+| `postCommand` | `CompletedInvocation` | After each client call, with its reply or the throwable it raised |
+| `preDestructor` | `ClientEvent` | When the fuzzer is finished with a client, while it is still connected and usable |
+
+`ClientEvent` carries the client itself plus its position in the run's client
+list; `isCluster()` and `isRelay()` are conveniences, and hook code is free to
+type-check `Redis`, `RedisCluster`, `Relay\Relay`, and `Relay\Cluster`
+directly. `preDestructor` is not a PHP destructor: it runs while the client is
+still fully usable, which is the point of the event. `preCommand` and
+`postCommand` do not fire for an invocation an invocation hook rejected, and
+`postCommand` fires for a failed call with `$throwable` set and `$result`
+null.
+
+Register closures with `onPostConstructor()`, `onPreCommand()`,
+`onPostCommand()`, and `onPreDestructor()`, or register an object implementing
+any combination of `PostConstructorHook`, `PreCommandHook`, `PostCommandHook`,
+and `PreDestructorHook` with `addLifecycleHook($id, $hook)`. IDs must be unique
+per event. A listener that throws aborts the run with `HookExecutionFailed`
+naming the event and ID, except a `preDestructor` failure while a run is
+already failing, which is logged so it cannot mask the original throwable.
+
+```php
+<?php
+
+use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
+
+return static function (HookRegistry $hooks): void {
+    $hooks->onPostConstructor('note-client', static function (ClientEvent $event): void {
+        fwrite(STDERR, "client {$event->clientIndex}: {$event->client::class}\n");
+    });
+
+    $hooks->onPostCommand('slow-calls', static function (CompletedInvocation $call): void {
+        if ($call->durationSeconds > 0.25) {
+            fwrite(STDERR, "{$call->method} took {$call->durationSeconds}s\n");
+        }
+    });
+
+    $hooks->onPreDestructor('final-info', static function (ClientEvent $event): void {
+        // The client is still connected here, so it can still be queried.
+        $info = $event->isCluster() ? 'cluster' : 'standalone';
+        fwrite(STDERR, "done with {$event->client::class} ({$info})\n");
+    });
+};
+```
+
+`hooks/lifecycle-example.php` registers all four events and carries commented
+out variants of the noisier things each one is good for: tracing every call,
+asserting on a reply, configuring a client before the workload starts, and
+inspecting the server once the run is over. Load it with
+`--hook=hooks/lifecycle-example.php`.
+
+`postConstructor` fires once per client object. Clients built by
+`ClientFactory` are announced there, so a CLI run sees a client before its
+options are exercised; clients an embedded caller passes to `Fuzzer::run()` are
+announced at the start of the run. A client handed to both is still announced
+once. `preDestructor` fires at the end of every `Fuzzer::run()`, after the
+run's own accounting is closed, so commands a hook issues are not counted in
+the report.
+
+Every call routed through `Command::exec()`, `execRaw()`, or `cmd()` raises the
+command events, including cache saturation traffic. Stateful scenarios call the
+client directly and do not.
+
+Registered lifecycle IDs are reported under `configuration.hooks.listeners`.
+Events with no listeners cost one null check per invocation, so an unhooked run
+is unaffected.
 
 ## CLI
 
