@@ -75,6 +75,14 @@ final class HarnessRrTraceTest extends TestCase
         );
     }
 
+    public function testRrsBacktraceAloneIsEnoughToRecogniseItsOwnDeath(): void
+    {
+        $log = $this->workspace() . '/stderr.log';
+        file_put_contents($log, "=== Start rr backtrace:\n/usr/local/bin/rr(+0xda34a)\n=== End rr backtrace\n");
+
+        self::assertSame('rr: died with a backtrace of its own', RrTrace::fatalError($log));
+    }
+
     public function testOrdinaryStderrHasNoFatalError(): void
     {
         $log = $this->workspace() . '/stderr.log';

@@ -553,11 +553,15 @@ signal, exit code, and capture time all live in `meta.json`. Work directories
 and rr traces for runs that are not captured are deleted; `--keep-work` keeps
 them.
 
-A capture whose rr trace never finalised is **not** a reproducer. `rr replay`
-cannot open a trace that still holds its `incomplete` sentinel, and the run that
-produced it is usually not a finding at all: when rr itself dies — a terminal
-resize stopping the tracee inside `Task::spawn()` is the classic one — it aborts
-before recording anything and the harness sees the recorder's own `SIGABRT`.
+A capture whose rr trace never finalised is **not** a reproducer, and neither is
+one whose stderr holds rr's own death. `rr replay` cannot open a trace that
+still holds its `incomplete` sentinel, and the run that produced it is usually
+not a finding at all: when rr itself dies — a terminal resize stopping the
+tracee inside `Task::spawn()` is the classic one — it aborts before recording
+anything, and because the harness' child *is* rr, the recorder's `SIGABRT`
+arrives looking exactly like a crash in the client. An `[FATAL src/…]` line or a
+`=== Start rr backtrace:` dump in a run's stderr therefore disqualifies it
+whatever state the trace was left in, since rr can also die after finalising.
 Those runs are parked under `<output>/failed/<harness-pid>.<nnnnn>/` with the
 same artifacts plus a `FAILED.txt` saying why, `capture_failure` and `rr_trace`
 fields in `meta.json`, and they are counted separately as *failed reproducers*:

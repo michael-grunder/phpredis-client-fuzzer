@@ -53,6 +53,22 @@ final class HarnessJobRunnerTest extends TestCase
         self::assertStringContainsString('never finalised', $meta['capture_failure']);
     }
 
+    public function testRrDyingAfterItFinalisedTheTraceIsStillNotAReproducer(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, ['--rr'], $this->child(0), $this->fakeRr('late-fatal'));
+
+        $job = $this->await($runner, $runner->spawn(0, null, 7));
+
+        // The trace is complete, so only rr's own backtrace in stderr says the
+        // SIGABRT belongs to the recorder rather than to the client.
+        self::assertSame(JobStatus::CaptureFailed, $job->status);
+        self::assertNotNull($job->reproDir);
+        self::assertSame($root . '/out/' . ReproStore::FAILED, dirname($job->reproDir));
+        self::assertStringContainsString('rr failed while recording', (string) $job->traceFailure);
+        self::assertSame('complete', $this->meta($job->reproDir)['rr_trace']);
+    }
+
     public function testAFinalisedTraceIsCapturedAsAnOrdinaryReproducer(): void
     {
         $root = $this->workspace();

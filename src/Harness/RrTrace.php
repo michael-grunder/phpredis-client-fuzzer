@@ -21,6 +21,9 @@ final class RrTrace
     /** How much of a run's stderr to scan for rr's own diagnostics. */
     private const DIAGNOSTIC_TAIL = 65536;
 
+    /** The header rr prints above its own stack dump when it dies. */
+    private const BACKTRACE_MARKER = '=== Start rr backtrace:';
+
     /** A trace directory that exists and no longer holds the sentinel. */
     public static function isComplete(string $traceDir): bool
     {
@@ -81,12 +84,17 @@ final class RrTrace
     /**
      * rr's own fatal diagnostic from a run's stderr, if it printed one.
      *
-     * rr aborts with `[FATAL src/File.cc:123:func()] message` when it cannot
-     * record — for example when a signal (a terminal resize is the classic
-     * one) stops the tracee in the window where `Task::spawn()` expects only
-     * SIGSTOP. That is a failure of the recorder, not a finding about the
-     * client under test, and there is no point waiting for a trace it was
-     * never going to finish.
+     * rr dies with `[FATAL src/File.cc:123:func()] message` followed by a
+     * `=== Start rr backtrace:` stack dump when it cannot record — for example
+     * when a signal (a terminal resize is the classic one) stops the tracee in
+     * the window where `Task::spawn()` expects only SIGSTOP. rr then aborts,
+     * and because the harness' child *is* rr, that lands as a `SIGABRT` that
+     * looks exactly like a crash in the client under test.
+     *
+     * Neither marker can come from the fuzzer: a run whose stderr holds one
+     * says nothing about the client, whatever state the trace was left in. The
+     * backtrace header is checked too, so an rr build or failure path that
+     * words its message differently is still recognised.
      */
     public static function fatalError(string $stderrPath): ?string
     {
@@ -101,10 +109,14 @@ final class RrTrace
             return null;
         }
 
-        if (preg_match('/^\[FATAL [^\]]*\]\s*(.+)$/m', $tail, $matches) !== 1) {
-            return null;
+        if (preg_match('/^\[FATAL [^\]]*\]\s*(.+)$/m', $tail, $matches) === 1) {
+            return 'rr: ' . trim($matches[1]);
         }
 
-        return 'rr: ' . trim($matches[1]);
+        if (str_contains($tail, self::BACKTRACE_MARKER)) {
+            return 'rr: died with a backtrace of its own';
+        }
+
+        return null;
     }
 }

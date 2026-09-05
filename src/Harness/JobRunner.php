@@ -190,12 +190,16 @@ final class JobRunner
     }
 
     /**
-     * Wait for rr to finalise a trace and report why it is unusable, or null
-     * when it is replayable.
+     * Wait for rr to finalise a trace and report why this run's artifacts
+     * cannot be trusted, or null when they can.
      *
-     * When rr printed a fatal error of its own there is nothing left to wait
-     * for — the recording died with it — so the `--trace-timeout` budget is
-     * skipped rather than burned on every such run.
+     * Two things disqualify a recorded run. A trace that never finalised
+     * cannot be replayed. And a run whose stderr holds rr's own death — a
+     * `[FATAL ...]` line or its backtrace — tells us nothing about the client
+     * whatever the trace looks like: the child the harness launched *is* rr,
+     * so rr aborting is reported as a crash of the run. Either way there is
+     * nothing left to wait for once rr has printed a fatal error, so the
+     * `--trace-timeout` budget is skipped rather than burned on such a run.
      */
     private function finaliseTrace(?string $traceDir, string $workDir): ?string
     {
@@ -210,7 +214,7 @@ final class JobRunner
 
         $problem = RrTrace::problem($traceDir);
         if ($problem === null) {
-            return null;
+            return $fatal === null ? null : 'rr failed while recording: ' . $fatal;
         }
 
         return $fatal === null ? $problem : $problem . ': ' . $fatal;
