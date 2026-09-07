@@ -190,21 +190,21 @@ final class JobRunner
     }
 
     /**
-     * Wait for rr to finalise a trace and report why this run's artifacts
-     * cannot be trusted, or null when they can.
+     * Wait for rr to finalise a trace and judge what this run's artifacts are
+     * worth.
      *
-     * Two things disqualify a recorded run. A trace that never finalised
+     * Two separate things can be wrong with them. A trace that never finalised
      * cannot be replayed. And a run whose stderr holds rr's own death — a
      * `[FATAL ...]` line or its backtrace — tells us nothing about the client
      * whatever the trace looks like: the child the harness launched *is* rr,
-     * so rr aborting is reported as a crash of the run. Either way there is
-     * nothing left to wait for once rr has printed a fatal error, so the
-     * `--trace-timeout` budget is skipped rather than burned on such a run.
+     * so rr aborting is reported as a crash of the run. There is nothing left
+     * to wait for once rr has printed a fatal error, so the `--trace-timeout`
+     * budget is skipped rather than burned on such a run.
      */
-    private function finaliseTrace(?string $traceDir, string $workDir): ?string
+    private function finaliseTrace(?string $traceDir, string $workDir): TraceVerdict
     {
         if ($traceDir === null) {
-            return null;
+            return new TraceVerdict();
         }
 
         $fatal = RrTrace::fatalError($workDir . '/stderr.log');
@@ -212,12 +212,7 @@ final class JobRunner
             RrTrace::awaitComplete($traceDir, $this->options->traceTimeout);
         }
 
-        $problem = RrTrace::problem($traceDir);
-        if ($problem === null) {
-            return $fatal === null ? null : 'rr failed while recording: ' . $fatal;
-        }
-
-        return $fatal === null ? $problem : $problem . ': ' . $fatal;
+        return new TraceVerdict($fatal, RrTrace::problem($traceDir));
     }
 
     public function cleanupOutcome(JobOutcome $outcome): void
@@ -317,23 +312,38 @@ final class JobRunner
             return;
         }
 
-        $traceFailure = $this->finaliseTrace($job->traceDir, $job->workDir);
+        $trace = $this->finaliseTrace($job->traceDir, $job->workDir);
 
         // A 128+signal exit gives us a signal number even when the OS did not
         // report the child as "signaled"; keep it for the dashboard.
         $job->signal ??= $verdict->signal;
 
-        // An unusable trace makes the whole capture untrustworthy: rr dying
-        // before it recorded anything shows up as the recorder's own SIGABRT,
-        // which is indistinguishable from a client crash until you try to
-        // replay it. Park the evidence under failed/ instead of filing a
-        // reproducer nobody can re-run.
-        if ($traceFailure !== null) {
+        // rr died of its own fault. Its SIGABRT looks exactly like a client
+        // crash, but nothing here is about the client, so this is not a
+        // failure and not a capture: discard it like any other uninteresting
+        // run and let the scheduler count and log it as recorder noise. Filing
+        // these would bury the real reproducers under one unusable trace per
+        // aborted run. `--keep-work` still keeps the artifacts.
+        if ($trace->rrFatal !== null) {
+            $job->status = JobStatus::RrAborted;
+            $job->rrFatal = $trace->rrFatal;
+            $job->failure = false;
+            $job->note = 'rr aborted while recording — ' . $trace->rrFatal;
+            $this->discard($job);
+            return;
+        }
+
+        // An unusable trace makes the whole capture untrustworthy: a recording
+        // that never finalised cannot be replayed, and the run that produced it
+        // may still have been a genuine failure. Park the evidence under
+        // failed/ instead of filing a reproducer nobody can re-run.
+        if ($trace->problem !== null) {
+            $reason = (string) $trace->reason();
             $meta = $this->meta($job, $verdict);
-            $job->reproDir = $this->store->captureFailed($job, $meta, $traceFailure);
+            $job->reproDir = $this->store->captureFailed($job, $meta, $reason);
             $job->status = JobStatus::CaptureFailed;
-            $job->note = $this->describeVerdict($job, $verdict) . ' — ' . $traceFailure;
-            $job->traceFailure = $traceFailure;
+            $job->note = $this->describeVerdict($job, $verdict) . ' — ' . $reason;
+            $job->traceFailure = $reason;
 
             if (!$this->options->keepWork) {
                 Fs::removeTree($job->workDir);

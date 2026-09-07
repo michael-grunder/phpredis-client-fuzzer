@@ -39,7 +39,8 @@ final class PlainView implements View
 
         $this->line(sprintf(
             '[%s] runs=%d active=%d/%d exec/s=%.1f failures=%d crashes=%d timeouts=%d leaks=%d repros=%d'
-            . ($stats->failedReproducers > 0 ? ' failed-repros=' . $stats->failedReproducers : ''),
+            . ($stats->failedReproducers > 0 ? ' failed-repros=' . $stats->failedReproducers : '')
+            . ($stats->rrAborts > 0 ? ' rr-aborts=' . $stats->rrAborts : ''),
             $stats->formatElapsed(),
             $stats->completed,
             count($state->active),
@@ -53,11 +54,19 @@ final class PlainView implements View
         ));
     }
 
+    /**
+     * Quiet mode keeps the campaign-level warnings and the per-run lines that
+     * mean something happened to the client. The lowercase 'rr aborted' match
+     * is deliberate: it lets the scheduler's summary of recorder failures
+     * through while filtering the per-run 'RR ABORTED' lines, which are the
+     * noise the summary is counting.
+     */
     public function note(string $message): void
     {
         if ($this->quiet && !str_contains($message, 'CRASH') && !str_contains($message, 'FAIL')
             && !str_contains($message, 'TIMEOUT') && !str_contains($message, 'LEAK')
-            && !str_contains($message, 'trace capture failed')) {
+            && !str_contains($message, 'trace capture failed')
+            && !str_contains($message, 'rr aborted')) {
             return;
         }
         $this->line('harness: ' . $message);

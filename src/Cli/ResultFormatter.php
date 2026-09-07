@@ -44,10 +44,10 @@ final class ResultFormatter
         } else {
             foreach ($result->problematicCommands as $command => $statistics) {
                 $lines[] = sprintf(
-                    '  %s: %d executed, %d false %s',
+                    '  %s: %s executed, %s false %s',
                     $command,
-                    $statistics['executions'],
-                    $statistics['false_replies'],
+                    $this->number($statistics['executions']),
+                    $this->number($statistics['false_replies']),
                     $statistics['false_replies'] === 1 ? 'reply' : 'replies',
                 );
             }
@@ -65,67 +65,115 @@ final class ResultFormatter
         $lines = [
             'Fuzz run summary',
             sprintf('  %-25s %d', 'Seed:', $result->seed),
-            sprintf('  %-25s %d', 'Commands processed:', $result->steps),
-            sprintf('  %-25s %d', 'Unique commands executed:', count($result->commands)),
-            sprintf('  %-25s %d', 'Selected commands:', count($result->selectedCommands)),
-            sprintf('  %-25s %d', 'Cross-slot steps:', $result->crossSlotSteps),
+            sprintf('  %-25s %s', 'Commands processed:', $this->number($result->steps)),
             sprintf(
-                '  %-25s %d',
+                '  %-25s %s',
+                'Unique commands executed:',
+                $this->number(count($result->commands)),
+            ),
+            sprintf(
+                '  %-25s %s',
+                'Selected commands:',
+                $this->number(count($result->selectedCommands)),
+            ),
+            sprintf('  %-25s %s', 'Cross-slot steps:', $this->number($result->crossSlotSteps)),
+            sprintf(
+                '  %-25s %s',
                 'Hook rejections:',
-                array_sum(array_column($result->hookRejections, 'count')),
+                $this->number(array_sum(array_column($result->hookRejections, 'count'))),
             ),
-            sprintf('  %-25s %.6f seconds', 'Elapsed:', $result->elapsedSeconds),
             sprintf(
-                '  %-25s %d (%d unique)',
+                '  %-25s %s seconds',
+                'Elapsed:',
+                number_format($result->elapsedSeconds, 6),
+            ),
+            sprintf(
+                '  %-25s %s (%s unique)',
                 'Warnings:',
-                array_sum($warnings),
-                count($warnings),
+                $this->number(array_sum($warnings)),
+                $this->number(count($warnings)),
             ),
             sprintf(
-                '  %-25s %d (%d unique)',
+                '  %-25s %s (%s unique)',
                 'Redis errors:',
-                $redisErrorOccurrences,
-                $uniqueRedisErrors,
+                $this->number($redisErrorOccurrences),
+                $this->number($uniqueRedisErrors),
             ),
             sprintf(
-                '  %-25s %d (%d unique)',
+                '  %-25s %s (%s unique)',
                 'Exceptions:',
-                $exceptionOccurrences,
-                $uniqueExceptions,
+                $this->number($exceptionOccurrences),
+                $this->number($uniqueExceptions),
             ),
         ];
         if (($result->configuration['saturateChance'] ?? 0.0) > 0.0) {
-            $lines[] = sprintf('  %-25s %d', 'Saturation events:', $result->saturationEvents);
-            $lines[] = sprintf('  %-25s %d', 'Saturation reads:', count($result->saturationOutcomes));
+            $lines[] = sprintf(
+                '  %-25s %s',
+                'Saturation events:',
+                $this->number($result->saturationEvents),
+            );
+            $lines[] = sprintf(
+                '  %-25s %s',
+                'Saturation reads:',
+                $this->number(count($result->saturationOutcomes)),
+            );
         }
         if (($result->configuration['differential'] ?? false) === true) {
             $counts = $this->differentialCounts($result);
-            $lines[] = sprintf('  %-25s %d', 'Differential checks:', array_sum($counts));
-            $lines[] = sprintf('  %-25s %d', 'Differential converged:', $counts['converged']);
-            $lines[] = sprintf('  %-25s %d', 'Differential divergent:', $counts['divergent']);
+            $lines[] = sprintf(
+                '  %-25s %s',
+                'Differential checks:',
+                $this->number(array_sum($counts)),
+            );
+            $lines[] = sprintf(
+                '  %-25s %s',
+                'Differential converged:',
+                $this->number($counts['converged']),
+            );
+            $lines[] = sprintf(
+                '  %-25s %s',
+                'Differential divergent:',
+                $this->number($counts['divergent']),
+            );
         }
         if (($result->configuration['scenarios'] ?? []) !== []) {
             $stateful = $this->statefulCounts($result);
-            $lines[] = sprintf('  %-25s %d', 'Stateful scenarios:', $stateful['total']);
-            $lines[] = sprintf('  %-25s %d', 'Stateful passed:', $stateful['passed']);
-            $lines[] = sprintf('  %-25s %d', 'Stateful failed:', $stateful['failed']);
-            $lines[] = sprintf('  %-25s %d', 'Stateful skipped:', $stateful['skipped']);
+            $lines[] = sprintf('  %-25s %s', 'Stateful scenarios:', $this->number($stateful['total']));
+            $lines[] = sprintf('  %-25s %s', 'Stateful passed:', $this->number($stateful['passed']));
+            $lines[] = sprintf('  %-25s %s', 'Stateful failed:', $this->number($stateful['failed']));
+            $lines[] = sprintf('  %-25s %s', 'Stateful skipped:', $this->number($stateful['skipped']));
         }
         if ($result->relayStats !== null) {
             $memory = $result->relayStats['memory'];
-            $lines[] = sprintf('  %-25s %d', 'Relay hits:', $result->relayStats['hits']);
-            $lines[] = sprintf('  %-25s %d', 'Relay misses:', $result->relayStats['misses']);
-            $lines[] = sprintf('  %-25s %d', 'Relay OOM:', $result->relayStats['oom']);
-            $lines[] = sprintf('  %-25s %d', 'Relay memory total:', $memory['total']);
-            $lines[] = sprintf('  %-25s %d', 'Relay memory limit:', $memory['limit']);
-            $lines[] = sprintf('  %-25s %d', 'Relay memory active:', $memory['active']);
-            $lines[] = sprintf('  %-25s %d', 'Relay memory used:', $memory['used']);
-            $lines[] = sprintf('  %-25s %d', 'Relay peak active:', $memory['peak_active']);
-            $lines[] = sprintf('  %-25s %d', 'Relay peak used:', $memory['peak_used']);
+            $lines[] = sprintf('  %-25s %s', 'Relay hits:', $this->number($result->relayStats['hits']));
+            $lines[] = sprintf(
+                '  %-25s %s',
+                'Relay misses:',
+                $this->number($result->relayStats['misses']),
+            );
+            $lines[] = sprintf('  %-25s %s', 'Relay OOM:', $this->number($result->relayStats['oom']));
+            if (isset($result->relayStats['evictions'])) {
+                $lines[] = sprintf(
+                    '  %-25s %s',
+                    'Relay evictions:',
+                    $this->number($result->relayStats['evictions']),
+                );
+            }
+            $lines[] = sprintf('  %-25s %s', 'Relay memory total:', $this->number($memory['total']));
+            $lines[] = sprintf('  %-25s %s', 'Relay memory limit:', $this->number($memory['limit']));
+            $lines[] = sprintf('  %-25s %s', 'Relay memory active:', $this->number($memory['active']));
+            $lines[] = sprintf('  %-25s %s', 'Relay memory used:', $this->number($memory['used']));
+            $lines[] = sprintf('  %-25s %s', 'Relay peak active:', $this->number($memory['peak_active']));
+            $lines[] = sprintf('  %-25s %s', 'Relay peak used:', $this->number($memory['peak_used']));
         }
         $lines[] = '';
 
         return implode("\n", $lines);
+    }
+
+    private function number(int $value): string
+    {
+        return number_format($value);
     }
 
     private function commandTable(FuzzResult $result): string
@@ -138,15 +186,15 @@ final class ResultFormatter
         foreach ($commands as $command => $statistics) {
             $replies = [];
             foreach ($statistics['replies'] as $type => $count) {
-                $replies[] = "{$type}: {$count}";
+                $replies[] = $type . ': ' . $this->number($count);
             }
             $rows[] = [
                 $command,
-                (string) $statistics['count'],
+                $this->number($statistics['count']),
                 $replies === [] ? '-' : implode(', ', $replies),
-                (string) array_sum($result->commandWarnings[$command] ?? []),
-                (string) array_sum($redisErrors[$command] ?? []),
-                (string) array_sum($statistics['exceptions']),
+                $this->number((int) array_sum($result->commandWarnings[$command] ?? [])),
+                $this->number((int) array_sum($redisErrors[$command] ?? [])),
+                $this->number((int) array_sum($statistics['exceptions'])),
             ];
         }
 

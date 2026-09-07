@@ -43,6 +43,43 @@ final class RelayStatsCollectorTest extends TestCase
         ], $collector->statistics());
     }
 
+    public function testItReportsEvictionsWhenTheExtensionExposesThem(): void
+    {
+        $snapshot = self::snapshot(1, 2, 0, 4096, 3072, 1000, 800, 17);
+        $collector = new RelayStatsCollector(static fn (): array => $snapshot);
+
+        $collector->sample();
+
+        self::assertSame([
+            'samples' => 1,
+            'hits' => 1,
+            'misses' => 2,
+            'oom' => 0,
+            'evictions' => 17,
+            'memory' => [
+                'total' => 4096,
+                'limit' => 3072,
+                'active' => 1000,
+                'used' => 800,
+                'peak_active' => 1000,
+                'peak_used' => 800,
+            ],
+        ], $collector->statistics());
+    }
+
+    public function testItOmitsEvictionsWhenTheExtensionDoesNotExposeThem(): void
+    {
+        $collector = new RelayStatsCollector(
+            static fn (): array => self::snapshot(1, 2, 0, 4096, 3072, 1000, 800),
+        );
+
+        $collector->sample();
+
+        $statistics = $collector->statistics();
+        self::assertIsArray($statistics);
+        self::assertArrayNotHasKey('evictions', $statistics);
+    }
+
     public function testItHasNoStatisticsBeforeTheFirstSample(): void
     {
         $collector = new RelayStatsCollector(static fn (): array => self::snapshot(0, 0, 0, 1, 1, 0, 0));
@@ -59,9 +96,15 @@ final class RelayStatsCollectorTest extends TestCase
         int $limit,
         int $active,
         int $used,
+        ?int $evictions = null,
     ): array {
+        $stats = ['hits' => $hits, 'misses' => $misses, 'oom' => $oom];
+        if ($evictions !== null) {
+            $stats['evictions'] = $evictions;
+        }
+
         return [
-            'stats' => ['hits' => $hits, 'misses' => $misses, 'oom' => $oom],
+            'stats' => $stats,
             'memory' => [
                 'total' => $total,
                 'limit' => $limit,

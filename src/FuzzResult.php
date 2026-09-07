@@ -17,7 +17,7 @@ final readonly class FuzzResult implements \JsonSerializable
      * @param list<InvocationOutcome> $outcomes
      * @param list<DifferentialOutcome> $differentialOutcomes
      * @param list<\Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulOutcome> $statefulOutcomes
-     * @param array{samples: int, hits: int, misses: int, oom: int, memory: array{total: int, limit: int, active: int, used: int, peak_active: int, peak_used: int}}|null $relayStats
+     * @param array{samples: int, hits: int, misses: int, oom: int, evictions?: int, memory: array{total: int, limit: int, active: int, used: int, peak_active: int, peak_used: int}}|null $relayStats
      * @param list<InvocationOutcome> $saturationOutcomes
      * @param array<string, array{count: int, reason: string}> $hookRejections
      */

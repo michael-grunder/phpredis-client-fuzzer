@@ -56,12 +56,13 @@ final class ResultFormatterTest extends TestCase
         self::assertStringContainsString('Relay hits:               12', $output);
         self::assertStringContainsString('Relay misses:             8', $output);
         self::assertStringContainsString('Relay OOM:                2', $output);
-        self::assertStringContainsString('Relay memory total:       4096', $output);
-        self::assertStringContainsString('Relay memory limit:       3072', $output);
-        self::assertStringContainsString('Relay memory active:      1024', $output);
+        self::assertStringContainsString('Relay evictions:          1,024', $output);
+        self::assertStringContainsString('Relay memory total:       4,096', $output);
+        self::assertStringContainsString('Relay memory limit:       3,072', $output);
+        self::assertStringContainsString('Relay memory active:      1,024', $output);
         self::assertStringContainsString('Relay memory used:        768', $output);
-        self::assertStringContainsString('Relay peak active:        2048', $output);
-        self::assertStringContainsString('Relay peak used:          1536', $output);
+        self::assertStringContainsString('Relay peak active:        2,048', $output);
+        self::assertStringContainsString('Relay peak used:          1,536', $output);
         self::assertStringNotContainsString('Per-command results', $output);
         self::assertStringNotContainsString('Problematic commands', $output);
         self::assertStringNotContainsString('bad warning', $output);
@@ -187,6 +188,7 @@ final class ResultFormatterTest extends TestCase
                 'hits' => 12,
                 'misses' => 8,
                 'oom' => 2,
+                'evictions' => 1024,
                 'memory' => [
                     'total' => 4096,
                     'limit' => 3072,

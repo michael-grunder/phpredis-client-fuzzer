@@ -50,6 +50,12 @@ final class Job
      */
     public ?string $traceFailure = null;
 
+    /**
+     * rr's own fatal diagnostic, when the run ended because the recorder died
+     * rather than because anything happened to the client.
+     */
+    public ?string $rrFatal = null;
+
     public ?int $reducedSteps = null;
 
     public string $note = '';

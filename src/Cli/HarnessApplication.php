@@ -111,8 +111,6 @@ final class HarnessApplication
 
         $outputDir = $this->absolute($options->output);
         Fs::ensureDir($outputDir);
-        $workRoot = $outputDir . '/.work';
-        Fs::ensureDir($workRoot);
 
         if ($options->capturesLeaks() && !$this->phpIsDebug($php, $phpArgs)) {
             $this->write(
@@ -124,7 +122,19 @@ final class HarnessApplication
         $phpVersion = $this->probePhp($php, $phpArgs);
 
         $store = new ReproStore($outputDir, $core, $baseDir, $phpIni);
-        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid(), $setsid);
+
+        // Per-run work directories are named after the harness, the way capture
+        // directories always have been. Several campaigns are meant to be able
+        // to share one output directory, and a shared `.work` broke that
+        // badly: two harnesses handed the same `.work/run-00042/rr-trace` to
+        // two rr recorders, and each exiting harness deleted the whole tree,
+        // including the live traces of a campaign still running. Either one
+        // makes rr abort, which arrives as a SIGABRT that looks exactly like a
+        // crash in the client under test.
+        $workRoot = $outputDir . '/.work/' . $store->pid();
+        Fs::ensureDir($workRoot);
+
+        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid(), $setsid, $workRoot);
         $runner = new JobRunner(
             $options,
             $php,
@@ -148,7 +158,11 @@ final class HarnessApplication
             return $scheduler->run();
         } finally {
             if (!$options->keepWork) {
+                // Only this campaign's own subtree: another harness may still
+                // be recording into its own. The shared parent goes away with
+                // the last campaign to leave, and stays if one is still there.
                 Fs::removeTree($workRoot);
+                @rmdir(dirname($workRoot));
             }
         }
     }
@@ -261,6 +275,7 @@ final class HarnessApplication
         CorePattern $core,
         int $pid,
         ?string $setsid,
+        string $workRoot,
     ): void {
         $info = [
             'started: ' . date('c'),
@@ -278,6 +293,7 @@ final class HarnessApplication
             'run timeout: ' . ($options->runTimeout > 0.0 ? $options->runTimeout . 's' : 'disabled'),
             'reduce: ' . ($options->reduce ?? 'disabled'),
             'core_pattern: ' . $core->raw,
+            'work dir: ' . $workRoot,
             'command: ' . implode(' ', $template->tokens()),
         ];
 
@@ -459,7 +475,9 @@ Harness options:
   --trace-timeout N     Max seconds to wait for an rr trace to finalise (60).
                         A trace that never finalises is not a reproducer: the
                         run is parked under <output>/failed and counted as a
-                        failed reproducer instead
+                        failed reproducer instead. A run rr died on of its own
+                        accord is not a finding at all: it is discarded and
+                        logged in <output>/rr-aborts.log
   --reduce-timeout N    Time budget for one reduction (default: 120)
   --output DIR          Where reproducers are written (default: ./phpredis-fuzz-repros)
   --keep-work           Keep per-run work directories and traces even on success

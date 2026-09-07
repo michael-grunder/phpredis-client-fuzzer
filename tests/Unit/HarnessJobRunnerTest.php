@@ -32,19 +32,18 @@ final class HarnessJobRunnerTest extends TestCase
     public function testAnUnfinalisedTraceIsParkedUnderFailedInsteadOfBecomingAReproducer(): void
     {
         $root = $this->workspace();
-        $runner = $this->runner($root, ['--rr'], $this->child(0), $this->fakeRr('fatal'));
+        $runner = $this->runner($root, ['--rr'], $this->child(0), $this->fakeRr('quiet-abort'));
 
         $job = $this->await($runner, $runner->spawn(0, null, 7));
 
+        // Nothing in stderr says the recorder was at fault, so this stays a
+        // failure — one whose evidence simply cannot be replayed.
         self::assertSame(JobStatus::CaptureFailed, $job->status);
         self::assertNotNull($job->reproDir);
         self::assertSame($root . '/out/' . ReproStore::FAILED, dirname($job->reproDir));
         self::assertFileExists($job->reproDir . '/FAILED.txt');
         self::assertFileExists($job->reproDir . '/rr-trace/incomplete');
-
-        // The recorder's own diagnostic is what the operator needs to see, not
-        // the SIGABRT it exits with.
-        self::assertStringContainsString('STOP-SIGWINCH', (string) $job->traceFailure);
+        self::assertStringContainsString('never finalised', (string) $job->traceFailure);
         self::assertStringContainsString('incomplete', $job->note);
 
         $meta = $this->meta($job->reproDir);
@@ -53,7 +52,25 @@ final class HarnessJobRunnerTest extends TestCase
         self::assertStringContainsString('never finalised', $meta['capture_failure']);
     }
 
-    public function testRrDyingAfterItFinalisedTheTraceIsStillNotAReproducer(): void
+    public function testRrDyingBeforeItRecordedAnythingIsDiscardedAsRecorderNoise(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, ['--rr'], $this->child(0), $this->fakeRr('fatal'));
+
+        $job = $this->await($runner, $runner->spawn(0, null, 7));
+
+        // rr's SIGABRT is not the client's crash, so the run is neither a
+        // failure nor a capture: only rr's own diagnostic is kept.
+        self::assertSame(JobStatus::RrAborted, $job->status);
+        self::assertFalse($job->failure);
+        self::assertNull($job->reproDir);
+        self::assertStringContainsString('STOP-SIGWINCH', (string) $job->rrFatal);
+        self::assertStringContainsString('rr aborted while recording', $job->note);
+        self::assertDirectoryDoesNotExist($job->workDir);
+        self::assertDirectoryDoesNotExist($root . '/out/' . ReproStore::FAILED);
+    }
+
+    public function testRrDyingAfterItFinalisedTheTraceIsAlsoDiscarded(): void
     {
         $root = $this->workspace();
         $runner = $this->runner($root, ['--rr'], $this->child(0), $this->fakeRr('late-fatal'));
@@ -62,11 +79,23 @@ final class HarnessJobRunnerTest extends TestCase
 
         // The trace is complete, so only rr's own backtrace in stderr says the
         // SIGABRT belongs to the recorder rather than to the client.
-        self::assertSame(JobStatus::CaptureFailed, $job->status);
-        self::assertNotNull($job->reproDir);
-        self::assertSame($root . '/out/' . ReproStore::FAILED, dirname($job->reproDir));
-        self::assertStringContainsString('rr failed while recording', (string) $job->traceFailure);
-        self::assertSame('complete', $this->meta($job->reproDir)['rr_trace']);
+        self::assertSame(JobStatus::RrAborted, $job->status);
+        self::assertFalse($job->failure);
+        self::assertNull($job->reproDir);
+        self::assertStringContainsString('backtrace', (string) $job->rrFatal);
+        self::assertDirectoryDoesNotExist($root . '/out/' . ReproStore::FAILED);
+    }
+
+    public function testKeepWorkPreservesTheArtifactsOfARunRrAbortedOn(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, ['--rr', '--keep-work'], $this->child(0), $this->fakeRr('fatal'));
+
+        $job = $this->await($runner, $runner->spawn(0, null, 7));
+
+        self::assertSame(JobStatus::RrAborted, $job->status);
+        self::assertFileExists($job->workDir . '/stderr.log');
+        self::assertFileExists($job->workDir . '/rr-trace/incomplete');
     }
 
     public function testAFinalisedTraceIsCapturedAsAnOrdinaryReproducer(): void

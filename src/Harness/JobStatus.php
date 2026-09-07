@@ -35,9 +35,16 @@ enum JobStatus: string
 
     /**
      * The run failed, but its artifacts are not replayable — an rr trace that
-     * never finalised, most often because rr itself died before it could
-     * record anything. Parked under `<output>/failed/` instead of being filed
-     * as a reproducer.
+     * never finalised, and no diagnostic from rr to say the recorder was at
+     * fault. Parked under `<output>/failed/` instead of being filed as a
+     * reproducer.
      */
     case CaptureFailed = 'capture-failed';
+
+    /**
+     * rr printed its own fatal error, so the SIGABRT the harness saw belongs
+     * to the recorder and the run says nothing about the client. Discarded and
+     * counted as recorder noise; see {@see RrAbortLog}.
+     */
+    case RrAborted = 'rr-aborted';
 }

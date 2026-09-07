@@ -199,6 +199,9 @@ final class TuiView implements View
         if ($stats->failedReproducers > 0) {
             $parts[] = sprintf('<fg=red>failed repros</> %d', $stats->failedReproducers);
         }
+        if ($stats->rrAborts > 0) {
+            $parts[] = sprintf('<fg=yellow>rr aborts</> %d', $stats->rrAborts);
+        }
         $parts[] = sprintf('<fg=cyan>reduced</> %d', $stats->reductions);
 
         return implode('   ', $parts);
@@ -256,6 +259,7 @@ final class TuiView implements View
             JobStatus::Leaked => ['LEAK', 'blue'],
             JobStatus::StartupFailed => ['STARTUP', 'red'],
             JobStatus::CaptureFailed => ['NOTRACE', 'red'],
+            JobStatus::RrAborted => ['RRABORT', 'yellow'],
         };
 
         $steps = $job->reducedSteps !== null

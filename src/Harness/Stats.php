@@ -34,6 +34,14 @@ final class Stats
      */
     public int $failedReproducers = 0;
 
+    /**
+     * Runs discarded because rr aborted while recording them. Recorder noise,
+     * not client failures: they are neither failures nor reproducers, but a
+     * campaign losing most of its runs this way is worth noticing, so they are
+     * counted and logged. {@see RrAbortLog}
+     */
+    public int $rrAborts = 0;
+
     public int $reductions = 0;
 
     /** Runs that exited with ExitCode::STARTUP without fuzzing anything. */

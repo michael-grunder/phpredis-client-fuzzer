@@ -42,6 +42,17 @@ final class Scheduler
 
     private ?int $seedCursor;
 
+    private readonly RrAbortLog $rrAbortLog;
+
+    /** True once the "rr is aborting on most runs" warning has been shown. */
+    private bool $rrAbortWarned = false;
+
+    /**
+     * How many runs rr has to abort on before the rate is worth a warning.
+     * Below this a bad rate is just a small sample.
+     */
+    private const RR_ABORT_WARN_AT = 5;
+
     public function __construct(
         private readonly HarnessOptions $options,
         private readonly string $outputDir,
@@ -54,6 +65,7 @@ final class Scheduler
         private readonly string $phpVersion,
     ) {
         $this->seedCursor = $options->seed;
+        $this->rrAbortLog = RrAbortLog::inDirectory($outputDir);
     }
 
     public function run(): int
@@ -187,6 +199,7 @@ final class Scheduler
             JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut, JobStatus::Leaked
                 => $this->onCapture($job),
             JobStatus::CaptureFailed => $this->onCaptureFailure($job),
+            JobStatus::RrAborted => $this->onRrAbort($job),
             JobStatus::StartupFailed => $this->onStartupFailure($job),
             JobStatus::Running => null,
         };
@@ -235,6 +248,59 @@ final class Scheduler
                 ReproStore::FAILED,
             ));
         }
+    }
+
+    /**
+     * A run rr aborted on. The recorder failed, not the client, so there is
+     * nothing to capture and nothing to reduce — but a campaign where this
+     * keeps happening is not fuzzing anything, so every one is logged and the
+     * rate is watched.
+     */
+    private function onRrAbort(Job $job): void
+    {
+        $this->stats->rrAborts++;
+        $this->rrAbortLog->append(
+            $this->store->pid(),
+            $job,
+            $job->rrFatal ?? 'rr aborted without a diagnostic',
+            $this->options->keepWork ? $job->workDir : null,
+        );
+
+        if ($this->stats->rrAborts === 1) {
+            $this->view->note(sprintf(
+                'rr aborted while recording (%s) — run discarded, not captured; logged in %s/%s',
+                $job->rrFatal ?? 'no diagnostic',
+                $this->outputDir,
+                RrAbortLog::FILE,
+            ));
+        }
+
+        $this->warnOnRrAbortRate();
+    }
+
+    /**
+     * Losing the odd run to rr is normal. Losing most of them means the runs
+     * are never reaching the client at all — a machine problem, or another
+     * harness writing into the same output directory — and that is worth
+     * saying once, while the campaign is still running.
+     */
+    private function warnOnRrAbortRate(): void
+    {
+        if ($this->rrAbortWarned || $this->stats->rrAborts < self::RR_ABORT_WARN_AT) {
+            return;
+        }
+        if ($this->stats->rrAborts * 2 < $this->stats->completed) {
+            return;
+        }
+
+        $this->rrAbortWarned = true;
+        $this->view->note(sprintf(
+            'rr aborted on %d of %d completed run(s) — these are recorder failures, not client failures;'
+            . ' check that no other harness is writing to %s',
+            $this->stats->rrAborts,
+            $this->stats->completed,
+            $this->outputDir,
+        ));
     }
 
     private function onCapture(Job $job): void
@@ -446,6 +512,7 @@ final class Scheduler
                     : '')
                 . $repro . $min,
             JobStatus::CaptureFailed => $head . 'CAPTURE FAILED ' . ($job->note !== '' ? $job->note : '') . $repro,
+            JobStatus::RrAborted => $head . 'RR ABORTED ' . ($job->rrFatal ?? ''),
             JobStatus::StartupFailed => $head . 'STARTUP FAILURE exit ' . ($job->exitCode ?? '?'),
             JobStatus::Running => $head . 'running',
         };
@@ -476,6 +543,15 @@ final class Scheduler
                 $this->stats->failedReproducers,
                 $this->outputDir,
                 ReproStore::FAILED,
+            );
+        }
+        if ($this->stats->rrAborts > 0) {
+            $lines[] = sprintf(
+                'harness: %d run(s) discarded — rr aborted while recording them, so they say nothing'
+                . ' about the client (logged in %s/%s)',
+                $this->stats->rrAborts,
+                $this->outputDir,
+                RrAbortLog::FILE,
             );
         }
         foreach ($this->startupReport() as $line) {

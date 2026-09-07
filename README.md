@@ -91,7 +91,11 @@ counts remain available in `FuzzResult::$commands`, and
 Runs containing either `Relay\Relay` or `Relay\Cluster` also sample the global
 `Relay\Relay::stats()` counters before the workload, after every 100 commands,
 and at the end. `FuzzResult::$relayStats` reports the latest hit, miss, OOM, and
-memory counters together with the highest observed active and used memory.
+memory counters together with the highest observed active and used memory. When
+the loaded Relay build exposes an `evictions` counter it is reported as well;
+older builds simply omit it. Human-readable output prints these and the other
+summary counters with thousands separators, while JSON output keeps raw
+integers.
 
 Human-readable summaries normalize known volatile diagnostic fields before
 counting unique messages. For example, generated stream keys in `NOGROUP`
@@ -549,26 +553,36 @@ becomes `<output>/<harness-pid>.<nnnnn>/` — for example `48213.00001` — hold
 the `php.ini` copy when `--php-ini` was used,
 and — under `--rr` — the finalised `rr-trace/` (the harness waits for rr's
 `incomplete` sentinel to clear, up to `--trace-timeout`). The seed, run number,
-signal, exit code, and capture time all live in `meta.json`. Work directories
-and rr traces for runs that are not captured are deleted; `--keep-work` keeps
-them.
+signal, exit code, and capture time all live in `meta.json`. Each campaign works
+in its own `<output>/.work/<harness-pid>/` and removes only that subtree when it
+exits, so a harness sharing an output directory with another one never deletes
+or reuses a live run's directory. Work directories and rr traces for runs that
+are not captured are deleted; `--keep-work` keeps them.
 
-A capture whose rr trace never finalised is **not** a reproducer, and neither is
-one whose stderr holds rr's own death. `rr replay` cannot open a trace that
-still holds its `incomplete` sentinel, and the run that produced it is usually
-not a finding at all: when rr itself dies — a terminal resize stopping the
-tracee inside `Task::spawn()` is the classic one — it aborts before recording
-anything, and because the harness' child *is* rr, the recorder's `SIGABRT`
-arrives looking exactly like a crash in the client. An `[FATAL src/…]` line or a
-`=== Start rr backtrace:` dump in a run's stderr therefore disqualifies it
-whatever state the trace was left in, since rr can also die after finalising.
-Those runs are parked under `<output>/failed/<harness-pid>.<nnnnn>/` with the
-same artifacts plus a `FAILED.txt` saying why, `capture_failure` and `rr_trace`
-fields in `meta.json`, and they are counted separately as *failed reproducers*:
-they do not count toward `--reproducers N`, are never fed to the reducer, and do
-not make the harness exit non-zero. Everything directly under `<output>/` stays
-re-runnable. A minimised re-run whose trace does not finalise records
-`trace_failure` in `<repro>/minimized/meta.json` and files no trace.
+A run whose stderr holds rr's own death is **not** a finding and is not
+captured at all. When rr itself dies — a terminal resize stopping the tracee
+inside `Task::spawn()`, or another process pulling the trace directory out from
+under it — the harness' child *is* rr, so the recorder's `SIGABRT` arrives
+looking exactly like a crash in the client. An `[FATAL src/…]` line or a
+`=== Start rr backtrace:` dump in a run's stderr therefore discards it whatever
+state the trace was left in, since rr can also die after finalising a perfectly
+good recording. Those runs are counted as *rr aborts*, appended one line each to
+`<output>/rr-aborts.log` (time, harness pid, run, seed, and rr's diagnostic),
+and reported in the closing summary; the harness warns once when they account
+for half or more of a campaign, which usually means the machine is unhealthy or
+a second harness is writing to the same output directory. Use `--keep-work` to
+keep the artifacts of one for inspection.
+
+A capture whose rr trace never finalised, with nothing from rr to say the
+recorder was at fault, is still a failure — just one that cannot be replayed,
+since `rr replay` cannot open a trace that still holds its `incomplete`
+sentinel. Those runs are parked under `<output>/failed/<harness-pid>.<nnnnn>/`
+with the same artifacts plus a `FAILED.txt` saying why, `capture_failure` and
+`rr_trace` fields in `meta.json`, and they are counted separately as *failed
+reproducers*: they do not count toward `--reproducers N`, are never fed to the
+reducer, and do not make the harness exit non-zero. Everything directly under
+`<output>/` stays re-runnable. A minimised re-run whose trace does not finalise
+records `trace_failure` in `<repro>/minimized/meta.json` and files no trace.
 
 To keep those recordings from failing in the first place, each run is launched
 through `setsid(1)` when one is available, so it runs in its own session instead
@@ -587,8 +601,9 @@ directory: each campaign's reproducers stay grouped, and the sequence numbers
 order them by age within a campaign. Directories are claimed with a
 non-recursive `mkdir()`, which fails rather than reusing an existing name, so a
 recycled pid simply continues past whatever numbers are already on disk instead
-of writing over them. The settings of each campaign are written alongside its
-captures as `<output>/<harness-pid>.run-info.txt`.
+of writing over them. Per-run work directories are namespaced the same way. The
+settings of each campaign are written alongside its captures as
+`<output>/<harness-pid>.run-info.txt`, including the `work dir:` it used.
 
 With `--reduce steps` a capture is followed by a binary search for the smallest
 `{steps}` value that still reproduces the same failure with the same seed and
@@ -625,9 +640,10 @@ hint, so a slow-draining run reads differently from a wedged one.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
 the harness prints a line per finished run and a periodic summary. The dashboard
 tallies failures, crashes, timeouts, reproducers, and reductions, plus a `leaks`
-count whenever `leaks` is in `--capture` and a `failed repros` count once a
-capture has had to be parked under `failed/`. The process exits non-zero when at
-least one reproducer was captured. Point it only at a disposable Redis target.
+count whenever `leaks` is in `--capture`, a `failed repros` count once a capture
+has had to be parked under `failed/`, and an `rr aborts` count once rr has died
+on a run of its own accord. The process exits non-zero when at least one
+reproducer was captured. Point it only at a disposable Redis target.
 
 ### Choosing a setting at random
 

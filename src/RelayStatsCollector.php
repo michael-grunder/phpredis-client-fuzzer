@@ -14,7 +14,7 @@ final class RelayStatsCollector
 
     private int $peakUsed = 0;
 
-    /** @var array{hits: int, misses: int, oom: int, memory: array{total: int, limit: int, active: int, used: int}}|null */
+    /** @var array{hits: int, misses: int, oom: int, evictions?: int, memory: array{total: int, limit: int, active: int, used: int}}|null */
     private ?array $latest = null;
 
     /** @param \Closure(): array<mixed> $reader */
@@ -33,17 +33,22 @@ final class RelayStatsCollector
         $stats = $this->section($snapshot, 'stats');
         $memory = $this->section($snapshot, 'memory');
 
-        $this->latest = [
+        $latest = [
             'hits' => $this->integer($stats, 'hits'),
             'misses' => $this->integer($stats, 'misses'),
             'oom' => $this->integer($stats, 'oom'),
-            'memory' => [
-                'total' => $this->integer($memory, 'total'),
-                'limit' => $this->integer($memory, 'limit'),
-                'active' => $this->integer($memory, 'active'),
-                'used' => $this->integer($memory, 'used'),
-            ],
         ];
+        if (array_key_exists('evictions', $stats)) {
+            $latest['evictions'] = $this->integer($stats, 'evictions');
+        }
+        $latest['memory'] = [
+            'total' => $this->integer($memory, 'total'),
+            'limit' => $this->integer($memory, 'limit'),
+            'active' => $this->integer($memory, 'active'),
+            'used' => $this->integer($memory, 'used'),
+        ];
+
+        $this->latest = $latest;
         $this->samples++;
         $this->peakActive = max($this->peakActive, $this->latest['memory']['active']);
         $this->peakUsed = max($this->peakUsed, $this->latest['memory']['used']);
@@ -55,6 +60,7 @@ final class RelayStatsCollector
      *     hits: int,
      *     misses: int,
      *     oom: int,
+     *     evictions?: int,
      *     memory: array{total: int, limit: int, active: int, used: int, peak_active: int, peak_used: int}
      * }|null
      */
@@ -64,17 +70,22 @@ final class RelayStatsCollector
             return null;
         }
 
-        return [
+        $statistics = [
             'samples' => $this->samples,
             'hits' => $this->latest['hits'],
             'misses' => $this->latest['misses'],
             'oom' => $this->latest['oom'],
-            'memory' => [
-                ...$this->latest['memory'],
-                'peak_active' => $this->peakActive,
-                'peak_used' => $this->peakUsed,
-            ],
         ];
+        if (isset($this->latest['evictions'])) {
+            $statistics['evictions'] = $this->latest['evictions'];
+        }
+        $statistics['memory'] = [
+            ...$this->latest['memory'],
+            'peak_active' => $this->peakActive,
+            'peak_used' => $this->peakUsed,
+        ];
+
+        return $statistics;
     }
 
     /**
