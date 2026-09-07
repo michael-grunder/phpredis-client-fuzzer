@@ -187,6 +187,184 @@ final class CacheSaturatorTest extends TestCase
         self::assertGreaterThanOrEqual(3, count($invoker->calls[8][1]));
     }
 
+    public function testFastModeSplitsTheTargetIntoOneBitmapPerStep(): void
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator(
+            (new FuzzConfig())->setKeys(2),
+            $invoker,
+            static fn (): int => 0,
+        );
+
+        $batch = $saturator->run(
+            new Relay(),
+            0,
+            1,
+            4,
+            null,
+            null,
+            1000,
+            SaturationMode::Fast,
+        );
+
+        // 1000 bytes over four steps is 250 bytes per key, and the last bit of
+        // a 250 byte string is offset 1999.
+        self::assertSame([
+            ['setbit', ['saturate:250:0', 1999, true]],
+            ['get', ['saturate:250:0']],
+            ['setbit', ['saturate:250:1', 1999, true]],
+            ['get', ['saturate:250:1']],
+            ['setbit', ['saturate:250:2', 1999, true]],
+            ['get', ['saturate:250:2']],
+            ['setbit', ['saturate:250:3', 1999, true]],
+            ['get', ['saturate:250:3']],
+        ], $invoker->calls);
+        self::assertCount(4, $batch['outcomes']);
+        self::assertSame('saturate:fast:get', $batch['outcomes'][0]->command);
+        self::assertSame('saturate:250:0', $batch['outcomes'][0]->variant);
+        self::assertSame('saturation', $batch['outcomes'][0]->operation);
+        self::assertNull($batch['outcomes'][0]->exception);
+    }
+
+    public function testFastModeGranularityFollowsTheStepCount(): void
+    {
+        $coarse = self::fastCalls(10, 10485760);
+        $fine = self::fastCalls(100, 10485760);
+
+        self::assertCount(20, $coarse);
+        self::assertCount(200, $fine);
+        // Every event restarts at the first key so the server-side key space
+        // stays bounded across refills.
+        self::assertSame(['setbit', ['saturate:1048576:0', 1048576 * 8 - 1, true]], $coarse[0]);
+        self::assertSame(['setbit', ['saturate:104858:0', 104858 * 8 - 1, true]], $fine[0]);
+    }
+
+    /** @return list<array{string, list<mixed>}> */
+    private static function fastCalls(int $steps, int $target): array
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator(
+            new FuzzConfig(),
+            $invoker,
+            static fn (): int => 0,
+        );
+        $saturator->run(new Relay(), 0, 1, $steps, null, null, $target, SaturationMode::Fast);
+
+        return $invoker->calls;
+    }
+
+    public function testFastModeRoundsThePartialChunkUp(): void
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator(
+            new FuzzConfig(),
+            $invoker,
+            static fn (): int => 0,
+        );
+
+        $saturator->run(new Relay(), 0, 1, 3, null, null, 100, SaturationMode::Fast);
+
+        self::assertCount(6, $invoker->calls);
+        self::assertSame(['setbit', ['saturate:34:0', 34 * 8 - 1, true]], $invoker->calls[0]);
+    }
+
+    public function testFastModeStopsOnceTheTargetIsReached(): void
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $usage = [0, 400, 1100];
+        $sample = 0;
+        $saturator = new CacheSaturator(
+            new FuzzConfig(),
+            $invoker,
+            static function () use (&$usage, &$sample): int {
+                return $usage[$sample++];
+            },
+        );
+
+        $batch = $saturator->run(
+            new Relay(),
+            0,
+            1,
+            8,
+            null,
+            null,
+            1000,
+            SaturationMode::Fast,
+        );
+
+        self::assertCount(2, $batch['outcomes']);
+        self::assertSame(['setbit', 'get', 'setbit', 'get'], array_column($invoker->calls, 0));
+        self::assertSame(3, $sample);
+    }
+
+    public function testFastModeSpreadsClusterKeysAcrossHashTags(): void
+    {
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator(
+            (new FuzzConfig())->setCluster(true)->setShards(2),
+            $invoker,
+            static fn (): int => 0,
+        );
+
+        $saturator->run(new Relay(), 0, 1, 3, null, null, 300, SaturationMode::Fast);
+
+        $keys = array_map(
+            static fn (array $call): mixed => $call[1][0],
+            $invoker->calls,
+        );
+
+        self::assertSame([
+            'saturate:{0}:100:0',
+            'saturate:{0}:100:0',
+            'saturate:{1}:100:1',
+            'saturate:{1}:100:1',
+            'saturate:{0}:100:2',
+            'saturate:{0}:100:2',
+        ], $keys);
+    }
+
+    public function testFastModeRequiresAByteTarget(): void
+    {
+        $saturator = new CacheSaturator(
+            new FuzzConfig(),
+            new RecordingSaturationInvoker(),
+            static fn (): int => 0,
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Fast saturation requires a byte target');
+
+        $saturator->run(new Relay(), 0, 1, 4, null, null, null, SaturationMode::Fast);
+    }
+
+    public function testFastModeStillReadsWhenTheBitmapWriteThrows(): void
+    {
+        $invoker = new RecordingSaturationInvoker('setbit');
+        $saturator = new CacheSaturator(
+            new FuzzConfig(),
+            $invoker,
+            static fn (): int => 0,
+        );
+
+        $batch = $saturator->run(
+            new Relay(),
+            0,
+            1,
+            1,
+            null,
+            null,
+            1024,
+            SaturationMode::Fast,
+        );
+
+        self::assertSame(['setbit', 'get'], array_column($invoker->calls, 0));
+        self::assertSame(
+            'Synthetic setbit failure',
+            $batch['outcomes'][0]->exception['message'] ?? null,
+        );
+        self::assertSame('string', $batch['outcomes'][0]->replyType);
+    }
+
     public function testSeededModeStillAttemptsTheReadWhenTheWriteThrows(): void
     {
         $invoker = new RecordingSaturationInvoker('set');

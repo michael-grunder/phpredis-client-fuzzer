@@ -140,15 +140,39 @@ final class ConfigurationTest extends TestCase
     {
         self::assertSame(SaturationMode::Natural, SaturationMode::parse(' NATURAL '));
         self::assertSame(SaturationMode::Seeded, SaturationMode::parse('seeded'));
+        self::assertSame(SaturationMode::Fast, SaturationMode::parse('Fast'));
 
         $configuration = new RunConfiguration(saturateMode: SaturationMode::Seeded);
         self::assertSame('seeded', $configuration->jsonSerialize()['saturateMode'] ?? null);
+
+        $fast = new RunConfiguration(
+            saturateSteps: 10,
+            saturateTarget: 1024,
+            saturateMode: SaturationMode::Fast,
+        );
+        self::assertSame('fast', $fast->jsonSerialize()['saturateMode'] ?? null);
+    }
+
+    public function testFastSaturationRequiresATarget(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('saturateMode fast requires both');
+
+        new RunConfiguration(saturateSteps: 10, saturateMode: SaturationMode::Fast);
+    }
+
+    public function testFastSaturationRequiresAStepCount(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('saturateMode fast requires both');
+
+        new RunConfiguration(saturateTarget: 1024, saturateMode: SaturationMode::Fast);
     }
 
     public function testUnknownSaturationModeIsRejected(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('expected natural or seeded');
+        $this->expectExceptionMessage('expected natural, seeded, or fast');
 
         SaturationMode::parse('synthetic');
     }

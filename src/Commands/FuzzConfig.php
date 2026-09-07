@@ -256,6 +256,30 @@ class FuzzConfig {
         return $this->getKey($type, $shard, $key);
     }
 
+    /**
+     * Return a dedicated saturation key that lives outside the generated key
+     * space, so filling a client cache with large deterministic values cannot
+     * overwrite the fuzzer's own keys.  Cluster keys walk the configured hash
+     * tags so a pass spreads across every shard.
+     *
+     * The intended size is part of the name because SETBIT never shrinks a
+     * string: reusing one name for two sizes would silently keep whatever an
+     * earlier, larger run left on the server.
+     */
+    public function getSaturationKeyAt(int $index, int $bytes): string {
+        if ($index < 0) {
+            throw new \OutOfBoundsException('Saturation key index cannot be negative');
+        }
+        if ($bytes < 1) {
+            throw new \OutOfBoundsException('Saturation key size must be positive');
+        }
+
+        if ($this->cluster)
+            return sprintf('saturate:{%d}:%d:%d', $index % $this->shards, $bytes, $index);
+
+        return sprintf('saturate:%d:%d', $bytes, $index);
+    }
+
     public function getConsumer(): string {
         return sprintf("consumer:%d", getmypid());
     }

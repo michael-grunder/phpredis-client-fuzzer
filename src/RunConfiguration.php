@@ -76,6 +76,14 @@ final readonly class RunConfiguration implements \JsonSerializable
         if ($saturateTarget !== null && $saturateTarget < 1) {
             throw new \InvalidArgumentException('saturateTarget must be positive when provided');
         }
+        // Fast saturation divides the target into saturateSteps bitmaps, so
+        // neither value has a meaningful default to fall back on.
+        if ($saturateMode === SaturationMode::Fast
+            && ($saturateTarget === null || $saturateSteps === null)) {
+            throw new \InvalidArgumentException(
+                'saturateMode fast requires both saturateTarget and saturateSteps',
+            );
+        }
         if ($catchPattern === '') {
             throw new \InvalidArgumentException('catchPattern cannot be empty');
         }

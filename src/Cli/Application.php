@@ -103,6 +103,13 @@ final class Application
             $saturationTarget = $saturationTargetValue === null
                 ? null
                 : SaturationTarget::parse($saturationTargetValue);
+            if ($saturationMode === SaturationMode::Fast
+                && ($saturationTarget === null
+                    || $options->optionalInteger('saturate-steps') === null)) {
+                throw new \InvalidArgumentException(
+                    '--saturate-mode=fast requires --saturate-target and --saturate-steps',
+                );
+            }
             $includes = IncludeCategories::parse($options->nullableString('include'));
 
             if ($options->has('verbose')) {
@@ -474,13 +481,18 @@ Run configuration:
   --saturate-chance=N        Probability from 0 to 1 of running a Relay cache
                              saturation event after a fuzz step (default: 0)
   --saturate-steps=N         Maximum whole-key reads per saturation event;
-                             omitted means one pass over the known key space
+                             omitted means one pass over the known key space.
+                             With --saturate-mode=fast it is required and splits
+                             the target into that many bitmaps
   --saturate-target=TARGET   Read until Relay memory.used reaches a byte SIZE
                              (K/M/G/T suffixes use powers of 1024) or a percent
                              of Relay memory.total, such as 95.2%; overrides
                              steps and stops after one known-key-space pass
   --saturate-mode=MODE       natural reads existing keys; seeded writes generated
-                             values before reading each key (default: natural)
+                             values before reading each key; fast grows one
+                             SETBIT bitmap per step and reads it back, filling
+                             the target quickly (default: natural).
+                             fast requires --saturate-target and --saturate-steps
   --invocation-mode=MODE     Client call typing: strict or coercive
                              (default: {invocation-default})
   --script-log=FILE          Write an executable PHP reproduction script

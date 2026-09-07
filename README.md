@@ -1037,9 +1037,9 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `wrongTypeChance` | `0.0` | Chance from `0.0` to `1.0` of selecting a wrong key type |
 | `crossSlotChance` | `0.0` | Chance from `0.0` to `1.0` of forcing a `CROSSSLOT` error; cluster only |
 | `saturateChance` | `0.0` | Chance from `0.0` to `1.0` of running a Relay cache-saturation event after a fuzz step |
-| `saturateSteps` | `null` | Maximum whole-key reads per saturation event; `null` makes one complete key-space pass |
+| `saturateSteps` | `null` | Maximum whole-key reads per saturation event; `null` makes one complete key-space pass. `Fast` mode requires it and splits `saturateTarget` into that many bitmaps |
 | `saturateTarget` | `null` | Target Relay `memory.used` byte count; overrides `saturateSteps` and stops after one key-space pass if unmet |
-| `saturateMode` | `SaturationMode::Natural` | `Natural` reads existing values; `Seeded` writes generated values before reading them |
+| `saturateMode` | `SaturationMode::Natural` | `Natural` reads existing values; `Seeded` writes generated values before reading them; `Fast` grows one `SETBIT` bitmap per step and reads it back, and requires `saturateTarget` and `saturateSteps` |
 | `invocationMode` | `InvocationMode::Strict` | Typing mode used at the client method-call boundary |
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `weights` | `[]` | Command or flag weights |
@@ -1228,6 +1228,13 @@ whole-value read. Seeded mode intentionally mutates only the fuzzer's known key
 namespaces and is more efficient when the goal is to fill an otherwise sparse
 Relay cache.
 
+The `fast` mode ignores the generated key space and the read table above. Each
+step grows one dedicated bitmap with `SETBIT key offset 1` and immediately reads
+the whole value back with `GET`, which is the cheapest deterministic way to move
+a known number of bytes into Relay's cache. It is the right mode for exercising
+eviction, where the goal is to reach `relay.maxmemory` quickly and repeatedly
+rather than to exercise value shapes.
+
 No `SCAN`, `KEYS`, or `TYPE` calls are needed. Standalone passes cover each of
 the five type namespaces across `keys`; cluster passes additionally cover every
 configured hash tag from `shards`. The client prefix, serializer, and
@@ -1244,6 +1251,35 @@ but the wall-clock `maxSeconds` deadline can truncate a batch. At least one Rela
 client is required when the chance is nonzero. A selected client that is
 currently in a transaction or pipeline is skipped so saturation reads cannot
 alter its queued workload.
+
+`fast` mode reads `saturateSteps` differently: it is the granularity of one
+event, not a per-event cap. The target is divided by the step count, rounding
+up, and each step writes and reads one bitmap of that size, so a 10 MiB target
+with 10 steps writes ten 1 MiB keys and the same target with 100 steps writes a
+hundred 100 KiB keys. Both `saturateTarget` and `saturateSteps` are therefore
+required; a run without them is rejected before connecting. The bitmap keys are
+named `saturate:<bytes>:<index>`, outside every generated key namespace, and
+cluster runs tag them as `saturate:{0}:<bytes>:0`, `saturate:{1}:<bytes>:1`, ...
+so a pass spreads across the configured shards. The size is part of the name
+because `SETBIT` never shrinks a string, so a smaller chunk would otherwise
+inherit whatever a larger earlier run left on the server. Every event restarts
+at the first key, so the server-side key space stays bounded and a run refills
+the same keys after Relay evicts them. Memory is still checked before the event and after every
+step, so an event that starts at or above the target does no work at all.
+
+What a `fast` event actually costs in cache bytes depends on Relay's own
+configuration, notably `relay.maxmemory`, `relay.maxmemory_pct`, and
+`relay.eviction_strategy`: a target above the eviction threshold will keep
+evicting and refilling instead of settling, which is usually the point when
+testing eviction. A serializer or compressor is still applied to the `GET`,
+which sees raw bitmap bytes it did not write, so `fast` runs against a
+serializing client will report the corresponding client warnings or errors.
+
+```bash
+bin/phpredis-fuzz --client=relay --steps=100000 \
+    --saturate-chance=0.05 --saturate-mode=fast \
+    --saturate-target=16m --saturate-steps=10
+```
 
 ```php
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;

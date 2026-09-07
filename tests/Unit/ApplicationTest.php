@@ -93,6 +93,25 @@ final class ApplicationTest extends TestCase
         );
     }
 
+    public function testFastSaturationRequiresATargetAndStepsBeforeConnecting(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new Application($output, $error))->run([
+            '--saturate-mode=fast',
+            '--saturate-target=16m',
+            '--port=0',
+        ]);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString(
+            '--saturate-mode=fast requires --saturate-target and --saturate-steps',
+            self::contents($error),
+        );
+    }
+
     public function testUnreadableHookIsRejectedBeforeConnecting(): void
     {
         $output = self::stream();
