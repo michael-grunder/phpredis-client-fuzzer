@@ -21,6 +21,8 @@ final class JobRunner
      * @param string|null $setsidBinary A verified `setsid(1)` used to run each
      *        child in its own session, or null to launch children in the
      *        harness' own process group. See {@see buildArgv()}.
+     * @param RunLog|null $runLog Where every finished run's stdout is appended
+     *        (`--run-log`), or null to keep only what a capture retains.
      */
     public function __construct(
         private readonly HarnessOptions $options,
@@ -33,6 +35,7 @@ final class JobRunner
         private readonly ?string $rrBinary,
         private readonly string $phpVersion,
         private readonly ?string $setsidBinary = null,
+        private readonly ?RunLog $runLog = null,
     ) {
         Fs::ensureDir($this->workRoot);
     }
@@ -112,6 +115,9 @@ final class JobRunner
         if ($draining && $terminated) {
             $job->status = JobStatus::Skipped;
             $job->note = 'stopped';
+            // Whatever it managed to print before the shutdown reached it. The
+            // block is labelled `stopped` so a truncated one is recognisable.
+            $this->runLog?->append($job, 'stopped');
             $this->discard($job);
             return;
         }
@@ -127,6 +133,11 @@ final class JobRunner
             $job->timedOut,
             $job->leak !== null,
         );
+
+        // Before resolve(), which moves this run's stdout into a reproducer or
+        // deletes it with the work directory.
+        $this->runLog?->append($job, $this->runLogLabel($job, $verdict));
+
         $this->resolve($job, $verdict);
     }
 
@@ -411,6 +422,16 @@ final class JobRunner
             return;
         }
         Fs::removeTree($job->workDir);
+    }
+
+    /**
+     * How a run ended, for its `--run-log` header. Same labels the dashboard
+     * uses, plus `ok` for the runs that had nothing wrong with them, so
+     * `grep '^#' run.log | grep -v ':: ok'` lists every run that did not pass.
+     */
+    private function runLogLabel(Job $job, FailureClassifier $verdict): string
+    {
+        return $verdict->kind() === 'pass' ? 'ok' : $this->describeVerdict($job, $verdict);
     }
 
     /** A short human label for how a run ended, e.g. "SIGSEGV", "timeout", "leak 2 (2048 bytes)". */

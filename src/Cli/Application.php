@@ -57,7 +57,6 @@ final class Application
 
     private const FLAG_OPTIONS = [
         'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking',
-        'include-crashing',
         'no-relay-compatibility', 'differential',
     ];
 
@@ -246,7 +245,7 @@ final class Application
                 includeLocal: $includes->local,
                 includeAdmin: $includes->admin,
                 includeFlush: $includes->flush,
-                includeCrashing: $options->has('include-crashing'),
+                includeCrashing: $includes->crash,
                 includeStateful: $includes->stateful,
                 scriptLog: $runScriptLog,
                 catchPattern: $options->nullableString('catch'),
@@ -511,8 +510,9 @@ Run configuration:
   --raw-chaos                Enable rawCommand calls with arbitrary scalar arguments
   --include-blocking         Enable blocking commands
   --include=CATEGORY,...     Enable opt-in command categories: admin, local,
-                             flush, stateful, or all (all enables these four)
-  --include-crashing         Enable deliberately process-crashing commands
+                             flush, stateful, crash, or all (all enables the
+                             first four; crash is never enabled by all and must
+                             be named explicitly)
   --scenarios=NAME,...       Run seeded scenarios first: transaction-exec,
                              transaction-discard, watch-unwatch-discard,
                              none, or random (random may select any subset)

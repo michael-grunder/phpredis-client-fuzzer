@@ -559,6 +559,40 @@ exits, so a harness sharing an output directory with another one never deletes
 or reuses a live run's directory. Work directories and rr traces for runs that
 are not captured are deleted; `--keep-work` keeps them.
 
+`--run-log FILE` appends every finished run's stdout to one file. Only a
+captured run keeps its output otherwise — the rest is deleted with the work
+directory — so this is the way to watch or mine what the fuzzers actually
+reported across a whole campaign rather than only where it broke. Each run
+contributes one block: a `#` header line naming it, followed by that run's
+output verbatim.
+
+```
+# 2026-09-05T18:22:41+00:00 harness=48213 run=17 seed=920144 port=7001 steps=5000 pid=48260 4.02s :: ok
+{
+    "seed": 920144,
+    ...
+}
+```
+
+The label after `::` is the same one the dashboard shows — `ok`, `SIGSEGV`,
+`timeout (SIGKILL)`, `leak 2 (2048 bytes, zend-mm)`, `exit 1`, or `stopped` for
+a run the shutdown had to kill — so `grep '^#' runs.log | grep -v ':: ok'` lists
+every run that did not pass, and `grep -v '^#' runs.log | jq …` reads the run
+documents as the stream of JSON that `--output=json` produces. Blocks are
+written whole by the harness after each child is reaped, so concurrent runs
+never interleave; the trade-off is that a run appears in the log when it
+finishes, not while it runs. A run that printed nothing (killed before it
+flushed, for instance) still gets a header, followed by `# (no output)`.
+
+The file is appended to and never truncated — several campaigns may share one,
+which is why each header carries the harness pid — and the resolved path is
+recorded in `<output>/<harness-pid>.run-info.txt` as `run log:`. Reduction
+re-runs are not logged: they replay one seed many times and would bury the
+campaign. Only stdout is captured; stderr (`--verbose` command logging, leak
+reports, rr's diagnostics) stays in the reproducer directories and under
+`--keep-work`. A path that cannot be opened for appending is a startup error,
+before any run is spawned.
+
 A run whose stderr holds rr's own death is **not** a finding and is not
 captured at all. When rr itself dies — a terminal resize stopping the tracee
 inside `Task::spawn()`, or another process pulling the trace directory out from
@@ -792,7 +826,22 @@ The `STATEFUL` command flag is separate from scenarios. Standalone random
 `MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH`, and pipeline commands are
 excluded by default; use `--include=stateful` when deliberately mixing them
 into the random stream. The `--include` option accepts a comma-separated list
-of `admin`, `local`, `flush`, and `stateful`; `--include=all` enables all four.
+of `admin`, `local`, `flush`, `stateful`, and `crash`; `--include=all` enables
+the first four.
+
+`crash` is never enabled by `all` and has to be named on its own. It selects
+the deliberately process-crashing catalog entry (`Relay\Relay::crash()`), which
+only exists in debug builds of the extension and segfaults the running process
+by design. It is useful for verifying that a supervisor such as
+`phpredis-fuzz-harness` captures reproducers (cores, `rr` traces) correctly:
+
+```bash
+bin/phpredis-fuzz --include=crash --commands=crash --steps=1
+```
+
+Because the safety gates and `--commands` filters are independent, a pattern
+list that does not match `crash` still excludes it: `--commands='@cached'` with
+`--include=crash` never runs it.
 
 ## Command coverage
 
@@ -1049,7 +1098,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `includeLocal` | `false` | Include client-local state changes, including runtime option mutation and Relay cluster slot-cache invalidation |
 | `includeAdmin` | `false` | Include administrative commands |
 | `includeFlush` | `false` | Include `FLUSHDB` and `FLUSHALL` |
-| `includeCrashing` | `false` | Include deliberately crashing commands |
+| `includeCrashing` | `false` | Include deliberately crashing commands (CLI: `--include=crash`, never enabled by `--include=all`) |
 | `scriptLog` | `null` | Optional executable reproduction script path |
 | `catchPattern` | `null` | Case-insensitive Redis error, warning, or exception substring that stops the run after a match |
 | `differential` | `false` | Enable ordered reference-versus-Relay cache-read comparisons |

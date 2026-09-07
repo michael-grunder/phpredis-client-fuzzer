@@ -35,6 +35,7 @@ final class ApplicationTest extends TestCase
         self::assertStringNotContainsString('--include-local', self::contents($output));
         self::assertStringNotContainsString('--include-flush', self::contents($output));
         self::assertStringNotContainsString('--include-stateful', self::contents($output));
+        self::assertStringNotContainsString('--include-crashing', self::contents($output));
         self::assertStringContainsString('--hook=FILE', self::contents($output));
         self::assertStringContainsString('--forks=N', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));

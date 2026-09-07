@@ -17,6 +17,7 @@ final class IncludeCategoriesTest extends TestCase
         self::assertFalse($includes->local);
         self::assertFalse($includes->flush);
         self::assertFalse($includes->stateful);
+        self::assertFalse($includes->crash);
     }
 
     public function testCsvSelectsCategoriesCaseInsensitively(): void
@@ -27,9 +28,21 @@ final class IncludeCategoriesTest extends TestCase
         self::assertTrue($includes->local);
         self::assertFalse($includes->flush);
         self::assertTrue($includes->stateful);
+        self::assertFalse($includes->crash);
     }
 
-    public function testAllSelectsEveryCategory(): void
+    public function testCrashIsSelectedOnlyWhenNamed(): void
+    {
+        $includes = IncludeCategories::parse('CRASH');
+
+        self::assertTrue($includes->crash);
+        self::assertFalse($includes->admin);
+        self::assertFalse($includes->local);
+        self::assertFalse($includes->flush);
+        self::assertFalse($includes->stateful);
+    }
+
+    public function testAllSelectsEveryCategoryExceptCrash(): void
     {
         $includes = IncludeCategories::parse('all');
 
@@ -37,6 +50,15 @@ final class IncludeCategoriesTest extends TestCase
         self::assertTrue($includes->local);
         self::assertTrue($includes->flush);
         self::assertTrue($includes->stateful);
+        self::assertFalse($includes->crash);
+    }
+
+    public function testAllCombinesWithAnExplicitCrash(): void
+    {
+        $includes = IncludeCategories::parse('all,crash');
+
+        self::assertTrue($includes->admin);
+        self::assertTrue($includes->crash);
     }
 
     public function testUnknownCategoryIsRejected(): void

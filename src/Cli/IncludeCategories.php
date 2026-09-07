@@ -6,21 +6,31 @@ namespace Mgrunder\PhpredisCommandFuzzer\Cli;
 
 final readonly class IncludeCategories
 {
-    /** @var list<string> */
+    /**
+     * The categories `all` turns on. Deliberately crashing commands are not
+     * among them: `crash` kills the process on purpose, so it stays an
+     * explicit, individually named opt-in.
+     *
+     * @var list<string>
+     */
     private const ALL = ['admin', 'local', 'flush', 'stateful'];
+
+    /** @var list<string> */
+    private const CATEGORIES = ['admin', 'local', 'flush', 'stateful', 'crash'];
 
     private function __construct(
         public bool $admin,
         public bool $local,
         public bool $flush,
         public bool $stateful,
+        public bool $crash,
     ) {
     }
 
     public static function parse(?string $value): self
     {
         if ($value === null) {
-            return new self(false, false, false, false);
+            return new self(false, false, false, false, false);
         }
 
         $values = Options::split($value);
@@ -39,9 +49,10 @@ final readonly class IncludeCategories
                 continue;
             }
 
-            if (!in_array($category, self::ALL, true)) {
+            if (!in_array($category, self::CATEGORIES, true)) {
                 throw new \InvalidArgumentException(
-                    "Unknown --include category: {$input}; expected admin, local, flush, stateful, or all",
+                    "Unknown --include category: {$input}; expected admin, local, flush, "
+                    . 'stateful, crash, or all (all excludes crash)',
                 );
             }
 
@@ -53,6 +64,7 @@ final readonly class IncludeCategories
             local: isset($selected['local']),
             flush: isset($selected['flush']),
             stateful: isset($selected['stateful']),
+            crash: isset($selected['crash']),
         );
     }
 }

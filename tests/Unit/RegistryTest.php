@@ -60,6 +60,18 @@ final class RegistryTest extends TestCase
         self::assertNotNull($registry->get('discard'));
     }
 
+    public function testCrashIsSelectableWithoutOtherCategories(): void
+    {
+        $registry = (new CommandFilter())->apply(
+            new Registry(),
+            new RunConfiguration(includeCrashing: true, commands: ['crash']),
+        );
+
+        $crash = $registry->get('crash');
+        self::assertNotNull($crash);
+        self::assertSame(Command::CRASH, $crash->flags());
+    }
+
     public function testRawChaosEnablesCommandsThatRequireRawExecution(): void
     {
         $registry = (new CommandFilter())->apply(

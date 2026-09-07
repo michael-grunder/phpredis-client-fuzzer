@@ -13,6 +13,7 @@ use Mgrunder\PhpredisCommandFuzzer\Harness\PlainView;
 use Mgrunder\PhpredisCommandFuzzer\Harness\PortPool;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Reducer;
 use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
+use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Scheduler;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Stats;
 use Mgrunder\PhpredisCommandFuzzer\Harness\TuiView;
@@ -123,6 +124,12 @@ final class HarnessApplication
 
         $store = new ReproStore($outputDir, $core, $baseDir, $phpIni);
 
+        // Opened before anything is spawned so an unwritable path is a startup
+        // error, not a campaign that logs nothing.
+        $runLog = $options->runLog === null
+            ? null
+            : RunLog::open($this->absolute($options->runLog), $store->pid());
+
         // Per-run work directories are named after the harness, the way capture
         // directories always have been. Several campaigns are meant to be able
         // to share one output directory, and a shared `.work` broke that
@@ -134,7 +141,7 @@ final class HarnessApplication
         $workRoot = $outputDir . '/.work/' . $store->pid();
         Fs::ensureDir($workRoot);
 
-        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid(), $setsid, $workRoot);
+        $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid(), $setsid, $workRoot, $runLog);
         $runner = new JobRunner(
             $options,
             $php,
@@ -146,6 +153,7 @@ final class HarnessApplication
             $rrBinary,
             $phpVersion,
             $setsid,
+            $runLog,
         );
         $reducer = new Reducer($runner, $options->reduceTimeout);
         $ports = new PortPool($options->ports, $options->portSelect, $options->isolatePorts);
@@ -276,6 +284,7 @@ final class HarnessApplication
         int $pid,
         ?string $setsid,
         string $workRoot,
+        ?RunLog $runLog,
     ): void {
         $info = [
             'started: ' . date('c'),
@@ -294,6 +303,7 @@ final class HarnessApplication
             'reduce: ' . ($options->reduce ?? 'disabled'),
             'core_pattern: ' . $core->raw,
             'work dir: ' . $workRoot,
+            'run log: ' . ($runLog?->path() ?? 'disabled'),
             'command: ' . implode(' ', $template->tokens()),
         ];
 
@@ -480,6 +490,14 @@ Harness options:
                         logged in <output>/rr-aborts.log
   --reduce-timeout N    Time budget for one reduction (default: 120)
   --output DIR          Where reproducers are written (default: ./phpredis-fuzz-repros)
+  --run-log FILE        Append every finished run's stdout to FILE, so the
+                        output of the runs that pass — which is otherwise
+                        deleted with their work directory — can be tailed,
+                        grepped, or piped to jq. Each run contributes a `#`
+                        header line naming the run, seed, port and how it ended,
+                        followed by that run's output verbatim. The file is
+                        appended to, never truncated; reduction re-runs are not
+                        logged
   --keep-work           Keep per-run work directories and traces even on success
   --no-tui              Force plain line output
   --quiet               Plain output: only print failures and periodic summaries

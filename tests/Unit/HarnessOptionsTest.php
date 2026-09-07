@@ -52,6 +52,27 @@ final class HarnessOptionsTest extends TestCase
         self::assertFalse($options->capturesTimeouts());
         self::assertFalse($options->capturesFailures());
         self::assertSame([], $options->ports);
+        self::assertNull($options->runLog);
+    }
+
+    public function testRunLogAcceptsBothOptionForms(): void
+    {
+        self::assertSame(
+            '/tmp/runs.log',
+            HarnessOptions::parse(['--run-log', '/tmp/runs.log', '--', 'x'])->runLog,
+        );
+        self::assertSame(
+            '/tmp/runs.log',
+            HarnessOptions::parse(['--run-log=/tmp/runs.log', '--', 'x'])->runLog,
+        );
+    }
+
+    public function testRunLogRejectsAnEmptyPath(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('--run-log requires a file path');
+
+        HarnessOptions::parse(['--run-log=  ', '--', 'x']);
     }
 
     public function testPhpArgsDefaultToNothing(): void

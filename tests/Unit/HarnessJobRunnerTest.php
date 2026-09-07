@@ -12,6 +12,7 @@ use Mgrunder\PhpredisCommandFuzzer\Harness\Job;
 use Mgrunder\PhpredisCommandFuzzer\Harness\JobRunner;
 use Mgrunder\PhpredisCommandFuzzer\Harness\JobStatus;
 use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
+use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -148,6 +149,73 @@ final class HarnessJobRunnerTest extends TestCase
         self::assertNull($job->reproDir);
     }
 
+    public function testTheRunLogKeepsTheOutputOfARunThatPassedAndWasDiscarded(): void
+    {
+        $root = $this->workspace();
+        $log = new RunLog($root . '/runs.log', 4242);
+        $runner = $this->runner($root, [], $this->child(0), null, $log);
+
+        $job = $this->await($runner, $runner->spawn(0, 7000, 7));
+
+        self::assertSame(JobStatus::Passed, $job->status);
+        self::assertDirectoryDoesNotExist($job->workDir);
+
+        // The work directory is gone, so this file is the only place the run's
+        // output still exists.
+        $contents = (string) file_get_contents($log->path());
+        self::assertStringContainsString('run=1 seed=7 port=7000', $contents);
+        self::assertStringContainsString(':: ok', $contents);
+        self::assertStringContainsString('harness-child exiting with 0', $contents);
+    }
+
+    public function testTheRunLogLabelsAFailureAndStillCapturesItAsAReproducer(): void
+    {
+        $root = $this->workspace();
+        $log = new RunLog($root . '/runs.log', 4242);
+        $runner = $this->runner($root, ['--capture', 'failures'], $this->child(3), null, $log);
+
+        $job = $this->await($runner, $runner->spawn(0, null, 7));
+
+        self::assertSame(JobStatus::Failed, $job->status);
+        self::assertNotNull($job->reproDir);
+        self::assertFileExists($job->reproDir . '/stdout.log');
+
+        $contents = (string) file_get_contents($log->path());
+        self::assertStringContainsString(':: exit 3', $contents);
+        self::assertStringContainsString('harness-child exiting with 3', $contents);
+    }
+
+    public function testTheRunLogRecordsWhatARunKilledAtShutdownHadPrinted(): void
+    {
+        $root = $this->workspace();
+        $log = new RunLog($root . '/runs.log', 4242);
+        $runner = $this->runner($root, [], $this->child(0, 30.0), null, $log);
+
+        $job = $runner->spawn(0, null, 7);
+        self::assertTrue($this->waitForOutput($job), 'the child never printed anything');
+        $runner->poll($job, true);
+
+        self::assertSame(JobStatus::Skipped, $job->status);
+
+        // The run never finished, but whatever it had already printed is kept.
+        $contents = (string) file_get_contents($log->path());
+        self::assertStringContainsString(':: stopped', $contents);
+        self::assertStringContainsString('harness-child exiting with 0', $contents);
+    }
+
+    public function testReductionRerunsAreNotLogged(): void
+    {
+        $root = $this->workspace();
+        $log = new RunLog($root . '/runs.log', 4242);
+        $runner = $this->runner($root, ['--capture', 'failures'], $this->child(3), null, $log);
+
+        $runner->rerun(7, null, 1, 30.0, false);
+
+        // A reduction replays the same seed a dozen times; only the campaign's
+        // own runs belong in the log.
+        self::assertFileDoesNotExist($log->path());
+    }
+
     private function await(JobRunner $runner, Job $job): Job
     {
         $deadline = microtime(true) + 30.0;
@@ -158,6 +226,21 @@ final class HarnessJobRunnerTest extends TestCase
         self::assertFalse($job->isRunning(), 'the run never finished');
 
         return $job;
+    }
+
+    /** Wait until the still-running child has flushed something to stdout. */
+    private function waitForOutput(Job $job, float $seconds = 30.0): bool
+    {
+        $deadline = microtime(true) + $seconds;
+        while (microtime(true) < $deadline) {
+            clearstatcache(true, $job->workDir . '/stdout.log');
+            if ((int) @filesize($job->workDir . '/stdout.log') > 0) {
+                return true;
+            }
+            usleep(10_000);
+        }
+
+        return false;
     }
 
     /**
@@ -195,8 +278,13 @@ final class HarnessJobRunnerTest extends TestCase
      * @param list<string> $harnessArgs
      * @param list<string> $command
      */
-    private function runner(string $root, array $harnessArgs, array $command, ?string $rr = null): JobRunner
-    {
+    private function runner(
+        string $root,
+        array $harnessArgs,
+        array $command,
+        ?string $rr = null,
+        ?RunLog $runLog = null,
+    ): JobRunner {
         $options = HarnessOptions::parse([...$harnessArgs, '--steps', '1', '--', ...$command]);
         $store = new ReproStore($root . '/out', new CorePattern('core.%e.%p', false), $root, null, 4242);
 
@@ -210,6 +298,8 @@ final class HarnessJobRunnerTest extends TestCase
             $root . '/work',
             $rr,
             'php test',
+            null,
+            $runLog,
         );
     }
 

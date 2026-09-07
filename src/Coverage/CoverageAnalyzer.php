@@ -71,8 +71,11 @@ final class CoverageAnalyzer
              * (connect(), pipeline(), rawCommand(), _pack(), ...).  Anything
              * left is a command this server and this client do not share, such
              * as a Relay extension checked against PhpRedis or a command newer
-             * than the target. */
-            if (($command->flags() & Command::LOCAL) !== 0 || method_exists($class, $name)) {
+             * than the target.  CRASH counts as client-side too: crash() only
+             * exists in debug builds, so method_exists() alone would move it
+             * between buckets depending on the extension build. */
+            if (($command->flags() & (Command::LOCAL | Command::CRASH)) !== 0
+                || method_exists($class, $name)) {
                 $clientApi[] = $name;
             } else {
                 $unmatched[] = $name;

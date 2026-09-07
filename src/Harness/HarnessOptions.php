@@ -24,9 +24,9 @@ final class HarnessOptions
 
     /** @var list<string> */
     private const SINGLE = [
-        'jobs', 'php', 'php-ini', 'reduce', 'steps', 'seed', 'output', 'runs', 'seconds',
-        'reproducers', 'trace-timeout', 'reduce-timeout', 'run-timeout', 'port-select',
-        'capture',
+        'jobs', 'php', 'php-ini', 'reduce', 'steps', 'seed', 'output', 'run-log', 'runs',
+        'seconds', 'reproducers', 'trace-timeout', 'reduce-timeout', 'run-timeout',
+        'port-select', 'capture',
     ];
 
     /**
@@ -60,6 +60,7 @@ final class HarnessOptions
         public readonly int $steps,
         public readonly ?int $seed,
         public readonly string $output,
+        public readonly ?string $runLog,
         public readonly int $maxRuns,
         public readonly float $maxSeconds,
         public readonly int $maxReproducers,
@@ -209,6 +210,11 @@ final class HarnessOptions
 
         $capture = self::captureList($values['capture'] ?? 'crashes');
 
+        $runLog = $values['run-log'] ?? null;
+        if ($runLog !== null && trim($runLog) === '') {
+            throw new \InvalidArgumentException('--run-log requires a file path');
+        }
+
         $jobs = self::intValue($values, 'jobs', 1);
         if ($jobs < 1) {
             throw new \InvalidArgumentException('--jobs must be at least 1');
@@ -235,6 +241,7 @@ final class HarnessOptions
             steps: $steps,
             seed: isset($values['seed']) ? self::intValue($values, 'seed', 0) : null,
             output: $values['output'] ?? 'phpredis-fuzz-repros',
+            runLog: $runLog,
             maxRuns: self::intValue($values, 'runs', 0),
             maxSeconds: self::floatValue($values, 'seconds', 0.0),
             maxReproducers: self::intValue($values, 'reproducers', 0),
