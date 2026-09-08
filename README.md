@@ -136,6 +136,18 @@ configuration, so pair this hook with the default `--serializer=none` or an
 explicit `--serializer=none,php,igbinary,json` subset when startup selection is
 randomized.
 
+The included `hooks/clamp-read-timeout.php` example keeps the workload from
+disabling its own read timeout. `setoption` generates huge floats, huge
+integers, strings and `null` for `Redis::OPT_READ_TIMEOUT`, and both extensions
+read those as "wait forever": one such step leaves every later reply unbounded,
+so a server that never answers hangs until an external supervisor intervenes
+rather than raising after `--read-timeout` seconds. The hook rewrites only the
+values that would leave the socket unbounded, so the option is still exercised
+and values already inside the band pass through untouched. The band defaults to
+0.0005-1.5 seconds and can be moved with the `FUZZ_MIN_READ_TIMEOUT` and
+`FUZZ_MAX_READ_TIMEOUT` environment variables; `FUZZ_READ_TIMEOUT_CLAMP_VERBOSE=1`
+logs every rewrite to stderr.
+
 A hook file may return a callable that accepts a `HookRegistry`, or a single
 hook object whose registration ID is derived from the filename. An object is
 registered under every surface it implements, so one object can be both an
