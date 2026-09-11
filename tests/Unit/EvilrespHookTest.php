@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespOptions;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookAction;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
@@ -16,6 +17,8 @@ use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespProxy;
 use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespRedis;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 /**
  * Drives hooks/evilresp.php with clients that answer DEBUG EVIL the way the
@@ -33,6 +36,7 @@ final class EvilrespHookTest extends TestCase
         'EVILRESP_FRAMING_PROBABILITY', 'EVILRESP_FRAMING_TARGET', 'EVILRESP_FRAMING_KIND',
         'EVILRESP_TRANSPORT', 'EVILRESP_TRANSPORT_TRUNCATE', 'EVILRESP_TRANSPORT_EXTRA',
         'EVILRESP_TRANSPORT_CHUNKS', 'EVILRESP_TRANSPORT_PROBABILITY',
+        'EVILRESP_TRANSPORT_FAULT', 'EVILRESP_TRANSPORT_AT', 'EVILRESP_TRANSPORT_DURATION',
     ];
 
     private const DEFAULT_CONTROLS = [
@@ -42,6 +46,15 @@ final class EvilrespHookTest extends TestCase
         ['DEBUG', 'EVIL', 'FRAMING', 'AUTO'],
         ['DEBUG', 'EVIL', 'TRANSPORT', 'OFF'],
     ];
+
+    protected function setUp(): void
+    {
+        foreach (self::ENVIRONMENT as $variable) {
+            putenv($variable);
+        }
+        // Existing lifecycle tests use a fixed transport control plan.
+        putenv('EVILRESP_TRANSPORT_FAULT=OFF');
+    }
 
     protected function tearDown(): void
     {
@@ -438,7 +451,8 @@ final class EvilrespHookTest extends TestCase
             ['DEBUG', 'EVIL', 'MUTATIONS', 'ONE'],
             ['DEBUG', 'EVIL', 'GENERATOR', 'PROTOCOL', 'RESP3', 'CORPUS', 'RANDOM', 'VIOLATIONS', 'ON'],
             ['DEBUG', 'EVIL', 'FRAMING', 'LENGTH', 'PROBABILITY', '12.50', 'TARGET', 'root.1.0.value.2', 'KIND', 'OVERFLOW'],
-            ['DEBUG', 'EVIL', 'TRANSPORT', 'TRUNCATE', '6', 'EXTRA', '2', 'CHUNKS', '1,3,4', 'PROBABILITY', '25.00'],
+            ['DEBUG', 'EVIL', 'TRANSPORT', 'TRUNCATE', '6', 'EXTRA', '2', 'CHUNKS', '1,3,4', 'PROBABILITY', '25.00',
+                'FAULT', 'OFF', 'AT', 'AFTER', 'DURATION', '10000'],
         ];
         $hooks = $this->load();
         $hooks->setSeed(123);
@@ -514,6 +528,7 @@ final class EvilrespHookTest extends TestCase
             'strategy', 'mutations', 'generator_protocol', 'generator_corpus', 'generator_violations',
             'framing', 'framing_target', 'framing_kind', 'framing_probability',
             'transport', 'transport_truncate', 'transport_extra', 'transport_chunks', 'transport_probability',
+            'transport_fault', 'transport_at', 'transport_duration',
         ] as $field) {
             $client->proxy->status = (string) preg_replace('/\b' . $field . '=\S+/', $field . '=stale', $expected);
             $armed = count($client->sent);
@@ -530,6 +545,7 @@ final class EvilrespHookTest extends TestCase
         $client->proxy->answer(['STRATEGY', 'REPLACE']);
         $client->proxy->answer(['GENERATOR', 'VIOLATIONS', 'ON']);
         $client->proxy->answer(['TRANSPORT', 'EXTRA', '16']);
+        $client->proxy->answer(['TRANSPORT', 'FAULT', 'STALL', 'AT', 'BEFORE', 'DURATION', '3600000']);
         $client->proxy->answer(['FRAMING', 'LENGTH']);
         $hooks = $this->load();
         $hooks->setSeed(123);
@@ -537,6 +553,7 @@ final class EvilrespHookTest extends TestCase
         self::assertStringContainsString('strategy=PRESERVE', $client->proxy->status);
         self::assertStringContainsString('generator_violations=OFF', $client->proxy->status);
         self::assertStringContainsString('transport=OFF', $client->proxy->status);
+        self::assertStringContainsString('transport_fault=OFF transport_at=AFTER transport_duration=10000', $client->proxy->status);
         self::assertStringContainsString('framing=AUTO', $client->proxy->status);
     }
 
@@ -556,7 +573,129 @@ final class EvilrespHookTest extends TestCase
         self::assertContains([
             'DEBUG', 'EVIL', 'TRANSPORT', 'TRUNCATE', '0', 'EXTRA', '0',
             'CHUNKS', '9223372036854775808,18446744073709551615', 'PROBABILITY', '0.00',
+            'FAULT', 'OFF', 'AT', 'AFTER', 'DURATION', '10000',
         ], $client->sent);
+    }
+
+    public function testDefaultFaultPlansAreSeededAndNeverStall(): void
+    {
+        putenv('EVILRESP_TRANSPORT_FAULT');
+        $options = new EvilrespOptions();
+        $faults = $points = [];
+        foreach (range(0, 99) as $seed) {
+            $plan = $options->draw(new Randomizer(new Mt19937($seed)));
+            self::assertSame($plan, $options->draw(new Randomizer(new Mt19937($seed))));
+            self::assertContains($plan['transport_fault'], ['OFF', 'CLOSE', 'RESET']);
+            self::assertContains($plan['transport_at'], ['BEFORE', 'AFTER', 'REPLY', 'RANDOM']);
+            self::assertGreaterThanOrEqual(1, (float) $plan['transport_probability']);
+            self::assertLessThanOrEqual(5, (float) $plan['transport_probability']);
+            self::assertSame($plan['transport_fault'] === 'OFF' ? 'OFF' : 'ON', $plan['transport']);
+            $faults[$plan['transport_fault']] = true;
+            $points[$plan['transport_at']] = true;
+        }
+        self::assertCount(3, $faults);
+        self::assertCount(4, $points);
+    }
+
+    public function testConnectionFaultsArmEveryMasterRearmAndAppearInTheScript(): void
+    {
+        putenv('EVILRESP_TRANSPORT_FAULT=close,reset');
+        putenv('EVILRESP_TRANSPORT_AT=before,after,reply,random,0003');
+        putenv('EVILRESP_TRANSPORT_PROBABILITY=2-8');
+        $plans = [];
+        foreach ([123, 123, 456] as $seed) {
+            $hooks = $this->load();
+            $hooks->setSeed($seed);
+            $client = $this->standalone();
+            $cluster = $this->cluster([['127.0.0.1', 7200], ['127.0.0.1', 7201]]);
+            $hooks->dispatchPostConstructor($client, 0);
+            $hooks->dispatchPostConstructor($cluster, 1);
+            $sentCommands = $client->sent;
+            $plan = array_pop($sentCommands);
+            self::assertNotNull($plan);
+            $plans[] = $plan;
+            self::assertIsString($plan[12]);
+            self::assertIsString($plan[14]);
+            self::assertContains($plan[12], ['CLOSE', 'RESET']);
+            self::assertContains($plan[14], ['BEFORE', 'AFTER', 'REPLY', 'RANDOM', '3']);
+            foreach ($cluster->_masters() as $node) {
+                self::assertContains([$node, ...$plan], $cluster->sent);
+            }
+            $sent = count($client->sent);
+            $hooks->dispatchPostCommand($this->completed($client, new \RedisException('reset')));
+            $hooks->dispatchPreCommand($this->pending($client));
+            self::assertSame($sent + 1, count($client->sent), 'Matching fault STATUS must not re-arm');
+
+            $client->close();
+            $hooks->dispatchPostCommand($this->completed($client, new \RedisException('EOF')));
+            $hooks->dispatchPreCommand($this->pending($client));
+            $sentCommands = $client->sent;
+            self::assertSame($plan, array_pop($sentCommands));
+
+            $path = tempnam(sys_get_temp_dir(), 'evilresp-fault-script-');
+            self::assertIsString($path);
+            try {
+                ScriptLogger::init($path, clients: [$client]);
+                // A fresh run records constructor arming before its first command.
+                $replay = $this->load();
+                $replay->setSeed($seed);
+                $replay->dispatchPostConstructor($client, 0);
+                $replay->dispatchPreCommand($this->pending($client));
+                ScriptLogger::finish();
+                $script = file_get_contents($path);
+                self::assertIsString($script);
+                self::assertStringContainsString("transport_fault={$plan[12]}", $script);
+                self::assertStringContainsString("'FAULT', '{$plan[12]}', 'AT', '{$plan[14]}', 'DURATION', '10000'", $script);
+            } finally {
+                ScriptLogger::finish();
+                unlink($path);
+            }
+        }
+        self::assertSame($plans[0], $plans[1]);
+        self::assertNotSame($plans[0], $plans[2]);
+    }
+
+    public function testStallsRequireExplicitSelectionAndKeepTheirDurationAndOffset(): void
+    {
+        putenv('EVILRESP_TRANSPORT_FAULT=stall');
+        putenv('EVILRESP_TRANSPORT_AT=0000,9223372036854775808,18446744073709551615');
+        putenv('EVILRESP_TRANSPORT_DURATION=000123');
+        $options = new EvilrespOptions();
+        $offsets = [];
+        foreach (range(0, 19) as $seed) {
+            $plan = $options->draw(new Randomizer(new Mt19937($seed)));
+            self::assertSame('STALL', $plan['transport_fault']);
+            self::assertSame('123', $plan['transport_duration']);
+            self::assertContains($plan['transport_at'], ['0', '9223372036854775808', '18446744073709551615']);
+            $commands = EvilrespOptions::commands($plan);
+            self::assertSame(['FAULT', 'STALL', 'AT', $plan['transport_at'], 'DURATION', '123'], array_slice($commands[4], -6));
+            $offsets[$plan['transport_at']] = true;
+        }
+        self::assertCount(3, $offsets);
+    }
+
+    public function testLegacyTruncationAndExplicitTransportOffSuppressDefaultConnectionFaults(): void
+    {
+        putenv('EVILRESP_TRANSPORT_FAULT');
+        putenv('EVILRESP_TRANSPORT_TRUNCATE=RANDOM');
+        $plan = (new EvilrespOptions())->draw(new Randomizer(new Mt19937(123)));
+        self::assertSame('OFF', $plan['transport_fault']);
+        self::assertSame('RANDOM', $plan['transport_truncate']);
+        self::assertSame('100.00', $plan['transport_probability']);
+        putenv('EVILRESP_TRANSPORT_TRUNCATE');
+        putenv('EVILRESP_TRANSPORT=OFF');
+        $plan = (new EvilrespOptions())->draw(new Randomizer(new Mt19937(123)));
+        self::assertSame('OFF', $plan['transport_fault']);
+        self::assertSame(['TRANSPORT', 'OFF'], EvilrespOptions::commands($plan)[4]);
+    }
+
+    public function testExplicitConnectionFaultsRejectLegacyTruncation(): void
+    {
+        putenv('EVILRESP_TRANSPORT_TRUNCATE=0');
+        putenv('EVILRESP_TRANSPORT_FAULT=OFF,CLOSE');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('EVILRESP_TRANSPORT_TRUNCATE=OFF');
+        $this->load();
     }
 
     /** @return list<array{string, string}> */
@@ -590,6 +729,16 @@ final class EvilrespHookTest extends TestCase
             ['EVILRESP_TRANSPORT_CHUNKS', '1,'],
             ['EVILRESP_TRANSPORT_CHUNKS', implode(',', range(1, 65))],
             ['EVILRESP_TRANSPORT_PROBABILITY', '0-101'],
+            ['EVILRESP_TRANSPORT_FAULT', 'RANDOM'],
+            ['EVILRESP_TRANSPORT_FAULT', 'CLOSE,'],
+            ['EVILRESP_TRANSPORT_FAULT', 'CLOSE,timeout'],
+            ['EVILRESP_TRANSPORT_AT', '-1'],
+            ['EVILRESP_TRANSPORT_AT', 'BEFORE,'],
+            ['EVILRESP_TRANSPORT_AT', '18446744073709551616'],
+            ['EVILRESP_TRANSPORT_DURATION', '0'],
+            ['EVILRESP_TRANSPORT_DURATION', '3600001'],
+            ['EVILRESP_TRANSPORT_DURATION', '-1'],
+            ['EVILRESP_TRANSPORT_DURATION', '1000'],
         ];
     }
 
@@ -615,10 +764,28 @@ final class EvilrespHookTest extends TestCase
 
     public function testTransportOffRejectsConflictingOptions(): void
     {
+        putenv('EVILRESP_TRANSPORT_FAULT');
         putenv('EVILRESP_TRANSPORT=OFF');
         putenv('EVILRESP_TRANSPORT_EXTRA=1');
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('EVILRESP_TRANSPORT_EXTRA');
+        $this->load();
+    }
+
+    /** @return list<array{string, string}> */
+    public static function conflictingFaultOptions(): array
+    {
+        return [['FAULT', 'CLOSE'], ['AT', 'BEFORE'], ['DURATION', '1000']];
+    }
+
+    #[DataProvider('conflictingFaultOptions')]
+    public function testTransportOffRejectsFaultOptions(string $option, string $value): void
+    {
+        putenv('EVILRESP_TRANSPORT_FAULT');
+        putenv('EVILRESP_TRANSPORT=OFF');
+        putenv("EVILRESP_TRANSPORT_{$option}={$value}");
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("EVILRESP_TRANSPORT_{$option}");
         $this->load();
     }
 

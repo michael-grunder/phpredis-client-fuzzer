@@ -336,7 +336,8 @@ object forms do not, so a hook that needs randomness uses the callable form.
 [evilresp](https://github.com/michael-grunder/evilresp) is a RESP proxy that
 can be told, per connection, to return deterministic random frames, mutate the
 upstream's replies, target individual length headers, truncate or fragment
-responses, append unsolicited replies, or lie about cluster slot ownership.
+responses, append unsolicited replies, close or reset connections, explicitly
+stall replies, or lie about cluster slot ownership.
 `hooks/evilresp.php` arms it for every client the
 fuzzer uses:
 
@@ -387,7 +388,7 @@ The hook also supports the following controls. Values are case-insensitive;
 invalid settings fail when the hook loads. These defaults are sent explicitly
 on every arming, including after reconnection, because `MODE RESET` preserves
 them. Use an evilresp build supporting `STRATEGY`, `MUTATIONS`, `GENERATOR`,
-`FRAMING`, and `TRANSPORT`; older builds will reject the setup.
+`FRAMING`, and `TRANSPORT FAULT/AT/DURATION`; older builds will reject the setup.
 
 | Environment variable | Values | Default |
 | --- | --- | --- |
@@ -404,15 +405,36 @@ them. Use an evilresp build supporting `STRATEGY`, `MUTATIONS`, `GENERATOR`,
 | `EVILRESP_TRANSPORT_TRUNCATE` | `OFF`, `RANDOM`, or unsigned byte offset (`0` sends immediate EOF) | `OFF` |
 | `EVILRESP_TRANSPORT_EXTRA` | Number of unsolicited `+EVILRESP` replies, `0`–`16` | `0` |
 | `EVILRESP_TRANSPORT_CHUNKS` | `OFF`, `RANDOM`, or up to 64 strictly increasing positive byte offsets, e.g. `1,3,4` | `OFF` |
-| `EVILRESP_TRANSPORT_PROBABILITY` | Independent percentage or `MIN-MAX` range | `100` |
+| `EVILRESP_TRANSPORT_FAULT` | Comma-separated candidates: `OFF`, `CLOSE`, `RESET`, `STALL`; one drawn per run | `OFF,CLOSE,RESET`; `OFF` when truncation is enabled |
+| `EVILRESP_TRANSPORT_AT` | Comma-separated candidates: `BEFORE`, `AFTER`, `REPLY`, `RANDOM`, or unsigned byte offsets; one drawn per run | `BEFORE,AFTER,REPLY,RANDOM`; `AFTER` when all fault candidates are `OFF` |
+| `EVILRESP_TRANSPORT_DURATION` | Stall duration in milliseconds, `1`–`3600000`; requires a `STALL` candidate | `10000` |
+| `EVILRESP_TRANSPORT_PROBABILITY` | Independent percentage or `MIN-MAX` range | `1-5` with any enabled fault candidate; otherwise `100` |
 
-Transport is disabled by default. Setting truncate, extra, or chunks enables
-the corresponding faults without needing an additional switch. Byte offsets
+The default hook plan now samples connection faults, including a fault-free
+`OFF` choice. `CLOSE` sends an orderly EOF; `RESET` aborts the TCP connection.
+Neither deliberately delays replies. Stalls are excluded unless you explicitly
+include `STALL` in `EVILRESP_TRANSPORT_FAULT`; after the configured duration the
+proxy closes rather than resuming the reply. Client write-side EOF can end a
+stall early. `RESET` requires TCP: on Unix sockets select `OFF,CLOSE` instead.
+
+`AT BEFORE` fails before forwarding the command, `AFTER` obtains the reply
+but sends none of it, and `REPLY` sends the full reply before terminating the
+connection. `AT RANDOM` lets the proxy select a byte offset deterministically;
+a numeric offset sends that many bytes first (an offset beyond the reply skips
+the fault). A retry after upstream execution can repeat a write.
+
+`EVILRESP_TRANSPORT=OFF` disables all transport faults.
+`EVILRESP_TRANSPORT_FAULT=OFF` disables only the new connection faults.
+Explicit truncation suppresses the default connection-fault selection;
+combining enabled `FAULT` candidates with enabled `TRUNCATE` is rejected, so
+use `AT` for fault offsets. Setting extra or chunks enables those delivery
+effects alongside the selected connection fault. `TRANSPORT_PROBABILITY`
+controls their independent selection too. Byte offsets
 and path indexes accept unsigned 64-bit decimal integers. Ranges are drawn
 once per run to hundredths of a percent from a separate
 `$hooks->randomizer('evilresp-options')` stream; reconnects reuse the drawn
-values. The full plan appears in stderr and the script log, and STATUS checks
-verify every new setting.
+values, including the chosen fault and failure point. The full plan appears
+in stderr and the script log, and STATUS checks verify every new setting.
 
 `STRATEGY`, `MUTATIONS`, and `FRAMING` affect `MUTATE` and `OVERFLOW`.
 With `MUTATIONS=ONE`, an explicit length fault gets the first chance at the
@@ -442,6 +464,18 @@ EVILRESP_MODES=OFF EVILRESP_TOPOLOGY=0 EVILRESP_TRANSPORT_TRUNCATE=RANDOM \
 EVILRESP_TRANSPORT_CHUNKS=1,3,4 EVILRESP_TRANSPORT_PROBABILITY=5-20 \
 bin/phpredis-fuzz --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
 ```
+
+To exercise connection failures with valid upstream replies:
+
+```bash
+EVILRESP_MODES=OFF EVILRESP_TOPOLOGY=0 EVILRESP_FRAMING=OFF \
+EVILRESP_TRANSPORT_FAULT=CLOSE,RESET EVILRESP_TRANSPORT_PROBABILITY=1-5 \
+bin/phpredis-fuzz --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
+```
+
+To explicitly test timeouts, use `EVILRESP_TRANSPORT_FAULT=STALL
+EVILRESP_TRANSPORT_AT=AFTER EVILRESP_TRANSPORT_DURATION=30000` in that command.
+Stalling can slow a stress run considerably.
 
 Expect the report to be full of
 exceptions and wrong replies; that is the proxy doing its job, and what the

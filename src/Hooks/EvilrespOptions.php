@@ -16,6 +16,12 @@ final class EvilrespOptions
     /** @var array<string, array{int, int}> */
     private array $probabilities = [];
 
+    /** @var non-empty-list<string> */
+    private array $faults;
+
+    /** @var non-empty-list<string> */
+    private array $faultPoints;
+
     public function __construct()
     {
         $this->settings = [
@@ -39,13 +45,35 @@ final class EvilrespOptions
         if (self::env('TRANSPORT') !== null) {
             self::choice('TRANSPORT', ['OFF'], 'OFF');
             self::rejectOptions(
-                ['TRANSPORT_TRUNCATE', 'TRANSPORT_EXTRA', 'TRANSPORT_CHUNKS', 'TRANSPORT_PROBABILITY'],
+                ['TRANSPORT_TRUNCATE', 'TRANSPORT_EXTRA', 'TRANSPORT_CHUNKS', 'TRANSPORT_PROBABILITY',
+                    'TRANSPORT_FAULT', 'TRANSPORT_AT', 'TRANSPORT_DURATION'],
                 'EVILRESP_TRANSPORT to be unset',
             );
         }
         $truncate = strtoupper(self::env('TRANSPORT_TRUNCATE') ?? 'OFF');
         if (!in_array($truncate, ['OFF', 'RANDOM'], true)) {
             $truncate = self::unsigned('TRANSPORT_TRUNCATE', $truncate);
+        }
+        // An explicit legacy truncation plan keeps its existing behavior.
+        $this->faults = self::candidates(
+            'TRANSPORT_FAULT', ['OFF', 'CLOSE', 'RESET', 'STALL'],
+            self::env('TRANSPORT') !== null || $truncate !== 'OFF' ? 'OFF' : 'OFF,CLOSE,RESET',
+        );
+        $hasFaults = array_diff($this->faults, ['OFF']) !== [];
+        if ($truncate !== 'OFF' && $hasFaults) {
+            throw new InvalidArgumentException('EVILRESP_TRANSPORT_FAULT requires EVILRESP_TRANSPORT_TRUNCATE=OFF; use EVILRESP_TRANSPORT_AT for offsets');
+        }
+        $this->faultPoints = self::candidates(
+            'TRANSPORT_AT', ['BEFORE', 'AFTER', 'REPLY', 'RANDOM'],
+            $hasFaults ? 'BEFORE,AFTER,REPLY,RANDOM' : 'AFTER',
+            offsets: true,
+        );
+        $duration = self::unsigned('TRANSPORT_DURATION', self::env('TRANSPORT_DURATION') ?? '10000');
+        if ($duration === '0' || self::compareUnsigned($duration, '3600000') > 0) {
+            throw new InvalidArgumentException('EVILRESP_TRANSPORT_DURATION must be within 1-3600000 milliseconds');
+        }
+        if (self::env('TRANSPORT_DURATION') !== null && !in_array('STALL', $this->faults, true)) {
+            throw new InvalidArgumentException('EVILRESP_TRANSPORT_DURATION requires STALL in EVILRESP_TRANSPORT_FAULT');
         }
         $extra = self::unsigned('TRANSPORT_EXTRA', self::env('TRANSPORT_EXTRA') ?? '0');
         if (strlen($extra) > 2 || (int) $extra > 16) {
@@ -73,8 +101,9 @@ final class EvilrespOptions
             'transport_truncate' => $truncate,
             'transport_extra' => $extra,
             'transport_chunks' => $chunks,
+            'transport_duration' => $duration,
         ];
-        $this->probabilities['transport_probability'] = self::percentage('TRANSPORT_PROBABILITY', '100');
+        $this->probabilities['transport_probability'] = self::percentage('TRANSPORT_PROBABILITY', $hasFaults ? '1-5' : '100');
     }
 
     /**
@@ -87,6 +116,11 @@ final class EvilrespOptions
         $settings = $this->settings;
         foreach ($this->probabilities as $name => [$low, $high]) {
             $settings[$name] = number_format($random->getInt($low, $high) / 100, 2, '.', '');
+        }
+        $settings['transport_fault'] = $this->faults[$random->getInt(0, count($this->faults) - 1)];
+        $settings['transport_at'] = $this->faultPoints[$random->getInt(0, count($this->faultPoints) - 1)];
+        if ($settings['transport_fault'] !== 'OFF') {
+            $settings['transport'] = 'ON';
         }
 
         return $settings;
@@ -111,9 +145,12 @@ final class EvilrespOptions
                 'TARGET', $settings['framing_target'], 'KIND', $settings['framing_kind']]
             : ['FRAMING', $settings['framing']];
         $commands[] = $settings['transport'] === 'OFF' && $settings['transport_probability'] === '100.00'
+            && $settings['transport_at'] === 'AFTER' && $settings['transport_duration'] === '10000'
             ? ['TRANSPORT', 'OFF']
             : ['TRANSPORT', 'TRUNCATE', $settings['transport_truncate'], 'EXTRA', $settings['transport_extra'],
-                'CHUNKS', $settings['transport_chunks'], 'PROBABILITY', $settings['transport_probability']];
+                'CHUNKS', $settings['transport_chunks'], 'PROBABILITY', $settings['transport_probability'],
+                'FAULT', $settings['transport_fault'], 'AT', $settings['transport_at'],
+                'DURATION', $settings['transport_duration']];
 
         return $commands;
     }
@@ -152,6 +189,26 @@ final class EvilrespOptions
         }
 
         return $value;
+    }
+
+    /**
+     * @param non-empty-list<string> $choices
+     * @return non-empty-list<string>
+     */
+    private static function candidates(string $name, array $choices, string $default, bool $offsets = false): array
+    {
+        $values = array_map('trim', explode(',', strtoupper(self::env($name) ?? $default)));
+        foreach ($values as &$value) {
+            if (!in_array($value, $choices, true)) {
+                if (!$offsets) {
+                    throw new InvalidArgumentException("EVILRESP_{$name} must contain only " . implode(', ', $choices));
+                }
+                $value = self::unsigned($name, $value);
+            }
+        }
+        unset($value);
+
+        return $values;
     }
 
     /** @param list<string> $names */

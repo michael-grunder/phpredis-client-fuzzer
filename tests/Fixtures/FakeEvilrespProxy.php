@@ -12,7 +12,8 @@ final class FakeEvilrespProxy
 {
     public const IDLE = 'mode=OFF seed=0 probability=0.00 topology_probability=0.00 canonicalize=UNORDERED include=[] exclude=[]'
         . ' strategy=PRESERVE mutations=MANY generator_protocol=RESP2 generator_corpus=BOUNDARY generator_violations=OFF'
-        . ' framing=AUTO transport=OFF transport_probability=100.00 transport_truncate=OFF transport_extra=0 transport_chunks=OFF';
+        . ' framing=AUTO transport=OFF transport_probability=100.00 transport_truncate=OFF transport_extra=0 transport_chunks=OFF'
+        . ' transport_fault=OFF transport_at=AFTER transport_duration=10000';
 
     public string $status = self::IDLE;
 
@@ -73,13 +74,18 @@ final class FakeEvilrespProxy
                     $fields['transport_extra'] = '0';
                     $fields['transport_chunks'] = 'OFF';
                     $fields['transport_probability'] = '100.00';
+                    $fields['transport_fault'] = 'OFF';
+                    $fields['transport_at'] = 'AFTER';
+                    $fields['transport_duration'] = '10000';
                 } else {
                     for ($i = 1; $i < count($subcommand); $i += 2) {
-                        $fields['transport_' . strtolower($subcommand[$i])] = $subcommand[$i + 1];
+                        $name = strtolower($subcommand[$i]);
+                        $fields['transport_' . $name] = $subcommand[$i + 1];
                     }
                 }
                 $fields['transport'] = $fields['transport_truncate'] !== 'OFF'
-                    || $fields['transport_extra'] !== '0' || $fields['transport_chunks'] !== 'OFF' ? 'ON' : 'OFF';
+                    || $fields['transport_extra'] !== '0' || $fields['transport_chunks'] !== 'OFF'
+                    || $fields['transport_fault'] !== 'OFF' ? 'ON' : 'OFF';
                 break;
             case 'INCLUDE':
             case 'EXCLUDE':

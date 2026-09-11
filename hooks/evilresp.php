@@ -9,8 +9,9 @@ declare(strict_types=1);
  * client and a real server. Until told otherwise it is a transparent proxy;
  * `DEBUG EVIL` commands switch a connection into returning deterministic
  * random frames (`RANDOM`), recursively mutated upstream replies (`MUTATE`),
- * or replies pushed toward overflow-prone lengths and counts (`OVERFLOW`),
- * and in cluster mode into lying about slot ownership (`TOPOLOGY`). This hook
+ * or replies pushed toward overflow-prone lengths and counts (`OVERFLOW`).
+ * It can also close or reset connections (`TRANSPORT`) and, in cluster mode,
+ * lie about slot ownership (`TOPOLOGY`). This hook
  * turns that on for every client the fuzzer uses:
  *
  *     evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
@@ -75,7 +76,16 @@ declare(strict_types=1);
  *   EVILRESP_TRANSPORT_EXTRA=0             Append 0-16 unsolicited replies.
  *   EVILRESP_TRANSPORT_CHUNKS=OFF          OFF, RANDOM, or up to 64 increasing
  *                                          positive byte offsets, e.g. 1,3,4.
- *   EVILRESP_TRANSPORT_PROBABILITY=100     Independent percentage or range.
+ *   EVILRESP_TRANSPORT_FAULT=OFF,CLOSE,RESET  Candidates; one drawn per run.
+ *                                          STALL requires explicit inclusion.
+ *                                          Defaults to OFF with truncation.
+ *   EVILRESP_TRANSPORT_AT=BEFORE,AFTER,REPLY,RANDOM  Failure-point candidates;
+ *                                          unsigned byte offsets also work.
+ *                                          Default AFTER with faults OFF.
+ *   EVILRESP_TRANSPORT_DURATION=10000      Stall milliseconds (1-3600000);
+ *                                          requires a STALL candidate.
+ *   EVILRESP_TRANSPORT_PROBABILITY=1-5     Independent percentage or range;
+ *                                          default 100 with faults OFF.
  *   EVILRESP_CANONICALIZE=ALL|UNORDERED|NONE  Leave unset for the proxy default.
  *   EVILRESP_INCLUDE=a,b,^GET.*,@write     Only mutate matching commands.
  *   EVILRESP_EXCLUDE=a,b                   Never mutate these, in addition to
@@ -98,6 +108,12 @@ declare(strict_types=1);
  * - MODE OFF only disables RESP mutation; topology and transport remain
  *   independent. RANDOM ignores the mode probability. Generator violations
  *   OFF does not disable framing faults; use FRAMING OFF for that.
+ * - CLOSE and RESET never deliberately delay. STALL withholds the remaining
+ *   reply until its duration expires, then closes; it is never drawn unless
+ *   explicitly listed. RESET requires TCP; use FAULT=OFF,CLOSE on Unix sockets.
+ * - FAULT and TRUNCATE cannot both be enabled; use AT for fault byte offsets.
+ *   BEFORE skips the command; AFTER drops its reply; REPLY delivers it before
+ *   closing. AFTER/REPLY retries can repeat writes already executed upstream.
  * - `--forks` shares one proxy command index between concurrent children, so
  *   a forked run is not reproducible through evilresp.
  * - A cluster connection the client opens between checks (a MOVED to a node
