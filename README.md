@@ -793,6 +793,7 @@ the values that the loaded extensions actually support:
 | --- | --- |
 | `--serializer` | `none`, `php`, `igbinary`, `msgpack`, `json` |
 | `--compression` | `none`, `lzf`, `zstd`, `lz4` |
+| `--slave-failover` | `none`, `error`, `distribute`, `distribute_slaves` |
 | `--relay-failover` | `none`, `primary`, `random_replica`, `replicas`, `all` |
 | `--relay-distribute` | `none`, `random`, `random_replica`, `replicas`, `all` |
 | `--relay-multikey-reordering` | `none`, `reads`, `writes`, `all` |
@@ -1113,6 +1114,32 @@ $relay = (new ClientFactory())->create(new ClientConfiguration(
 
 `ClientType` values are `redis`, `redis-cluster`, `relay`, and
 `relay-cluster`. Cluster configurations use `seeds` in `host:port` form.
+
+### Legacy cluster failover
+
+`--slave-failover` sets `OPT_SLAVE_FAILOVER` on both `redis-cluster` and
+`relay-cluster`. It accepts `none` (primary reads only), `error` (try replicas
+when the primary fails), `distribute` (random reads across primary and replicas),
+and `distribute_slaves` (replica reads only). Omitting it leaves the client default.
+
+Use `--slave-failover=random` (or `any`) to choose a mode once per invocation,
+or a subset such as `--slave-failover=none,error`. Without `--seed`, each run
+generates a seed and may choose a different mode; a fixed seed repeats the choice.
+All cluster clients in the invocation receive the same selected mode.
+Standalone clients ignore it; a run with no cluster clients prints a warning.
+
+Library callers can pass a concrete mode as `ClientConfiguration(slaveFailover:
+'error', type: ClientType::RedisCluster)`. For seeded random selection, pass
+`OptionChoices::resolve('random', OptionChoices::SLAVE_FAILOVER, 'slave failover')`
+after calling `mt_srand()`.
+
+Relay maps the legacy mode onto its failover and distribution settings. When
+combined, `--slave-failover` is applied first, then explicit `--relay-failover`
+and `--relay-distribute` values override their respective settings. Each
+`setOption()` result is checked. The observed legacy value appears under
+`environment.clients[].slave_failover` (possibly `false` for a modern Relay
+combination with no legacy equivalent). Reproduction scripts preserve the
+concrete legacy mode and Relay's modern cluster settings.
 
 ### Relay cluster options
 

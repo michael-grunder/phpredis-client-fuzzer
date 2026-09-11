@@ -16,6 +16,7 @@ final class OptionChoicesTest extends TestCase
     {
         yield 'serializer' => [OptionChoices::SERIALIZER];
         yield 'compression' => [OptionChoices::COMPRESSION];
+        yield 'slave failover' => [OptionChoices::SLAVE_FAILOVER];
         yield 'relay failover' => [OptionChoices::relayFailover()];
         yield 'relay distribute' => [OptionChoices::relayDistribute()];
         yield 'relay multikey reordering' => [OptionChoices::relayMultikeyReordering()];
@@ -103,6 +104,22 @@ final class OptionChoicesTest extends TestCase
         }
     }
 
+    public function testSlaveFailoverRandomVariesWithSeedAndSupportsSubsets(): void
+    {
+        $seen = [];
+        for ($seed = 0; $seed < 100; $seed++) {
+            mt_srand($seed);
+            $mode = OptionChoices::resolve('random', OptionChoices::SLAVE_FAILOVER, 'slave failover');
+            $seen[$mode] = true;
+            self::assertContains(
+                OptionChoices::resolve('none,error', OptionChoices::SLAVE_FAILOVER, 'slave failover'),
+                ['none', 'error'],
+            );
+        }
+
+        self::assertEqualsCanonicalizing(array_keys(OptionChoices::SLAVE_FAILOVER), array_keys($seen));
+    }
+
     public function testCsvChoiceIsNormalizedAndReproducible(): void
     {
         self::supported(OptionChoices::SERIALIZER);
@@ -167,6 +184,7 @@ final class OptionChoicesTest extends TestCase
         self::assertTrue(OptionChoices::isRandom('random', OptionChoices::SERIALIZER));
         self::assertTrue(OptionChoices::isRandom('RANDOM', OptionChoices::COMPRESSION));
         self::assertTrue(OptionChoices::isRandom('random', OptionChoices::relayFailover()));
+        self::assertTrue(OptionChoices::isRandom('random', OptionChoices::SLAVE_FAILOVER));
         self::assertTrue(OptionChoices::isRandom('random', OptionChoices::relayMultikeyReordering()));
 
         self::assertContains(

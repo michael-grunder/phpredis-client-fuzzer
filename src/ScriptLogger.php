@@ -238,6 +238,26 @@ class ScriptLogger {
         if ($client->getOption(Redis::OPT_PREFIX))
             $this->setClientOption($name, 'Redis::OPT_PREFIX', $pfx);
 
+        if ($client instanceof RedisCluster || $client instanceof Cluster) {
+            $option = ($client instanceof Cluster ? Cluster::class : RedisCluster::class) . '::OPT_SLAVE_FAILOVER';
+            if (defined($option)) {
+                /** @var int $id */
+                $id = constant($option);
+                $failover = $client->getOption($id);
+                // Modern Relay combinations may have no legacy equivalent.
+                if (is_int($failover)) {
+                    $this->setClientOption($name, $option, $failover);
+                }
+            }
+        }
+        if ($client instanceof Cluster) {
+            foreach (RelayClusterOptions::describe($client) as $option => $value) {
+                if (is_int($value) || is_float($value)) {
+                    $this->setClientOption($name, Cluster::class . '::' . strtoupper($option), $value);
+                }
+            }
+        }
+
         if (($client instanceOf Relay) || ($client instanceOf Cluster)) {
             $compat = $client->getOption(Relay::OPT_PHPREDIS_COMPATIBILITY);
             if ( ! $compat)

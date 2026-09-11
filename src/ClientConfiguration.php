@@ -6,10 +6,13 @@ namespace Mgrunder\PhpredisCommandFuzzer;
 
 final readonly class ClientConfiguration
 {
+    public ?string $slaveFailover;
+
     /**
      * @param list<string> $seeds Cluster seeds in host:port form.
      * @param string|array{0: string, 1: string}|null $auth
      * @param RelayClusterOptions $relayCluster Relay-only `Relay\Cluster` options; requires the `relay-cluster` type.
+     * @param ?string $slaveFailover Concrete legacy cluster failover mode from OptionChoices::SLAVE_FAILOVER; null leaves the client default.
      */
     public function __construct(
         public ClientType $type = ClientType::Redis,
@@ -24,7 +27,23 @@ final readonly class ClientConfiguration
         public string $compression = 'none',
         public bool $relayCompatibility = true,
         public RelayClusterOptions $relayCluster = new RelayClusterOptions(),
+        ?string $slaveFailover = null,
     ) {
+        $this->slaveFailover = $slaveFailover === null
+            ? null
+            : strtr(strtolower(trim($slaveFailover)), '-', '_');
+        if ($this->slaveFailover !== null) {
+            if (!$type->isCluster()) {
+                throw new \InvalidArgumentException('Slave failover requires a cluster client type');
+            }
+            if (!isset(OptionChoices::SLAVE_FAILOVER[$this->slaveFailover])) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Unknown slave failover mode "%s"; expected one of %s',
+                    $slaveFailover,
+                    implode(', ', array_keys(OptionChoices::SLAVE_FAILOVER)),
+                ));
+            }
+        }
         if ($port < 1 || $port > 65535) {
             throw new \InvalidArgumentException('Port must be between 1 and 65535');
         }

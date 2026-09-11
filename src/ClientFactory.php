@@ -70,6 +70,15 @@ final class ClientFactory
             );
         }
 
+        if ($configuration->slaveFailover !== null) {
+            $this->setNamedOption(
+                $client,
+                $this->namedConstant('slave_failover', ['slave_failover' => $class . '::OPT_SLAVE_FAILOVER'], 'option'),
+                $this->namedConstant($configuration->slaveFailover, OptionChoices::SLAVE_FAILOVER, 'slave failover'),
+            );
+        }
+
+        // Modern Relay options override the corresponding parts of the legacy mode.
         if (!$configuration->relayCluster->isEmpty()) {
             if (!$client instanceof Cluster) {
                 throw new \RuntimeException('Relay cluster options require a Relay\\Cluster client');

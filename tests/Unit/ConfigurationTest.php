@@ -195,6 +195,27 @@ final class ConfigurationTest extends TestCase
         self::assertNull($options->multikeyReordering);
     }
 
+    #[DataProvider('clients')]
+    public function testSlaveFailoverIsValidatedForTheClientType(ClientType $type, string $class, bool $cluster): void
+    {
+        self::assertNull((new ClientConfiguration(type: $type))->slaveFailover);
+        if (!$cluster) {
+            $this->expectException(\InvalidArgumentException::class);
+            $this->expectExceptionMessage('Slave failover requires a cluster client type');
+        }
+
+        $configuration = new ClientConfiguration(type: $type, slaveFailover: ' DISTRIBUTE-SLAVES ');
+        self::assertSame('distribute_slaves', $configuration->slaveFailover);
+    }
+
+    public function testSlaveFailoverRejectsUnknownModes(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown slave failover mode');
+
+        new ClientConfiguration(type: ClientType::RedisCluster, slaveFailover: 'primary');
+    }
+
     public function testRelayClusterOptionsNormalizeModeNames(): void
     {
         $options = new RelayClusterOptions(

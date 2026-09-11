@@ -52,7 +52,7 @@ final class Application
         'scenarios', 'hook',
         'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
-        'relay-multikey-reordering',
+        'relay-multikey-reordering', 'slave-failover',
     ];
 
     private const FLAG_OPTIONS = [
@@ -191,6 +191,17 @@ final class Application
                 );
             }
 
+            $hasCluster = $hasRelayCluster || in_array(ClientType::RedisCluster, $clientTypes, true);
+            $slaveFailover = null;
+            if ($hasCluster) {
+                $slaveFailover = $this->choice($options, 'slave-failover', OptionChoices::SLAVE_FAILOVER, 'slave failover');
+            } elseif ($options->has('slave-failover')) {
+                $this->write(
+                    "Warning: --slave-failover only applies to cluster clients, ignoring\n",
+                    true,
+                );
+            }
+
             $serializer = OptionChoices::resolve(
                 $options->string('serializer', 'none'),
                 OptionChoices::SERIALIZER,
@@ -219,6 +230,7 @@ final class Application
                     relayCluster: $type === ClientType::RelayCluster
                         ? $relayCluster
                         : new RelayClusterOptions(),
+                    slaveFailover: $type->isCluster() ? $slaveFailover : null,
                 );
             }
 
@@ -441,6 +453,13 @@ Clients and connection:
   --compression=NAME[,NAME]  none, lzf, zstd, lz4, or random
   --prefix=PREFIX            Client key prefix
   --no-relay-compatibility   Disable Relay PhpRedis compatibility
+
+Cluster options (redis-cluster and relay-cluster):
+  --slave-failover=MODE[,MODE]
+                             OPT_SLAVE_FAILOVER: none, error, distribute,
+                             distribute_slaves, or random (any is a synonym).
+                             Unset by default. Applied before Relay's modern
+                             failover and distribute options when combined.
 
 Relay cluster options (relay-cluster only; each is verified via setOption()):
   --relay-failover=MODE[,MODE]

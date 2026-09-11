@@ -50,6 +50,14 @@ final class OptionChoices
         'lz4' => 'Redis::COMPRESSION_LZ4',
     ];
 
+    /** @var array<string, string> Legacy cluster failover mode to PhpRedis constant. */
+    public const SLAVE_FAILOVER = [
+        'none' => 'RedisCluster::FAILOVER_NONE',
+        'error' => 'RedisCluster::FAILOVER_ERROR',
+        'distribute' => 'RedisCluster::FAILOVER_DISTRIBUTE',
+        'distribute_slaves' => 'RedisCluster::FAILOVER_DISTRIBUTE_SLAVES',
+    ];
+
     /** @return array<string, string> */
     public static function relayFailover(): array
     {

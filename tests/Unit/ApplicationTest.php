@@ -38,6 +38,7 @@ final class ApplicationTest extends TestCase
         self::assertStringNotContainsString('--include-crashing', self::contents($output));
         self::assertStringContainsString('--hook=FILE', self::contents($output));
         self::assertStringContainsString('--forks=N', self::contents($output));
+        self::assertStringContainsString('--slave-failover=MODE[,MODE]', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));
         self::assertSame('', self::contents($error));
     }
@@ -220,6 +221,49 @@ final class ApplicationTest extends TestCase
         self::assertSame(
             'phpredis-fuzz: Unknown failover mode "unsupported"; expected one of '
             . "none, primary, random_replica, replicas, all\n",
+            self::contents($error),
+        );
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function slaveFailoverArguments(): iterable
+    {
+        foreach (['redis-cluster', 'relay-cluster', 'relay-cluster,redis'] as $clients) {
+            foreach (['none', 'error', 'distribute', 'distribute_slaves', 'random', 'any', 'none,error'] as $mode) {
+                yield "{$clients} {$mode}" => [$clients, $mode, 'Port must be between 1 and 65535'];
+            }
+            yield "{$clients} invalid" => [$clients, 'primary', 'Unknown slave failover mode'];
+            yield "{$clients} invalid subset" => [$clients, 'none,primary', 'Unknown slave failover value'];
+        }
+    }
+
+    #[DataProvider('slaveFailoverArguments')]
+    public function testSlaveFailoverIsResolvedBeforeConnecting(string $clients, string $mode, string $message): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+        $status = (new Application($output, $error))->run([
+            "--client={$clients}", "--slave-failover={$mode}", '--seed=123456', '--port=0',
+        ]);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString($message, self::contents($error));
+        self::assertStringNotContainsString('Warning:', self::contents($error));
+    }
+
+    public function testSlaveFailoverWarnsAndIsIgnoredForStandaloneClients(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+        $status = (new Application($output, $error))->run([
+            '--client=redis,relay', '--slave-failover=unsupported', '--port=0',
+        ]);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame(
+            "Warning: --slave-failover only applies to cluster clients, ignoring\n"
+            . "phpredis-fuzz: Port must be between 1 and 65535\n",
             self::contents($error),
         );
     }

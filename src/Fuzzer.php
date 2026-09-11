@@ -680,6 +680,14 @@ final class Fuzzer
             $details['serializer'] = $client->getOption(Redis::OPT_SERIALIZER);
             $details['compression'] = $client->getOption(Redis::OPT_COMPRESSION);
             $details['prefix'] = $client->getOption(Redis::OPT_PREFIX);
+            if ($client instanceof RedisCluster || $client instanceof Cluster) {
+                $option = $client::class . '::OPT_SLAVE_FAILOVER';
+                if (defined($option)) {
+                    /** @var int $id */
+                    $id = constant($option);
+                    $details['slave_failover'] = $client->getOption($id);
+                }
+            }
             if ($client instanceof Cluster) {
                 $details['relay_cluster'] = RelayClusterOptions::describe($client);
             }
