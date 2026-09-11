@@ -290,11 +290,104 @@ the report.
 
 Every call routed through `Command::exec()`, `execRaw()`, or `cmd()` raises the
 command events, including cache saturation traffic. Stateful scenarios call the
-client directly and do not.
+client directly and do not. `preCommand` listeners run before the call is
+written to `--script-log`, so anything a listener issues through the client
+itself lands in the reproduction script ahead of the call, in the order the
+server saw it.
 
 Registered lifecycle IDs are reported under `configuration.hooks.listeners`.
 Events with no listeners cost one null check per invocation, so an unhooked run
 is unaffected.
+
+### Seeded randomness for hooks
+
+A hook that makes random choices must make the same choices when a run is
+repeated with its `--seed`, or the failure it helped provoke cannot be
+reproduced. `HookRegistry::randomizer(string $stream)` provides that: it returns
+a `Random\Randomizer` derived from the run seed and the stream name, so the
+same seed and name always yield the same sequence. Each stream is independent
+of every other stream and of the catalog's global `mt_rand()` sequence, so a
+hook drawing from its own stream neither changes the commands the fuzzer
+generates nor sees different values when another hook is loaded alongside it.
+The generator is memoized per stream until the registry is reseeded.
+
+```php
+return static function (HookRegistry $hooks): void {
+    $hooks->onPostConstructor('pick-a-mode', static function (ClientEvent $event) use ($hooks): void {
+        $modes = ['MUTATE', 'OVERFLOW', 'RANDOM'];
+        $mode = $modes[$hooks->randomizer('my-hook')->getInt(0, count($modes) - 1)];
+        // ... configure $event->client for $mode ...
+    });
+};
+```
+
+`Fuzzer::run()` seeds the registry with the run seed before it announces
+clients, and the CLI seeds it with the same seed before `ClientFactory` builds
+them, so `postConstructor` hooks draw reproducible values too; a forked child
+reseeds with its own seed before re-creating its clients. Embedded callers that
+announce clients through `ClientFactory` ahead of a run call
+`$hooks->setSeed($seed)` themselves, and `$hooks->seed()` reports the current
+seed. Drawing before any seed is set throws rather than silently producing
+unseeded values. Hook files that return a callable receive the registry; the
+object forms do not, so a hook that needs randomness uses the callable form.
+
+### Fuzzing through evilresp
+
+[evilresp](https://github.com/michael-grunder/evilresp) is a RESP proxy that
+can be told, per connection, to return deterministic random frames, mutate the
+upstream's replies, push lengths and counts toward overflow, or lie about
+cluster slot ownership. `hooks/evilresp.php` arms it for every client the
+fuzzer uses:
+
+```bash
+evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
+bin/phpredis-fuzz --port=6390 --seed=123 --hook=hooks/evilresp.php
+```
+
+Point the fuzzer at the proxy, not at the upstream server; the hook fails at
+arming if the target answers `DEBUG EVIL` like a plain Redis or Valkey. The
+mode and probabilities are drawn once per run from
+`$hooks->randomizer('evilresp')`, the proxy is seeded with the run seed, and its
+command index is reset once per run, so the same `--seed`, hook file and
+environment replay the same proxy behavior as long as the fuzzer is the proxy's
+only client. The chosen plan is printed to stderr as `evilresp: seed=... mode=...
+probability=...` and written into `--script-log` along with every `DEBUG EVIL`
+the hook sends.
+
+evilresp reserves `DEBUG PROTOCOL` for per-connection fingerprints. The hook
+translates the catalog's Redis `DEBUG PROTOCOL <type>` probes into
+`DEBUG PROTOCOL <IN|OUT> <BLAKE3|TLSH>`, choosing both arguments from a separate
+seeded hook stream and preserving cluster routing. The concrete query is
+recorded in `--script-log`. Existing fingerprint queries and other raw argument
+shapes pass through unchanged; without this hook, Redis's protocol probes
+keep their usual behavior.
+
+`DEBUG EVIL` state belongs to a proxy connection, and both PhpRedis and Relay
+reconnect silently after a corrupt reply without reporting it, so the hook asks
+the proxy: before a command it re-checks `DEBUG EVIL STATUS` on a client whose
+previous call threw, which connected or closed, or which has run
+`EVILRESP_PROBE_INTERVAL` commands since the last check, and re-arms whatever
+answers with a different configuration. Cluster clients are checked on every
+master `_masters()` reports; a node the client has given up on is retried after
+a cooldown, and only a client none of whose connections answers, repeatedly,
+aborts the run. Nothing is sent while the client is inside MULTI or a pipeline.
+
+The environment selects what the plan is drawn from (all optional):
+`EVILRESP_MODES` (default `MUTATE,OVERFLOW,RANDOM`; `OFF` is allowed as a
+control), `EVILRESP_PROBABILITY` and `EVILRESP_TOPOLOGY` as a fixed percentage
+or a `MIN-MAX` range (defaults `1-25` and `0-10`; topology is only sent to
+cluster clients), `EVILRESP_CANONICALIZE`, `EVILRESP_INCLUDE`, `EVILRESP_EXCLUDE`
+(added to evilresp's own defaults), `EVILRESP_SEED` to override the proxy seed,
+`EVILRESP_RESET=0` to skip `MODE RESET` on a proxy shared with other clients,
+`EVILRESP_PROBE_INTERVAL` (default 50, 0 disables periodic checks), and
+`EVILRESP_VERBOSE=1` to log every exchange. Expect the report to be full of
+exceptions and wrong replies; that is the proxy doing its job, and what the
+run is for is the crashes, hangs and leaks the harness captures. `--forks`
+shares one proxy command index between children and is not reproducible
+through evilresp. Relay's client-side cache is invalidated by asynchronous
+server pushes, so two Relay runs with the same seed can differ in which
+replies were served from the cache and therefore in what reached the proxy;
+PhpRedis runs replay exactly.
 
 ## CLI
 

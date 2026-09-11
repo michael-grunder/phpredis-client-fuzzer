@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Hooks;
 
+use Random\Engine\Xoshiro256StarStar;
+use Random\Randomizer;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -38,6 +40,12 @@ final class HookRegistry implements InvocationHook
 
     /** @var list<array{path: string, sha256: string}> */
     private array $sources = [];
+
+    /** The run seed hook randomness derives from, once a run has supplied one. */
+    private ?int $seed = null;
+
+    /** @var array<string, Randomizer> */
+    private array $randomizers = [];
 
     /**
      * Clients already announced to PostConstructor listeners. A weak map so a
@@ -273,6 +281,53 @@ final class HookRegistry implements InvocationHook
     public function isEmpty(): bool
     {
         return $this->hooks === [] && $this->guards === [] && $this->listeners === [];
+    }
+
+    /**
+     * Derive every hook random stream from a run seed, discarding streams
+     * handed out for an earlier seed. Fuzzer::run() calls this with the run
+     * seed before it announces clients; the CLI also calls it before
+     * ClientFactory builds clients so postConstructor hooks draw from the
+     * same seed.
+     */
+    public function setSeed(int $seed): void
+    {
+        $this->seed = $seed;
+        $this->randomizers = [];
+    }
+
+    /** The seed hook randomness is currently derived from, or null before a run supplies one. */
+    public function seed(): ?int
+    {
+        return $this->seed;
+    }
+
+    /**
+     * A generator derived from the run seed and a stream name.
+     *
+     * Each stream is independent of every other stream and of the catalog's
+     * global mt_rand() sequence, so a hook drawing from its own stream neither
+     * changes the commands the fuzzer generates nor sees different values
+     * when another hook is loaded alongside it. The same seed and stream name
+     * always produce the same sequence, which is what makes a hook's choices
+     * reproducible from --seed. The generator is memoized per stream until
+     * setSeed() is called again.
+     *
+     * @throws \LogicException Before setSeed() has supplied a seed, so a
+     *         hook cannot silently draw unseeded values.
+     */
+    public function randomizer(string $stream): Randomizer
+    {
+        if ($this->seed === null) {
+            throw new \LogicException(
+                'Hook randomness is unavailable until the registry is seeded; '
+                . 'seed it with HookRegistry::setSeed() before hooks draw values',
+            );
+        }
+
+        return $this->randomizers[$stream] ??= new Randomizer(
+            new Xoshiro256StarStar(hash('sha256', $this->seed . "\0" . $stream, true)),
+        );
     }
 
     public function resetRejections(): void

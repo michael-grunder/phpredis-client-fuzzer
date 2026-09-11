@@ -497,8 +497,9 @@ abstract class Command implements HasWeight {
             }
         }
 
-        ScriptLogger::log($client, $cmd, $scriptArgs);
-
+        /* Listeners run before the call is logged so that anything they
+           issue through the client themselves lands in the reproduction
+           script ahead of the call, in the order the server saw it. */
         if (self::$preCommandHooks !== null) {
             self::$preCommandHooks->dispatchPreCommand(new PendingInvocation(
                 $this->name(),
@@ -507,6 +508,8 @@ abstract class Command implements HasWeight {
                 $args,
             ));
         }
+
+        ScriptLogger::log($client, $cmd, $scriptArgs);
 
         $oracle = self::$differentialOracle;
         $oraclePrepared = $oracle?->prepare($this, $client, $cmd, $args) ?? false;

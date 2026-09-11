@@ -37,6 +37,11 @@ final class Fuzzer
     public function run(array $clients, RunConfiguration $configuration = new RunConfiguration()): FuzzResult
     {
         $clients = $this->normalizeClients($clients);
+        /* The seed is fixed before any hook runs so that a postConstructor
+           hook drawing from HookRegistry::randomizer() is reproducible from
+           it, just like the command stream mt_srand() below derives from it. */
+        $seed = $configuration->seed ?? random_int(0, PHP_INT_MAX);
+        $this->hooks?->setSeed($seed);
         /* Hand every client to postConstructor hooks before anything inspects
            or uses it. Clients built by ClientFactory were already announced
            there; the registry only announces each object once. */
@@ -53,7 +58,6 @@ final class Fuzzer
         $serverCommands = $this->serverCommands($clients);
         $relayStats = $this->relayStatsCollector($clients);
 
-        $seed = $configuration->seed ?? random_int(0, PHP_INT_MAX);
         mt_srand($seed);
         $this->hooks?->resetRejections();
 

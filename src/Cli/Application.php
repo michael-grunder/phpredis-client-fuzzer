@@ -151,6 +151,11 @@ final class Application
             }
 
             $hooks = HookLoader::load($options->repeated('hook'));
+            // Seeded now, before ClientFactory announces clients, so a
+            // postConstructor hook draws the same values a rerun with
+            // --seed will draw. Fuzzer::run() seeds it again with the same
+            // value for the run itself.
+            $hooks->setSeed($seed);
 
             $hasRelayClient = in_array(ClientType::Relay, $clientTypes, true)
                 || in_array(ClientType::RelayCluster, $clientTypes, true);
@@ -294,6 +299,11 @@ final class Application
                     $hooks,
                     $outputMode,
                 ): int {
+                    // The child's hook randomness derives from its own seed,
+                    // as its workload does, so the clients re-created below
+                    // are announced with the values a --seed rerun draws.
+                    $hooks->setSeed($childSeeds[$index]);
+
                     // Redis and RedisCluster cannot be used after a fork: the
                     // child inherits the parent's socket. Relay and
                     // Relay\Cluster carry their own fork machinery, and
@@ -544,6 +554,12 @@ Hooks:
     preDestructor    when the fuzzer is done with a client, while it is still
                      connected and usable
   See hooks/lifecycle-example.php.
+
+  A hook that needs random values draws them from
+  HookRegistry::randomizer('name'), a generator derived from --seed and the
+  name, so a rerun with the reported --seed makes the same choices without
+  disturbing the command stream. See hooks/evilresp.php, which uses it to arm
+  an evilresp proxy (EVILRESP_* environment variables select the candidates).
 
 Exit status:
   0   the run finished and nothing was caught
