@@ -58,6 +58,24 @@ declare(strict_types=1);
  *                                          to draw from (`0.5-40`).
  *   EVILRESP_TOPOLOGY=0-10                 MOVED/ASK lie probability, same
  *                                          syntax. Sent to cluster clients.
+ *   EVILRESP_STRATEGY=PRESERVE|REPLACE      Default PRESERVE.
+ *   EVILRESP_MUTATIONS=ONE|MANY             Default MANY.
+ *   EVILRESP_GENERATOR_PROTOCOL=RESP2|RESP3 Default RESP2; does not send HELLO.
+ *   EVILRESP_GENERATOR_CORPUS=BOUNDARY|RANDOM  Default BOUNDARY.
+ *   EVILRESP_GENERATOR_VIOLATIONS=OFF|ON    Default OFF.
+ *   EVILRESP_FRAMING=AUTO|OFF|LENGTH        Default AUTO. The following three
+ *                                          options require LENGTH:
+ *   EVILRESP_FRAMING_PROBABILITY=100        Percentage or MIN-MAX range.
+ *   EVILRESP_FRAMING_TARGET=ANY             Or root paths, e.g. root.0.value.
+ *   EVILRESP_FRAMING_KIND=RANDOM            SHORTER, LONGER, NEGATIVE,
+ *                                          BOUNDARY and OVERFLOW also work.
+ *   EVILRESP_TRANSPORT=OFF                 Explicitly disable transport;
+ *                                          cannot accompany its options.
+ *   EVILRESP_TRANSPORT_TRUNCATE=OFF        OFF, RANDOM, or byte offset (0=EOF).
+ *   EVILRESP_TRANSPORT_EXTRA=0             Append 0-16 unsolicited replies.
+ *   EVILRESP_TRANSPORT_CHUNKS=OFF          OFF, RANDOM, or up to 64 increasing
+ *                                          positive byte offsets, e.g. 1,3,4.
+ *   EVILRESP_TRANSPORT_PROBABILITY=100     Independent percentage or range.
  *   EVILRESP_CANONICALIZE=ALL|UNORDERED|NONE  Leave unset for the proxy default.
  *   EVILRESP_INCLUDE=a,b,^GET.*,@write     Only mutate matching commands.
  *   EVILRESP_EXCLUDE=a,b                   Never mutate these, in addition to
@@ -75,6 +93,11 @@ declare(strict_types=1);
  *
  * Limitations:
  *
+ * - Requires an evilresp build supporting all the controls above. The hook
+ *   explicitly restores their defaults when arming: MODE RESET retains them.
+ * - MODE OFF only disables RESP mutation; topology and transport remain
+ *   independent. RANDOM ignores the mode probability. Generator violations
+ *   OFF does not disable framing faults; use FRAMING OFF for that.
  * - `--forks` shares one proxy command index between concurrent children, so
  *   a forked run is not reproducible through evilresp.
  * - A cluster connection the client opens between checks (a MOVED to a node
@@ -87,6 +110,7 @@ declare(strict_types=1);
 
 use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespOptions;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
@@ -114,35 +138,6 @@ return static function (HookRegistry $hooks): void {
             array_map('trim', explode(',', $value)),
             static fn (string $item): bool => $item !== '',
         ));
-    };
-
-    /* "10", "12.5" or "MIN-MAX", in percent, as hundredths so the drawn
-       value has exactly the two decimals evilresp echoes back in STATUS. */
-    /** @return array{int, int} */
-    $range = static function (string $name, string $default): array {
-        $value = getenv($name);
-        $value = is_string($value) && trim($value) !== '' ? trim($value) : $default;
-        $parts = explode('-', $value, 2);
-        $bounds = [];
-        foreach ($parts as $part) {
-            if (!is_numeric($part)) {
-                throw new InvalidArgumentException(
-                    "{$name} must be a percentage or a MIN-MAX range, got \"{$value}\"",
-                );
-            }
-            $percent = (float) $part;
-            if ($percent < 0.0 || $percent > 100.0) {
-                throw new InvalidArgumentException("{$name} must stay within 0-100, got \"{$value}\"");
-            }
-            $bounds[] = (int) round($percent * 100);
-        }
-        $low = $bounds[0];
-        $high = $bounds[1] ?? $bounds[0];
-        if ($low > $high) {
-            [$low, $high] = [$high, $low];
-        }
-
-        return [$low, $high];
     };
 
     $modes = array_map('strtoupper', $list($env('EVILRESP_MODES') ?? 'MUTATE,OVERFLOW,RANDOM'));
@@ -221,8 +216,8 @@ return static function (HookRegistry $hooks): void {
         new class(
             $hooks,
             $modes,
-            $range('EVILRESP_PROBABILITY', '1-25'),
-            $range('EVILRESP_TOPOLOGY', '0-10'),
+            EvilrespOptions::percentage('PROBABILITY', '1-25'),
+            EvilrespOptions::percentage('TOPOLOGY', '0-10'),
             $canonicalize,
             $list($env('EVILRESP_INCLUDE')),
             $list($env('EVILRESP_EXCLUDE')),
@@ -230,6 +225,7 @@ return static function (HookRegistry $hooks): void {
             $env('EVILRESP_RESET') !== '0',
             (int) $interval,
             $env('EVILRESP_VERBOSE') !== null,
+            new EvilrespOptions(),
         ) implements PostConstructorHook, PreCommandHook, PostCommandHook {
             /** DEBUG EVIL EXCLUDE replaces the proxy's list, so its defaults are restated. */
             private const DEFAULT_EXCLUDE = [
@@ -254,7 +250,7 @@ return static function (HookRegistry $hooks): void {
              *
              * @var array{
              *     seed: int, serial: int, evilSeed: int, mode: string,
-             *     probability: string, topology: string, summary: string,
+             *     probability: string, topology: string, summary: string, settings: array<string, string>,
              * }|null
              */
             private ?array $plan = null;
@@ -296,6 +292,7 @@ return static function (HookRegistry $hooks): void {
                 private readonly bool $reset,
                 private readonly int $probeInterval,
                 private readonly bool $verbose,
+                private readonly EvilrespOptions $options,
             ) {
                 /** @var WeakMap<object, array{plan: int, since: int, verify: bool, cooldown: int, failures: int}> $clients */
                 $clients = new WeakMap();
@@ -378,7 +375,7 @@ return static function (HookRegistry $hooks): void {
                            alone, unless the run's reset is still owed: a
                            proxy left running by an earlier run with the same
                            seed reports the right plan but a stale index. */
-                        if (!str_starts_with($status, $this->expectedStatus($client, $plan))
+                        if (!$this->matchesStatus($status, $client, $plan)
                             || $this->resetPending($plan)) {
                             $this->arm($client, $node, $plan);
                         }
@@ -429,7 +426,7 @@ return static function (HookRegistry $hooks): void {
              *
              * @return array{
              *     seed: int, serial: int, evilSeed: int, mode: string,
-             *     probability: string, topology: string, summary: string,
+             *     probability: string, topology: string, summary: string, settings: array<string, string>,
              * }
              */
             private function plan(): array
@@ -452,6 +449,7 @@ return static function (HookRegistry $hooks): void {
                     'probability' => $mode === 'OFF' ? '0.00' : $this->percent($random, $this->probability),
                     'topology' => $this->percent($random, $this->topology),
                     'summary' => '',
+                    'settings' => $this->options->draw($this->hooks->randomizer('evilresp-options')),
                 ];
                 $plan['summary'] = sprintf(
                     'seed=%d mode=%s probability=%s topology=%s canonicalize=%s include=[%s] exclude=[%s] reset=%s',
@@ -464,6 +462,9 @@ return static function (HookRegistry $hooks): void {
                     implode(',', $this->exclude),
                     $this->reset ? 'yes' : 'no',
                 );
+                foreach ($plan['settings'] as $name => $value) {
+                    $plan['summary'] .= " {$name}={$value}";
+                }
                 fwrite(STDERR, "evilresp: {$plan['summary']}\n");
 
                 return $this->plan = $plan;
@@ -479,7 +480,7 @@ return static function (HookRegistry $hooks): void {
              * match a run in which the client sent anything before its
              * first logged command.
              *
-             * @param array{serial: int, evilSeed: int, mode: string, probability: string, topology: string, summary: string} $plan
+             * @param array{serial: int, evilSeed: int, mode: string, probability: string, topology: string, summary: string, settings: array<string, string>} $plan
              */
             private function replayArming(array $plan): void
             {
@@ -542,19 +543,32 @@ return static function (HookRegistry $hooks): void {
             }
 
             /**
-             * The STATUS prefix a connection armed with the plan reports.
+             * Compare named fields: newer proxies can extend or reorder STATUS.
              *
-             * @param array{mode: string, evilSeed: int, probability: string, topology: string} $plan
+             * @param array{mode: string, evilSeed: int, probability: string, topology: string, settings: array<string, string>} $plan
              */
-            private function expectedStatus(Redis|RedisCluster|Relay\Relay|Relay\Cluster $client, array $plan): string
-            {
-                return sprintf(
-                    'mode=%s seed=%d probability=%s topology_probability=%s',
-                    $plan['mode'],
-                    $plan['evilSeed'],
-                    $plan['probability'],
-                    $this->cluster($client) ? $plan['topology'] : '0.00',
-                );
+            private function matchesStatus(
+                string $status,
+                Redis|RedisCluster|Relay\Relay|Relay\Cluster $client,
+                array $plan,
+            ): bool {
+                $expected = [
+                    'mode' => $plan['mode'],
+                    'seed' => (string) $plan['evilSeed'],
+                    'probability' => $plan['probability'],
+                    'topology_probability' => $this->cluster($client) ? $plan['topology'] : '0.00',
+                    ...$plan['settings'],
+                ];
+                if ($this->canonicalize !== null) {
+                    $expected['canonicalize'] = $this->canonicalize;
+                }
+                foreach ($expected as $name => $value) {
+                    if (!str_contains(' ' . $status . ' ', " {$name}={$value} ")) {
+                        return false;
+                    }
+                }
+
+                return true;
             }
 
             /**
@@ -591,7 +605,7 @@ return static function (HookRegistry $hooks): void {
                         ));
                         continue;
                     }
-                    if (is_string($reply) && str_starts_with($reply, 'mode=')) {
+                    if (is_string($reply) && preg_match('/(?:^| )mode=(?:OFF|RANDOM|MUTATE|OVERFLOW)(?: |$)/', $reply) === 1) {
                         return $reply;
                     }
                     /* On the clean stream after a close there is nothing
@@ -647,7 +661,7 @@ return static function (HookRegistry $hooks): void {
 
             /**
              * @param array{string, int}|null $node
-             * @param array{serial: int, evilSeed: int, mode: string, probability: string, topology: string} $plan
+             * @param array{serial: int, evilSeed: int, mode: string, probability: string, topology: string, settings: array<string, string>} $plan
              */
             private function arm(Redis|RedisCluster|Relay\Relay|Relay\Cluster $client, ?array $node, array $plan): void
             {
@@ -671,7 +685,7 @@ return static function (HookRegistry $hooks): void {
             /**
              * The DEBUG EVIL subcommands that put one connection on the plan.
              *
-             * @param array{evilSeed: int, mode: string, probability: string, topology: string} $plan
+             * @param array{evilSeed: int, mode: string, probability: string, topology: string, settings: array<string, string>} $plan
              * @param bool $reset Lead with MODE RESET: once per run, from
              *        whichever connection is armed first, it zeroes the
              *        proxy's command index so mutation choices line up on a
@@ -701,7 +715,7 @@ return static function (HookRegistry $hooks): void {
                     $commands[] = ['EXCLUDE', ...self::DEFAULT_EXCLUDE, ...$this->exclude];
                 }
 
-                return $commands;
+                return [...$commands, ...EvilrespOptions::commands($plan['settings'])];
             }
 
             /** @param array{serial: int} $plan */

@@ -10,6 +10,7 @@ use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespCluster;
 use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespProxy;
 use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespRedis;
@@ -27,6 +28,19 @@ final class EvilrespHookTest extends TestCase
         'EVILRESP_MODES', 'EVILRESP_PROBABILITY', 'EVILRESP_TOPOLOGY', 'EVILRESP_CANONICALIZE',
         'EVILRESP_INCLUDE', 'EVILRESP_EXCLUDE', 'EVILRESP_SEED', 'EVILRESP_RESET',
         'EVILRESP_PROBE_INTERVAL', 'EVILRESP_VERBOSE',
+        'EVILRESP_STRATEGY', 'EVILRESP_MUTATIONS', 'EVILRESP_GENERATOR_PROTOCOL',
+        'EVILRESP_GENERATOR_CORPUS', 'EVILRESP_GENERATOR_VIOLATIONS', 'EVILRESP_FRAMING',
+        'EVILRESP_FRAMING_PROBABILITY', 'EVILRESP_FRAMING_TARGET', 'EVILRESP_FRAMING_KIND',
+        'EVILRESP_TRANSPORT', 'EVILRESP_TRANSPORT_TRUNCATE', 'EVILRESP_TRANSPORT_EXTRA',
+        'EVILRESP_TRANSPORT_CHUNKS', 'EVILRESP_TRANSPORT_PROBABILITY',
+    ];
+
+    private const DEFAULT_CONTROLS = [
+        ['DEBUG', 'EVIL', 'STRATEGY', 'PRESERVE'],
+        ['DEBUG', 'EVIL', 'MUTATIONS', 'MANY'],
+        ['DEBUG', 'EVIL', 'GENERATOR', 'PROTOCOL', 'RESP2', 'CORPUS', 'BOUNDARY', 'VIOLATIONS', 'OFF'],
+        ['DEBUG', 'EVIL', 'FRAMING', 'AUTO'],
+        ['DEBUG', 'EVIL', 'TRANSPORT', 'OFF'],
     ];
 
     protected function tearDown(): void
@@ -63,7 +77,7 @@ final class EvilrespHookTest extends TestCase
         self::assertSame('PROBABILITY', $client->sent[3][4]);
         self::assertIsString($client->sent[3][5]);
         self::assertMatchesRegularExpression('/^\d+\.\d{2}$/', $client->sent[3][5]);
-        self::assertCount(4, $client->sent);
+        self::assertSame(self::DEFAULT_CONTROLS, array_slice($client->sent, 4));
     }
 
     public function testProtocolProbesAreTranslatedReproduciblyWithoutChangingOtherRandomStreams(): void
@@ -174,7 +188,7 @@ final class EvilrespHookTest extends TestCase
 
         self::assertSame(['DEBUG', 'EVIL', 'MODE', 'RESET'], $first->sent[1]);
         self::assertSame(
-            [['DEBUG', 'EVIL', 'STATUS'], ['DEBUG', 'EVIL', 'SEED', '7'], $first->sent[3]],
+            [['DEBUG', 'EVIL', 'STATUS'], ['DEBUG', 'EVIL', 'SEED', '7'], $first->sent[3], ...self::DEFAULT_CONTROLS],
             $second->sent,
         );
     }
@@ -201,7 +215,7 @@ final class EvilrespHookTest extends TestCase
         self::assertSame(['DEBUG', 'EVIL', 'STATUS'], $client->sent[$armed]);
         self::assertSame(['DEBUG', 'EVIL', 'SEED', '7'], $client->sent[$armed + 1]);
         self::assertSame($client->sent[3], $client->sent[$armed + 2]);
-        self::assertCount($armed + 3, $client->sent, 'a re-arm must not repeat MODE RESET');
+        self::assertCount($armed + 8, $client->sent, 'a re-arm must not repeat MODE RESET');
         self::assertSame(0, $client->closed);
     }
 
@@ -234,7 +248,7 @@ final class EvilrespHookTest extends TestCase
 
         self::assertSame(1, $client->closed);
         self::assertSame(
-            [['DEBUG', 'EVIL', 'STATUS'], ['DEBUG', 'EVIL', 'STATUS'], ['DEBUG', 'EVIL', 'SEED', '7'], $client->sent[3]],
+            [['DEBUG', 'EVIL', 'STATUS'], ['DEBUG', 'EVIL', 'STATUS'], ['DEBUG', 'EVIL', 'SEED', '7'], $client->sent[3], ...self::DEFAULT_CONTROLS],
             array_slice($client->sent, $armed),
         );
     }
@@ -347,10 +361,12 @@ final class EvilrespHookTest extends TestCase
             [['127.0.0.1', 7200], 'DEBUG', 'EVIL', 'SEED', '7'],
             [['127.0.0.1', 7200], 'DEBUG', 'EVIL', 'MODE', 'MUTATE', 'PROBABILITY', '12.50'],
             [['127.0.0.1', 7200], 'DEBUG', 'EVIL', 'TOPOLOGY', '4.00'],
+            ...array_map(static fn (array $command): array => [['127.0.0.1', 7200], ...$command], self::DEFAULT_CONTROLS),
             [['127.0.0.1', 7201], 'DEBUG', 'EVIL', 'STATUS'],
             [['127.0.0.1', 7201], 'DEBUG', 'EVIL', 'SEED', '7'],
             [['127.0.0.1', 7201], 'DEBUG', 'EVIL', 'MODE', 'MUTATE', 'PROBABILITY', '12.50'],
             [['127.0.0.1', 7201], 'DEBUG', 'EVIL', 'TOPOLOGY', '4.00'],
+            ...array_map(static fn (array $command): array => [['127.0.0.1', 7201], ...$command], self::DEFAULT_CONTROLS),
         ], $client->sent);
     }
 
@@ -371,7 +387,7 @@ final class EvilrespHookTest extends TestCase
         self::assertSame('STATUS', $armed[0][3]);
         self::assertSame(['MODE', 'RESET'], array_slice($armed[1], 3));
         self::assertSame('SEED', $armed[2][3]);
-        self::assertCount(5, $armed);
+        self::assertCount(10, $armed);
     }
 
     public function testFiltersCanonicalizationAndAFixedSeedAreForwarded(): void
@@ -398,6 +414,148 @@ final class EvilrespHookTest extends TestCase
                 'DEBUG', 'EVIL', 'EXCLUDE', 'AUTH', 'HELLO', 'COMMAND', 'CLIENT', 'SELECT', 'ASKING', 'MULTI',
                 'DISCARD', 'SUBSCRIBE', 'PSUBSCRIBE', 'SSUBSCRIBE', 'UNSUBSCRIBE', 'QUIT', 'ping',
             ],
+            ...self::DEFAULT_CONTROLS,
+        ], $client->sent);
+    }
+
+    public function testNewControlsAreAppliedToEveryNodeAndReplayedInTheScript(): void
+    {
+        putenv('EVILRESP_STRATEGY=replace');
+        putenv('EVILRESP_MUTATIONS=one');
+        putenv('EVILRESP_GENERATOR_PROTOCOL=resp3');
+        putenv('EVILRESP_GENERATOR_CORPUS=random');
+        putenv('EVILRESP_GENERATOR_VIOLATIONS=on');
+        putenv('EVILRESP_FRAMING=length');
+        putenv('EVILRESP_FRAMING_TARGET=ROOT.01.00.VALUE.2');
+        putenv('EVILRESP_FRAMING_KIND=overflow');
+        putenv('EVILRESP_FRAMING_PROBABILITY=12.5');
+        putenv('EVILRESP_TRANSPORT_TRUNCATE=0006');
+        putenv('EVILRESP_TRANSPORT_EXTRA=2');
+        putenv('EVILRESP_TRANSPORT_CHUNKS=01, 3,4');
+        putenv('EVILRESP_TRANSPORT_PROBABILITY=25');
+        $expected = [
+            ['DEBUG', 'EVIL', 'STRATEGY', 'REPLACE'],
+            ['DEBUG', 'EVIL', 'MUTATIONS', 'ONE'],
+            ['DEBUG', 'EVIL', 'GENERATOR', 'PROTOCOL', 'RESP3', 'CORPUS', 'RANDOM', 'VIOLATIONS', 'ON'],
+            ['DEBUG', 'EVIL', 'FRAMING', 'LENGTH', 'PROBABILITY', '12.50', 'TARGET', 'root.1.0.value.2', 'KIND', 'OVERFLOW'],
+            ['DEBUG', 'EVIL', 'TRANSPORT', 'TRUNCATE', '6', 'EXTRA', '2', 'CHUNKS', '1,3,4', 'PROBABILITY', '25.00'],
+        ];
+        $hooks = $this->load();
+        $hooks->setSeed(123);
+        $client = $this->standalone();
+        $cluster = $this->cluster([['127.0.0.1', 7200], ['127.0.0.1', 7201]]);
+        $hooks->dispatchPostConstructor($client, 0);
+        $hooks->dispatchPostConstructor($cluster, 1);
+        self::assertSame($expected, array_slice($client->sent, -5));
+        foreach ($cluster->_masters() as $node) {
+            foreach ($expected as $command) {
+                self::assertContains([$node, ...$command], $cluster->sent);
+            }
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'evilresp-hook-script-');
+        self::assertIsString($path);
+        try {
+            ScriptLogger::init($path, clients: [$client]);
+            $hooks->dispatchPreCommand($this->pending($client));
+            ScriptLogger::finish();
+            $script = file_get_contents($path);
+            self::assertIsString($script);
+            self::assertStringContainsString('framing_target=root.1.0.value.2', $script);
+            self::assertStringContainsString('transport_probability=25.00', $script);
+            self::assertStringContainsString("'FRAMING', 'LENGTH', 'PROBABILITY', '12.50'", $script);
+            self::assertStringContainsString("'TRANSPORT', 'TRUNCATE', '6', 'EXTRA', '2', 'CHUNKS', '1,3,4'", $script);
+        } finally {
+            ScriptLogger::finish();
+            unlink($path);
+        }
+    }
+
+    public function testNewProbabilityRangesAreSeededAndRetainedAcrossReconnects(): void
+    {
+        putenv('EVILRESP_FRAMING=LENGTH');
+        putenv('EVILRESP_FRAMING_PROBABILITY=0.5-40');
+        putenv('EVILRESP_TRANSPORT_TRUNCATE=RANDOM');
+        putenv('EVILRESP_TRANSPORT_CHUNKS=RANDOM');
+        putenv('EVILRESP_TRANSPORT_PROBABILITY=70-20');
+        $plans = [];
+        foreach ([123, 123, 456] as $seed) {
+            $hooks = $this->load();
+            $hooks->setSeed($seed);
+            $client = $this->standalone();
+            $hooks->dispatchPostConstructor($client, 0);
+            $plan = array_slice($client->sent, -5);
+            $plans[] = $plan;
+            self::assertIsString($plan[3][5]);
+            self::assertIsString($plan[4][10]);
+            self::assertGreaterThanOrEqual(0.5, (float) $plan[3][5]);
+            self::assertLessThanOrEqual(40, (float) $plan[3][5]);
+            self::assertGreaterThanOrEqual(20, (float) $plan[4][10]);
+            self::assertLessThanOrEqual(70, (float) $plan[4][10]);
+            $client->close();
+            $hooks->dispatchPostCommand($this->completed($client, new \RedisException('EOF')));
+            $hooks->dispatchPreCommand($this->pending($client));
+            self::assertSame($plan, array_slice($client->sent, -5));
+        }
+        self::assertSame($plans[0], $plans[1]);
+        self::assertNotSame($plans[0], $plans[2]);
+    }
+
+    public function testStatusDetectsChangesToEveryNewSettingAndRestoresThePlan(): void
+    {
+        putenv('EVILRESP_FRAMING=LENGTH');
+        putenv('EVILRESP_TRANSPORT_EXTRA=1');
+        $hooks = $this->load();
+        $hooks->setSeed(123);
+        $client = $this->standalone();
+        $hooks->dispatchPostConstructor($client, 0);
+        $expected = $client->proxy->status;
+        foreach ([
+            'strategy', 'mutations', 'generator_protocol', 'generator_corpus', 'generator_violations',
+            'framing', 'framing_target', 'framing_kind', 'framing_probability',
+            'transport', 'transport_truncate', 'transport_extra', 'transport_chunks', 'transport_probability',
+        ] as $field) {
+            $client->proxy->status = (string) preg_replace('/\b' . $field . '=\S+/', $field . '=stale', $expected);
+            $armed = count($client->sent);
+            $hooks->dispatchPostCommand($this->completed($client, new \RedisException('read error')));
+            $hooks->dispatchPreCommand($this->pending($client));
+            self::assertGreaterThan($armed + 1, count($client->sent), $field);
+            self::assertSame($expected, $client->proxy->status, $field);
+        }
+    }
+
+    public function testModeResetAlsoRestoresPersistentControlsToDefaults(): void
+    {
+        $client = $this->standalone();
+        $client->proxy->answer(['STRATEGY', 'REPLACE']);
+        $client->proxy->answer(['GENERATOR', 'VIOLATIONS', 'ON']);
+        $client->proxy->answer(['TRANSPORT', 'EXTRA', '16']);
+        $client->proxy->answer(['FRAMING', 'LENGTH']);
+        $hooks = $this->load();
+        $hooks->setSeed(123);
+        $hooks->dispatchPostConstructor($client, 0);
+        self::assertStringContainsString('strategy=PRESERVE', $client->proxy->status);
+        self::assertStringContainsString('generator_violations=OFF', $client->proxy->status);
+        self::assertStringContainsString('transport=OFF', $client->proxy->status);
+        self::assertStringContainsString('framing=AUTO', $client->proxy->status);
+    }
+
+    public function testTransportCanOperateWithRespMutationOffAndKeepUnsignedOffsets(): void
+    {
+        putenv('EVILRESP_MODES=OFF');
+        putenv('EVILRESP_FRAMING=OFF');
+        putenv('EVILRESP_TRANSPORT_TRUNCATE=0');
+        putenv('EVILRESP_TRANSPORT_CHUNKS=9223372036854775808,18446744073709551615');
+        putenv('EVILRESP_TRANSPORT_PROBABILITY=0');
+        $hooks = $this->load();
+        $hooks->setSeed(123);
+        $client = $this->standalone();
+        $hooks->dispatchPostConstructor($client, 0);
+        self::assertContains(['DEBUG', 'EVIL', 'MODE', 'OFF'], $client->sent);
+        self::assertContains(['DEBUG', 'EVIL', 'FRAMING', 'OFF'], $client->sent);
+        self::assertContains([
+            'DEBUG', 'EVIL', 'TRANSPORT', 'TRUNCATE', '0', 'EXTRA', '0',
+            'CHUNKS', '9223372036854775808,18446744073709551615', 'PROBABILITY', '0.00',
         ], $client->sent);
     }
 
@@ -412,7 +570,56 @@ final class EvilrespHookTest extends TestCase
             ['EVILRESP_CANONICALIZE', 'sometimes'],
             ['EVILRESP_SEED', '-3'],
             ['EVILRESP_PROBE_INTERVAL', 'often'],
+            ['EVILRESP_STRATEGY', 'anything'],
+            ['EVILRESP_MUTATIONS', 'two'],
+            ['EVILRESP_GENERATOR_PROTOCOL', 'RESP4'],
+            ['EVILRESP_GENERATOR_CORPUS', 'none'],
+            ['EVILRESP_GENERATOR_VIOLATIONS', 'yes'],
+            ['EVILRESP_FRAMING', 'sometimes'],
+            ['EVILRESP_FRAMING_TARGET', 'root.0'],
+            ['EVILRESP_FRAMING_KIND', 'LONGER'],
+            ['EVILRESP_FRAMING_PROBABILITY', '50'],
+            ['EVILRESP_TRANSPORT', 'ON'],
+            ['EVILRESP_TRANSPORT_TRUNCATE', '-1'],
+            ['EVILRESP_TRANSPORT_TRUNCATE', '18446744073709551616'],
+            ['EVILRESP_TRANSPORT_EXTRA', '17'],
+            ['EVILRESP_TRANSPORT_EXTRA', '1.5'],
+            ['EVILRESP_TRANSPORT_CHUNKS', '0,1'],
+            ['EVILRESP_TRANSPORT_CHUNKS', '1,1'],
+            ['EVILRESP_TRANSPORT_CHUNKS', '2,1'],
+            ['EVILRESP_TRANSPORT_CHUNKS', '1,'],
+            ['EVILRESP_TRANSPORT_CHUNKS', implode(',', range(1, 65))],
+            ['EVILRESP_TRANSPORT_PROBABILITY', '0-101'],
         ];
+    }
+
+    /** @return list<array{string, string}> */
+    public static function invalidLengthOptions(): array
+    {
+        return [
+            ['TARGET', 'root.key'], ['TARGET', 'root.0.value.key'], ['TARGET', 'root..0'],
+            ['TARGET', 'root.-1'], ['TARGET', 'root.18446744073709551616'],
+            ['KIND', 'invalid'], ['PROBABILITY', 'NaN'], ['PROBABILITY', '1e999'],
+        ];
+    }
+
+    #[DataProvider('invalidLengthOptions')]
+    public function testInvalidLengthOptionsAreRejected(string $option, string $value): void
+    {
+        putenv('EVILRESP_FRAMING=LENGTH');
+        putenv("EVILRESP_FRAMING_{$option}={$value}");
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("EVILRESP_FRAMING_{$option}");
+        $this->load();
+    }
+
+    public function testTransportOffRejectsConflictingOptions(): void
+    {
+        putenv('EVILRESP_TRANSPORT=OFF');
+        putenv('EVILRESP_TRANSPORT_EXTRA=1');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('EVILRESP_TRANSPORT_EXTRA');
+        $this->load();
     }
 
     #[DataProvider('invalidEnvironment')]

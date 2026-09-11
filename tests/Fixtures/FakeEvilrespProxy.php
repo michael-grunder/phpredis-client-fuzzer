@@ -10,7 +10,9 @@ namespace Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures;
  */
 final class FakeEvilrespProxy
 {
-    public const IDLE = 'mode=OFF seed=0 probability=0.00 topology_probability=0.00 canonicalize=UNORDERED include=[] exclude=[]';
+    public const IDLE = 'mode=OFF seed=0 probability=0.00 topology_probability=0.00 canonicalize=UNORDERED include=[] exclude=[]'
+        . ' strategy=PRESERVE mutations=MANY generator_protocol=RESP2 generator_corpus=BOUNDARY generator_violations=OFF'
+        . ' framing=AUTO transport=OFF transport_probability=100.00 transport_truncate=OFF transport_extra=0 transport_chunks=OFF';
 
     public string $status = self::IDLE;
 
@@ -45,6 +47,39 @@ final class FakeEvilrespProxy
                 break;
             case 'CANONICALIZE':
                 $fields['canonicalize'] = $subcommand[1];
+                break;
+            case 'STRATEGY':
+            case 'MUTATIONS':
+                $fields[strtolower($subcommand[0])] = $subcommand[1];
+                break;
+            case 'GENERATOR':
+                for ($i = 1; $i < count($subcommand); $i += 2) {
+                    $fields['generator_' . strtolower($subcommand[$i])] = $subcommand[$i + 1];
+                }
+                break;
+            case 'FRAMING':
+                $fields['framing'] = $subcommand[1];
+                unset($fields['framing_probability'], $fields['framing_target'], $fields['framing_kind']);
+                if ($subcommand[1] === 'LENGTH') {
+                    $fields += ['framing_probability' => '100.00', 'framing_target' => 'ANY', 'framing_kind' => 'RANDOM'];
+                    for ($i = 2; $i < count($subcommand); $i += 2) {
+                        $fields['framing_' . strtolower($subcommand[$i])] = $subcommand[$i + 1];
+                    }
+                }
+                break;
+            case 'TRANSPORT':
+                if ($subcommand[1] === 'OFF') {
+                    $fields['transport_truncate'] = 'OFF';
+                    $fields['transport_extra'] = '0';
+                    $fields['transport_chunks'] = 'OFF';
+                    $fields['transport_probability'] = '100.00';
+                } else {
+                    for ($i = 1; $i < count($subcommand); $i += 2) {
+                        $fields['transport_' . strtolower($subcommand[$i])] = $subcommand[$i + 1];
+                    }
+                }
+                $fields['transport'] = $fields['transport_truncate'] !== 'OFF'
+                    || $fields['transport_extra'] !== '0' || $fields['transport_chunks'] !== 'OFF' ? 'ON' : 'OFF';
                 break;
             case 'INCLUDE':
             case 'EXCLUDE':

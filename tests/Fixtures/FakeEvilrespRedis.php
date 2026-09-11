@@ -71,4 +71,14 @@ final class FakeEvilrespRedis extends \Redis
     {
         return $this->lastError;
     }
+
+    public function getOption(int $option): mixed
+    {
+        return false;
+    }
+
+    public function getAuth(): mixed
+    {
+        return null;
+    }
 }

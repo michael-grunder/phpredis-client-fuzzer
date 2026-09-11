@@ -335,8 +335,9 @@ object forms do not, so a hook that needs randomness uses the callable form.
 
 [evilresp](https://github.com/michael-grunder/evilresp) is a RESP proxy that
 can be told, per connection, to return deterministic random frames, mutate the
-upstream's replies, push lengths and counts toward overflow, or lie about
-cluster slot ownership. `hooks/evilresp.php` arms it for every client the
+upstream's replies, target individual length headers, truncate or fragment
+responses, append unsolicited replies, or lie about cluster slot ownership.
+`hooks/evilresp.php` arms it for every client the
 fuzzer uses:
 
 ```bash
@@ -349,7 +350,7 @@ arming if the target answers `DEBUG EVIL` like a plain Redis or Valkey. The
 mode and probabilities are drawn once per run from
 `$hooks->randomizer('evilresp')`, the proxy is seeded with the run seed, and its
 command index is reset once per run, so the same `--seed`, hook file and
-environment replay the same proxy behavior as long as the fuzzer is the proxy's
+environment and evilresp build replay the same proxy behavior as long as the fuzzer is the proxy's
 only client. The chosen plan is printed to stderr as `evilresp: seed=... mode=...
 probability=...` and written into `--script-log` along with every `DEBUG EVIL`
 the hook sends.
@@ -380,7 +381,69 @@ cluster clients), `EVILRESP_CANONICALIZE`, `EVILRESP_INCLUDE`, `EVILRESP_EXCLUDE
 (added to evilresp's own defaults), `EVILRESP_SEED` to override the proxy seed,
 `EVILRESP_RESET=0` to skip `MODE RESET` on a proxy shared with other clients,
 `EVILRESP_PROBE_INTERVAL` (default 50, 0 disables periodic checks), and
-`EVILRESP_VERBOSE=1` to log every exchange. Expect the report to be full of
+`EVILRESP_VERBOSE=1` to log every exchange.
+
+The hook also supports the following controls. Values are case-insensitive;
+invalid settings fail when the hook loads. These defaults are sent explicitly
+on every arming, including after reconnection, because `MODE RESET` preserves
+them. Use an evilresp build supporting `STRATEGY`, `MUTATIONS`, `GENERATOR`,
+`FRAMING`, and `TRANSPORT`; older builds will reject the setup.
+
+| Environment variable | Values | Default |
+| --- | --- | --- |
+| `EVILRESP_STRATEGY` | `PRESERVE` scalar types/containers, or `REPLACE` whole frames | `PRESERVE` |
+| `EVILRESP_MUTATIONS` | At most `ONE` RESP mutation per reply, or `MANY` | `MANY` |
+| `EVILRESP_GENERATOR_PROTOCOL` | `RESP2`, `RESP3` | `RESP2` |
+| `EVILRESP_GENERATOR_CORPUS` | `BOUNDARY`, `RANDOM` | `BOUNDARY` |
+| `EVILRESP_GENERATOR_VIOLATIONS` | `OFF`, `ON` | `OFF` |
+| `EVILRESP_FRAMING` | `AUTO`, `OFF`, `LENGTH` | `AUTO` |
+| `EVILRESP_FRAMING_PROBABILITY` | Percentage or `MIN-MAX` range; requires `LENGTH` | `100` |
+| `EVILRESP_FRAMING_TARGET` | `ANY`, `root`, or a nested path such as `root.0.value.2`; requires `LENGTH` | `ANY` |
+| `EVILRESP_FRAMING_KIND` | `RANDOM`, `SHORTER`, `LONGER`, `NEGATIVE`, `BOUNDARY`, `OVERFLOW`; requires `LENGTH` | `RANDOM` |
+| `EVILRESP_TRANSPORT` | `OFF`; cannot accompany transport options below | Unset |
+| `EVILRESP_TRANSPORT_TRUNCATE` | `OFF`, `RANDOM`, or unsigned byte offset (`0` sends immediate EOF) | `OFF` |
+| `EVILRESP_TRANSPORT_EXTRA` | Number of unsolicited `+EVILRESP` replies, `0`–`16` | `0` |
+| `EVILRESP_TRANSPORT_CHUNKS` | `OFF`, `RANDOM`, or up to 64 strictly increasing positive byte offsets, e.g. `1,3,4` | `OFF` |
+| `EVILRESP_TRANSPORT_PROBABILITY` | Independent percentage or `MIN-MAX` range | `100` |
+
+Transport is disabled by default. Setting truncate, extra, or chunks enables
+the corresponding faults without needing an additional switch. Byte offsets
+and path indexes accept unsigned 64-bit decimal integers. Ranges are drawn
+once per run to hundredths of a percent from a separate
+`$hooks->randomizer('evilresp-options')` stream; reconnects reuse the drawn
+values. The full plan appears in stderr and the script log, and STATUS checks
+verify every new setting.
+
+`STRATEGY`, `MUTATIONS`, and `FRAMING` affect `MUTATE` and `OVERFLOW`.
+With `MUTATIONS=ONE`, an explicit length fault gets the first chance at the
+single mutation; if it does not apply, value mutation is attempted.
+`EVILRESP_PROBABILITY=0` therefore still permits explicit length faults.
+`RANDOM` always generates eligible replies and ignores the mode probability.
+`MODE OFF` disables RESP mutation; topology and transport remain independent.
+Use `EVILRESP_TOPOLOGY=0` and `EVILRESP_TRANSPORT=OFF` to disable those too.
+Generator protocol selection does not negotiate `HELLO` or translate upstream
+types. `GENERATOR_VIOLATIONS=OFF` still permits framing faults; use
+`FRAMING=OFF` to test correctly framed values. Chunk offsets control proxy
+writes, which TCP may combine or split before the client reads them.
+
+For example, target only a nested length header through your disposable proxy:
+
+```bash
+EVILRESP_MODES=MUTATE EVILRESP_PROBABILITY=0 EVILRESP_TOPOLOGY=0 \
+EVILRESP_MUTATIONS=ONE EVILRESP_FRAMING=LENGTH \
+EVILRESP_FRAMING_TARGET=root.0 EVILRESP_FRAMING_KIND=LONGER \
+bin/phpredis-fuzz --port=6390 --seed=123 --commands=mget --hook=hooks/evilresp.php
+```
+
+To exercise EOF and fragmentation independently of RESP mutation:
+
+```bash
+EVILRESP_MODES=OFF EVILRESP_TOPOLOGY=0 EVILRESP_TRANSPORT_TRUNCATE=RANDOM \
+EVILRESP_TRANSPORT_CHUNKS=1,3,4 EVILRESP_TRANSPORT_PROBABILITY=5-20 \
+bin/phpredis-fuzz --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
+```
+
+Expect the report to be full of
 exceptions and wrong replies; that is the proxy doing its job, and what the
 run is for is the crashes, hangs and leaks the harness captures. `--forks`
 shares one proxy command index between children and is not reproducible

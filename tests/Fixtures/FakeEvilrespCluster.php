@@ -52,4 +52,9 @@ final class FakeEvilrespCluster extends \RedisCluster
     {
         return null;
     }
+
+    public function getOption(int $option): int
+    {
+        return 0;
+    }
 }
