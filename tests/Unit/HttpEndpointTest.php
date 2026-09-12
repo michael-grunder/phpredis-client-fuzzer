@@ -5,11 +5,27 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Http\FuzzerEndpoint;
+use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
 use PHPUnit\Framework\TestCase;
 
 final class HttpEndpointTest extends TestCase
 {
+    public function testKeyProfilesRemainServerControlled(): void
+    {
+        $configuration = new RunConfiguration(
+            maxSteps: 1, seed: 42, commands: ['isconnected'], includeLocal: true,
+            keySkew: 1.2, keyReadGroups: [new KeyReadGroup(1.0, 0.95)],
+        );
+        $endpoint = new FuzzerEndpoint(static fn (): \Redis => new \Redis(), $configuration);
+        $response = $endpoint->handle(['keySkew' => 99, 'keyReadGroups' => [], 'key-skew' => 99]);
+        self::assertTrue($response['ok']);
+        $reported = $response['result']['configuration'] ?? null;
+        self::assertIsArray($reported);
+        self::assertSame(1.2, $reported['keySkew']);
+        self::assertSame($configuration->jsonSerialize()['keyReadGroups'], $reported['keyReadGroups']);
+    }
+
     public function testInvalidRuntimeOverrideFailsBeforeResolvingAClient(): void
     {
         $providerCalled = false;

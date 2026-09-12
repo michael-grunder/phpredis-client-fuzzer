@@ -6,6 +6,7 @@ use Relay\Relay;
 use Relay\Cluster;
 use Redis;
 use RedisCluster;
+use Mgrunder\PhpredisCommandFuzzer\KeyAccessSampler;
 
 /**
  * Class FuzzConfig
@@ -52,6 +53,14 @@ class FuzzConfig {
     private SlotPolicy $slot_policy = SlotPolicy::Unconstrained;
     private int $slot_tag = 0;
     private int $slot_cursor = 0;
+    private ?KeyAccessSampler $key_access = null;
+    private int $access_flags = 0;
+
+    /** @internal Configure before generating command arguments. */
+    public function setKeyAccess(?KeyAccessSampler $sampler): self {
+        $this->key_access = $sampler;
+        return $this;
+    }
 
     protected function serializerEnabled(Redis|RedisCluster|Relay|Cluster $client): bool {
         return $client->getOption(Redis::OPT_SERIALIZER) !== Redis::SERIALIZER_NONE;
@@ -186,6 +195,7 @@ class FuzzConfig {
         $policy = $this->beginStep(
             ! $raw && ($command->flags() & Command::CROSSSLOT) !== 0,
         );
+        $this->access_flags = $command->flags();
 
         /* A raw cluster call bypasses the client's normal command parser, so
            it needs an explicit routing key. Normally it shares the generated
@@ -209,6 +219,7 @@ class FuzzConfig {
      *                                are valid input rather than an error.
      */
     public function beginStep(bool $crossslot_capable): SlotPolicy {
+        $this->access_flags = 0;
         $this->slot_tag = rand() % $this->shards;
         $this->slot_cursor = 0;
 
@@ -374,7 +385,8 @@ class FuzzConfig {
 
         $shard ??= $this->nextShard();
 
-        return $this->getKey($type, $shard, rand(0, $this->keys - 1));
+        $key = $this->key_access?->pick($this->keys, $this->access_flags) ?? rand(0, $this->keys - 1);
+        return $this->getKey($type, $shard, $key);
     }
 
     private function randFloatRange(float $min, float $max): float {

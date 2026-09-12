@@ -7,6 +7,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
+use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
 use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
@@ -54,6 +55,61 @@ final class ConfigurationTest extends TestCase
         self::assertSame(InvocationMode::Strict, $configuration->invocationMode);
         self::assertSame('strict', $configuration->jsonSerialize()['invocationMode']);
         self::assertFalse($configuration->jsonSerialize()['rawChaos']);
+        self::assertSame(0.0, $configuration->keySkew);
+        self::assertSame([], $configuration->keyReadGroups);
+    }
+
+    /** @return iterable<string, array{float}> */
+    public static function invalidKeySkews(): iterable
+    {
+        yield 'negative' => [-1.0];
+        yield 'infinity' => [INF];
+        yield 'NaN' => [NAN];
+    }
+
+    #[DataProvider('invalidKeySkews')]
+    public function testInvalidKeySkewIsRejected(float $skew): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new RunConfiguration(keySkew: $skew);
+    }
+
+    /** @return iterable<string, array{float, float}> */
+    public static function invalidKeyReadGroups(): iterable
+    {
+        yield 'zero share' => [0.0, 0.5];
+        yield 'negative share' => [-1.0, 0.5];
+        yield 'infinite share' => [INF, 0.5];
+        yield 'NaN share' => [NAN, 0.5];
+        yield 'zero affinity' => [1.0, 0.0];
+        yield 'unit affinity' => [1.0, 1.0];
+        yield 'negative affinity' => [1.0, -0.1];
+        yield 'large affinity' => [1.0, 1.1];
+        yield 'infinite affinity' => [1.0, INF];
+        yield 'NaN affinity' => [1.0, NAN];
+    }
+
+    #[DataProvider('invalidKeyReadGroups')]
+    public function testInvalidKeyReadGroupIsRejected(float $weight, float $affinity): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new KeyReadGroup($weight, $affinity);
+    }
+
+    public function testReadGroupWeightsCannotOverflow(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new RunConfiguration(keyReadGroups: [new KeyReadGroup(PHP_FLOAT_MAX, 0.5), new KeyReadGroup(PHP_FLOAT_MAX, 0.5)]);
+    }
+
+    public function testKeyProfileIsSerializedWithConcreteValues(): void
+    {
+        $configuration = new RunConfiguration(keySkew: 1.2, keyReadGroups: [KeyReadGroup::parse('4:0.95'), KeyReadGroup::parse('6:0.05')]);
+        self::assertSame(1.2, $configuration->jsonSerialize()['keySkew']);
+        self::assertSame([
+            ['weight' => 4.0, 'readAffinity' => 0.95],
+            ['weight' => 6.0, 'readAffinity' => 0.05],
+        ], $configuration->jsonSerialize()['keyReadGroups']);
     }
 
     public function testInvocationModesAreParsedExplicitly(): void

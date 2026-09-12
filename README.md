@@ -1306,6 +1306,8 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `maxSeconds` | `0.0` | Wall-clock limit; `0` disables this limit |
 | `seed` | generated | Seed returned in the result for reproduction |
 | `keys` | `100` | Size of each generated key namespace |
+| `keySkew` | `0.0` | Finite, non-negative Zipf popularity exponent; `0` is uniform |
+| `keyReadGroups` | `[]` | List of `KeyReadGroup(weight, readAffinity)` objects; empty means no read/write bias |
 | `shards` | `16` | Number of cluster hash tags used in generated keys |
 | `members` | `10` | Maximum generated list/set/hash/zset member count |
 | `minLength` | `4` | Minimum generated string length |
@@ -1337,6 +1339,92 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `includeStateful` | `false` | Include standalone stateful commands in random fuzzing |
 
 At least one of `maxSteps` or `maxSeconds` must be greater than zero.
+
+### Hot keys and read/write affinities
+
+All fuzzer entrypoints, including `bin/phpredis-fuzz-coercive`, support seeded
+key popularity and persistent read/write preferences. They are disabled by
+default, preserving the existing seeded selection sequence.
+
+For a disposable target you have selected, add these workload options:
+
+```bash
+--keys=10000 --key-skew=1.1 \
+--key-read-group=4:0.95 \
+--key-read-group=2:0.50 \
+--key-read-group=4:0.05 \
+--seed=12345
+```
+
+`--key-skew` weights key ranks by `1 / rank^skew`, starting at rank 1.
+Larger exponents concentrate traffic on fewer keys. A seeded shuffle assigns
+these ranks to key IDs once, so the lowest-numbered key is not always hottest.
+Very large exponents can make tail weights round to zero in floating-point
+arithmetic.
+
+Each repeatable `--key-read-group=WEIGHT:AFFINITY` defines a relative share of
+keys with a particular read preference. The example independently assigns
+each key a 40% chance of belonging to the mostly-read group, 20% to the mixed
+group, and 40% to the mostly-written group. These are expected shares, not
+exact quotas, especially in small keyspaces. Assignments persist for the run
+and are independent of popularity rank, producing both hot read-heavy and
+hot write-heavy keys.
+
+Weights must be finite and positive; affinities must be finite and strictly
+between 0 and 1, keeping both reads and writes possible for each group.
+Popularity and affinities can be enabled independently: omit the groups for
+plain Zipf selection, or leave skew at zero for affinities with uniform base
+popularity.
+
+The library equivalent is:
+
+```php
+use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
+use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+
+$configuration = new RunConfiguration(
+    seed: 12345,
+    keys: 10000,
+    keySkew: 1.1,
+    keyReadGroups: [
+        new KeyReadGroup(weight: 4.0, readAffinity: 0.95),
+        new KeyReadGroup(weight: 2.0, readAffinity: 0.50),
+        new KeyReadGroup(weight: 4.0, readAffinity: 0.05),
+    ],
+);
+```
+
+Command selection and `--weight` retain their existing meaning. Reads select
+keys with weight `popularity * affinity`; writes use
+`popularity * (1 - affinity)`. Each table is normalized separately, so an
+affinity of `0.95` does **not** guarantee that 95% of a key's accesses will be
+reads. The command mix also affects that ratio and the combined popularity
+curve. These settings bias attempted accesses; they do not guarantee existing
+values, successful writes, cache hits, or particular Redis outcomes.
+
+The command's `WRITE` or `DELETE` flag takes precedence over `READ`, so
+`GETDEL` and `GETEX` use write affinities. Commands with neither flag use base
+popularity. Every generated key in a command uses that command's category;
+source/destination roles are not modeled separately. Multi-key commands draw
+once per generated key, with replacement, and hot keys can appear repeatedly.
+Scans, exact key lookups, dedicated saturation keys, and named stateful
+scenarios retain their existing key selection.
+
+One profile is shared across type namespaces and cluster hash tags: the same
+numeric key ID has the same rank and affinity in each namespace. Slot
+selection remains unchanged, including same-slot constraints, client-split
+commands, and deliberate `--crossslot-chance` errors. This models hot keys
+within each tag, rather than hot cluster nodes.
+
+Alias tables take O(keys) setup and memory, built on the first generated key,
+and O(1) time per draw. No per-key objects or per-shard tables are allocated.
+Profile construction and access selection use separate seed-derived random
+streams independent of the catalog's global random generator. The same seed,
+configuration, and sequence of access categories reproduce the same key IDs;
+forked runs use each child's reported seed. JSON reports include `keySkew`
+and the concrete groups, and script logs continue recording actual arguments.
+HTTP profiles are server-controlled and cannot be overridden by request
+parameters.
 
 Command filters are case-insensitive:
 

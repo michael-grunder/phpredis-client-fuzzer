@@ -98,6 +98,8 @@ final class FuzzerEndpoint
             saturateTarget: $this->configuration->saturateTarget,
             saturateMode: $this->configuration->saturateMode,
             rawChaos: $this->configuration->rawChaos,
+            keySkew: $this->configuration->keySkew,
+            keyReadGroups: $this->configuration->keyReadGroups,
         );
     }
 

@@ -10,6 +10,7 @@ final readonly class RunConfiguration implements \JsonSerializable
      * @param list<string> $commands Command/glob/flag filters, such as get*, -getex, or @read.
      * @param list<string> $scenarios Named stateful scenarios to run before random steps.
      * @param array<string, float> $weights Command or @flag weights.
+     * @param list<KeyReadGroup> $keyReadGroups Relative shares of keys with stable read affinities.
      */
     public function __construct(
         public int $maxSteps = 100,
@@ -45,7 +46,10 @@ final readonly class RunConfiguration implements \JsonSerializable
         public ?int $saturateTarget = null,
         public SaturationMode $saturateMode = SaturationMode::Natural,
         public bool $rawChaos = false,
+        public float $keySkew = 0.0,
+        public array $keyReadGroups = [],
     ) {
+        KeyAccessSampler::validate($keySkew, $keyReadGroups);
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
         }
@@ -113,6 +117,11 @@ final readonly class RunConfiguration implements \JsonSerializable
             'maxSeconds' => $this->maxSeconds,
             'seed' => $this->seed,
             'keys' => $this->keys,
+            'keySkew' => $this->keySkew,
+            'keyReadGroups' => array_map(
+                static fn (KeyReadGroup $group): array => $group->jsonSerialize(),
+                $this->keyReadGroups,
+            ),
             'shards' => $this->shards,
             'members' => $this->members,
             'minLength' => $this->minLength,

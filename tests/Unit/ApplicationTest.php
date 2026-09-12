@@ -29,6 +29,8 @@ final class ApplicationTest extends TestCase
         self::assertStringContainsString('--saturate-steps=N', self::contents($output));
         self::assertStringContainsString('--saturate-target=TARGET', self::contents($output));
         self::assertStringContainsString('--saturate-mode=MODE', self::contents($output));
+        self::assertStringContainsString('--key-skew=N', self::contents($output));
+        self::assertStringContainsString('--key-read-group=W:A', self::contents($output));
         self::assertStringContainsString('--raw-chaos', self::contents($output));
         self::assertStringContainsString('--include=CATEGORY,...', self::contents($output));
         self::assertStringNotContainsString('--include-admin', self::contents($output));
@@ -57,6 +59,28 @@ final class ApplicationTest extends TestCase
         self::assertSame(0, $status);
         self::assertStringContainsString('(default: coercive)', self::contents($output));
         self::assertSame('', self::contents($error));
+    }
+
+    /** @return iterable<string, array{list<string>, string}> */
+    public static function invalidKeyProfiles(): iterable
+    {
+        yield 'negative skew' => [['--key-skew=-1'], 'keySkew'];
+        yield 'infinite skew' => [['--key-skew=1e999'], 'keySkew'];
+        yield 'malformed group' => [['--key-read-group=oops'], 'WEIGHT:AFFINITY'];
+        yield 'repeatable groups' => [['--key-read-group=4:0.95', '--key-read-group=4:1.2'], 'read affinity'];
+        yield 'zero weight' => [['--key-read-group=0:0.5'], 'group weight'];
+    }
+
+    /** @param list<string> $arguments */
+    #[DataProvider('invalidKeyProfiles')]
+    public function testInvalidKeyProfileIsRejectedBeforeConnecting(array $arguments, string $message): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+        $status = (new Application($output, $error))->run($arguments);
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString($message, self::contents($error));
     }
 
     public function testUnknownInvocationModeIsRejectedBeforeConnecting(): void

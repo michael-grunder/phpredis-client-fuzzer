@@ -88,6 +88,13 @@ final class Fuzzer
         }
         $selector = new AliasTable($registry->commands());
         $arguments = $this->argumentConfiguration($clients, $configuration);
+        if ($configuration->keySkew > 0.0 || $configuration->keyReadGroups !== []) {
+            $arguments->setKeyAccess(new KeyAccessSampler(
+                $seed,
+                $configuration->keySkew,
+                $configuration->keyReadGroups,
+            ));
+        }
         $saturationClients = array_values(array_filter(
             $executionClients,
             static fn (Redis|RedisCluster|Relay|Cluster $client): bool =>

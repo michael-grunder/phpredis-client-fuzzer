@@ -11,6 +11,7 @@ use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
+use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
 use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
@@ -44,6 +45,7 @@ final class Application
         'client', 'host', 'port', 'seeds', 'username', 'password', 'timeout',
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
         'seconds', 'seed', 'forks', 'commands', 'weight', 'keys', 'members', 'shards',
+        'key-skew', 'key-read-group',
         'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'saturate-chance',
         'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
@@ -60,7 +62,7 @@ final class Application
         'no-relay-compatibility', 'differential',
     ];
 
-    private const REPEATABLE_OPTIONS = ['weight', 'hook'];
+    private const REPEATABLE_OPTIONS = ['weight', 'hook', 'key-read-group'];
 
     private const RELAY_CLUSTER_OPTIONS = [
         'relay-failover',
@@ -272,6 +274,8 @@ final class Application
                 scenarios: $options->csv('scenarios'),
                 invocationMode: $invocationMode,
                 rawChaos: $options->has('raw-chaos'),
+                keySkew: $options->number('key-skew', 0.0),
+                keyReadGroups: array_map(KeyReadGroup::parse(...), $options->repeated('key-read-group')),
             );
 
             $runConfiguration = $configure($seed, $scriptLog);
@@ -496,6 +500,10 @@ Run configuration:
   --commands=PATTERN,...     Include/exclude names, globs, or @flags
   --weight=TARGET:N          Set command or @flag weight; repeatable
   --keys=N                   Generated key space (default: 100)
+  --key-skew=N               Zipf popularity exponent, finite >= 0 (default: 0, uniform)
+  --key-read-group=W:A       Relative share W of keys with read affinity A;
+                             repeatable, W > 0 and 0 < A < 1. Defaults to no
+                             read/write bias; preserves command weights.
   --members=N                Maximum generated members (default: 10)
   --shards=N                 Generated cluster hash tags (default: 16)
   --min-length=N             Minimum generated string length (default: 4)
