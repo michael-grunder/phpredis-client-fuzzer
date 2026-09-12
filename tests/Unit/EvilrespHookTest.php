@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
 
 use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespChaosOptions;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespOptions;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookAction;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
@@ -808,9 +809,128 @@ final class EvilrespHookTest extends TestCase
         $hooks->dispatchPostConstructor($this->standalone(), 0);
     }
 
-    private function load(): HookRegistry
+    public function testChaosUsesOneSeededPresetOnStandaloneAndEveryClusterMaster(): void
     {
-        return HookLoader::load([dirname(__DIR__, 2) . '/hooks/evilresp.php']);
+        $sequences = [];
+        foreach ([123, 123, 456] as $seed) {
+            $hooks = $this->load(['mode' => 'chaos', 'chaos_min' => '5', 'chaos_max' => '75']);
+            $hooks->setSeed($seed);
+            $client = $this->standalone();
+            $hooks->dispatchPostConstructor($client, 0);
+            self::assertCount(4, $client->sent);
+            $command = $client->sent[2];
+            self::assertSame(['DEBUG', 'CHAOS'], array_slice($command, 0, 2));
+            self::assertIsString($command[2]);
+            self::assertGreaterThanOrEqual(5, (float) $command[2]);
+            self::assertLessThanOrEqual(75, (float) $command[2]);
+            self::assertSame(['SEED', (string) $seed, 'HASH', 'BLAKE3'], array_slice($command, 3));
+            $sequences[] = $command;
+            $cluster = $this->cluster([['127.0.0.1', 7200], ['127.0.0.1', 7201]]);
+            $hooks->dispatchPostConstructor($cluster, 1);
+            self::assertCount(6, $cluster->sent);
+            foreach ($cluster->_masters() as $node) {
+                self::assertContains([$node, ...$command], $cluster->sent);
+            }
+
+            // An unchanged snapshot only needs STATUS; a changed expansion
+            // or a fresh connection must receive the original preset again.
+            foreach ([false, true] as $changed) {
+                if ($changed) {
+                    $client->proxy->status .= ' future_fault=ON';
+                }
+                $client->sent = [];
+                $hooks->dispatchPostCommand($this->completed($client, new \RedisException('protocol error')));
+                $hooks->dispatchPreCommand($this->pending($client));
+                self::assertCount($changed ? 3 : 1, $client->sent);
+                if ($changed) {
+                    self::assertSame($command, $this->sent($client)[1]);
+                }
+            }
+            $client->close();
+            $client->sent = [];
+            $hooks->dispatchPostCommand($this->completed($client, method: 'close'));
+            $hooks->dispatchPreCommand($this->pending($client));
+            self::assertSame($command, $this->sent($client)[1]);
+        }
+        self::assertSame($sequences[0], $sequences[1]);
+        self::assertNotSame($sequences[0][2], $sequences[2][2]);
+    }
+
+    public function testZeroChaosAcceptsTlsHNullAndLogsConcreteArming(): void
+    {
+        $hooks = $this->load(['mode' => 'chaos', 'chaos_min' => '0', 'chaos_max' => '0', 'hash' => 'tlsh']);
+        $hooks->setSeed(123);
+        $client = $this->standalone();
+        $hooks->dispatchPostConstructor($client, 0);
+        self::assertStringContainsString('mode=OFF', $client->proxy->status);
+        self::assertSame(['DEBUG', 'CHAOS', '0.00', 'SEED', '123', 'HASH', 'TLSH'], $client->sent[2]);
+        $path = tempnam(sys_get_temp_dir(), 'evilresp-chaos-script-');
+        self::assertIsString($path);
+        try {
+            ScriptLogger::init($path, clients: [$client]);
+            $hooks->dispatchPreCommand($this->pending($client));
+            ScriptLogger::finish();
+            $script = file_get_contents($path);
+            self::assertIsString($script);
+            self::assertStringContainsString("'DEBUG', 'CHAOS', '0.00', 'SEED', '123', 'HASH', 'TLSH'", $script);
+            self::assertStringContainsString('mode=CHAOS chaos=0.00 hash=TLSH', $script);
+        } finally {
+            ScriptLogger::finish();
+            unlink($path);
+        }
+    }
+
+    public function testChaosDoesNotAcceptOkInPlaceOfAFingerprint(): void
+    {
+        $hooks = $this->load(['mode' => 'chaos']);
+        $hooks->setSeed(123);
+        $client = $this->standalone();
+        $client->proxy->chaosReply = 'OK';
+        $hooks->dispatchPostConstructor($client, 0);
+        // Failed arming is cooled down and retried, never recorded as armed.
+        for ($i = 0; $i < 25; $i++) {
+            $hooks->dispatchPostCommand($this->completed($client));
+        }
+        $client->proxy->chaosReply = null;
+        $client->sent = [];
+        $hooks->dispatchPreCommand($this->pending($client));
+        self::assertSame('CHAOS', $this->sent($client)[1][1]);
+    }
+
+    /** @return iterable<string, array{array<string, string>}> */
+    public static function invalidChaosOptions(): iterable
+    {
+        foreach (['-1', '101', 'NaN', 'INF', '1e2', '0.001', ''] as $value) {
+            yield 'temperature ' . $value => [['mode' => 'chaos', 'chaos_min' => $value]];
+        }
+        yield 'reversed' => [['mode' => 'chaos', 'chaos_min' => '76', 'chaos_max' => '75']];
+        yield 'mode' => [['mode' => 'oops']];
+        yield 'typo' => [['mode' => 'chaos', 'choas_min' => '5']];
+        yield 'hash' => [['mode' => 'chaos', 'hash' => 'SHA256']];
+        yield 'manual' => [['chaos_min' => '5']];
+    }
+
+    /** @param array<string, string> $arguments */
+    #[DataProvider('invalidChaosOptions')]
+    public function testInvalidChaosOptionsFailAtLoad(array $arguments): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->load($arguments);
+    }
+
+    public function testChaosFingerprintValidation(): void
+    {
+        $options = new EvilrespChaosOptions(['mode' => 'chaos', 'hash' => 'TLSH']);
+        self::assertTrue($options->acceptsFingerprint('TNULL'));
+        self::assertTrue($options->acceptsFingerprint('T1' . str_repeat('A', 70)));
+        self::assertFalse($options->acceptsFingerprint(true));
+        self::assertFalse($options->acceptsFingerprint('OK'));
+    }
+
+    /** @param array<string, string> $arguments */
+    private function load(array $arguments = []): HookRegistry
+    {
+        return HookLoader::load([dirname(__DIR__, 2) . '/hooks/evilresp.php'], ['evilresp' => $arguments]);
     }
 
     private function pending(\Redis $client, string $method = 'ping'): PendingInvocation
@@ -826,6 +946,12 @@ final class EvilrespHookTest extends TestCase
     private function standalone(): FakeEvilrespRedis
     {
         return new FakeEvilrespRedis();
+    }
+
+    /** @return list<list<mixed>> */
+    private function sent(FakeEvilrespRedis $client): array
+    {
+        return $client->sent;
     }
 
     /** @param list<array{string, int}> $masters */

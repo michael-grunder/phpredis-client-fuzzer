@@ -38,7 +38,7 @@ final class HookRegistry implements InvocationHook
     /** @var array<string, array{count: int, reason: string}> */
     private array $rejections = [];
 
-    /** @var list<array{path: string, sha256: string}> */
+    /** @var list<array{path: string, sha256: string, arguments?: array<string, string>}> */
     private array $sources = [];
 
     /** The run seed hook randomness derives from, once a run has supplied one. */
@@ -341,15 +341,22 @@ final class HookRegistry implements InvocationHook
         return $this->rejections;
     }
 
-    /** @internal Called by HookLoader after a source file registers its hooks. */
-    public function addSource(string $path, string $sha256): void
+    /**
+     * @internal Called by HookLoader after a source file registers its hooks.
+     * @param array<string, string> $arguments
+     */
+    public function addSource(string $path, string $sha256, array $arguments = []): void
     {
-        $this->sources[] = ['path' => $path, 'sha256' => $sha256];
+        $source = ['path' => $path, 'sha256' => $sha256];
+        if ($arguments !== []) {
+            $source['arguments'] = $arguments;
+        }
+        $this->sources[] = $source;
     }
 
     /**
      * @return array{
-     *     sources: list<array{path: string, sha256: string}>,
+     *     sources: list<array{path: string, sha256: string, arguments?: array<string, string>}>,
      *     ids: list<string>,
      *     listeners: array<string, list<string>>,
      * }

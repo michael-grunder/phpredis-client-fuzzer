@@ -51,7 +51,7 @@ final class Application
         'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
         'invocation-mode', 'include',
         'differential-tolerance-ms', 'differential-poll-ms',
-        'scenarios', 'hook',
+        'scenarios', 'hook', 'hook-arg',
         'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
         'relay-multikey-reordering', 'slave-failover',
@@ -62,7 +62,7 @@ final class Application
         'no-relay-compatibility', 'differential',
     ];
 
-    private const REPEATABLE_OPTIONS = ['weight', 'hook', 'key-read-group'];
+    private const REPEATABLE_OPTIONS = ['weight', 'hook', 'hook-arg', 'key-read-group'];
 
     private const RELAY_CLUSTER_OPTIONS = [
         'relay-failover',
@@ -152,7 +152,10 @@ final class Application
                 throw new \RuntimeException('--forks requires the pcntl extension');
             }
 
-            $hooks = HookLoader::load($options->repeated('hook'));
+            $hooks = HookLoader::load(
+                $options->repeated('hook'),
+                HookLoader::parseArguments($options->repeated('hook-arg', splitCommas: false)),
+            );
             // Seeded now, before ClientFactory announces clients, so a
             // postConstructor hook draws the same values a rerun with
             // --seed will draw. Fuzzer::run() seeds it again with the same
@@ -534,6 +537,8 @@ Run configuration:
   --script-log=FILE          Write an executable PHP reproduction script
   --hook=FILE                Load trusted PHP invocation and lifecycle hooks;
                              repeatable
+  --hook-arg=HOOK.KEY=VALUE   Pass a string option to the named hook; repeatable.
+                             HOOK is the hook filename without .php.
   --catch=STRING             Stop after a Redis error, warning, or exception
                              contains STRING (case-insensitive; exits nonzero)
   --differential             Compare cacheable reads using an ordered pair:
@@ -568,6 +573,10 @@ Choosing a setting at random:
 Hooks:
   Hook files are trusted PHP code and must return a callable accepting a
   HookRegistry, an InvocationHook object, or a lifecycle hook object.
+  Factories also receive an array of --hook-arg strings as their second
+  parameter; direct object files can read the local $arguments array.
+  Example: --hook=hooks/evilresp.php --hook-arg=evilresp.mode=chaos
+           --hook-arg=evilresp.chaos_min=5 --hook-arg=evilresp.chaos_max=75
   Invocation hooks run after generated ScriptArg values are resolved and before
   reproduction logging or client dispatch, and may allow, reject, or replace
   the call. See hooks/no-msgpack.php.

@@ -173,11 +173,11 @@ final class Options
     }
 
     /**
-     * Every value given for a repeatable option, each split on commas.
+     * Every value given for a repeatable option, optionally split on commas.
      *
      * @return list<string>
      */
-    public function repeated(string $name): array
+    public function repeated(string $name, bool $splitCommas = true): array
     {
         $value = $this->values[$name] ?? [];
         $items = [];
@@ -185,7 +185,7 @@ final class Options
             if (!is_string($entry)) {
                 throw new \InvalidArgumentException("--{$name} requires a value");
             }
-            $items = [...$items, ...self::split($entry)];
+            $items = [...$items, ...($splitCommas ? self::split($entry) : [$entry])];
         }
 
         return $items;

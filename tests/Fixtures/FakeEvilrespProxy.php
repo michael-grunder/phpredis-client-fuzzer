@@ -17,6 +17,8 @@ final class FakeEvilrespProxy
 
     public string $status = self::IDLE;
 
+    public string|bool|null $chaosReply = null;
+
     /**
      * @param list<string> $subcommand Arguments after DEBUG EVIL.
      */
@@ -29,6 +31,16 @@ final class FakeEvilrespProxy
         }
 
         switch ($subcommand[0] ?? '') {
+            case 'CHAOS':
+                $temperature = (float) $subcommand[1];
+                $fields['mode'] = $temperature === 0.0 ? 'OFF' : 'MUTATE';
+                $fields['probability'] = number_format($temperature, 2, '.', '');
+                $fields['seed'] = $subcommand[3];
+                // Opaque expansion fields let tests check that the hook trusts
+                // STATUS rather than implementing the server's mapping itself.
+                $fields['exec'] = $temperature > 25 ? 'RANDOM' : 'OFF';
+                $fields['transport'] = $temperature > 75 ? 'ON' : 'OFF';
+                break;
             case 'STATUS':
                 return $this->status;
             case 'SEED':
@@ -101,6 +113,10 @@ final class FakeEvilrespProxy
             $fields,
         ));
 
+        if ($subcommand[0] === 'CHAOS') {
+            return $this->chaosReply ?? ($subcommand[5] === 'TLSH' ? 'TNULL' : str_repeat('a', 64));
+        }
+
         return true;
     }
 
@@ -111,7 +127,7 @@ final class FakeEvilrespProxy
     public static function subcommand(array $arguments): array
     {
         $subcommand = [];
-        foreach (array_slice($arguments, 2) as $argument) {
+        foreach (array_slice($arguments, ($arguments[1] ?? null) === 'CHAOS' ? 1 : 2) as $argument) {
             $subcommand[] = is_string($argument) ? $argument : var_export($argument, true);
         }
 

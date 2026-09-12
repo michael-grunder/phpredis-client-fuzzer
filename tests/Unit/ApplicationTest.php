@@ -39,6 +39,7 @@ final class ApplicationTest extends TestCase
         self::assertStringNotContainsString('--include-stateful', self::contents($output));
         self::assertStringNotContainsString('--include-crashing', self::contents($output));
         self::assertStringContainsString('--hook=FILE', self::contents($output));
+        self::assertStringContainsString('--hook-arg=HOOK.KEY=VALUE', self::contents($output));
         self::assertStringContainsString('--forks=N', self::contents($output));
         self::assertStringContainsString('--slave-failover=MODE[,MODE]', self::contents($output));
         self::assertStringContainsString('(default: strict)', self::contents($output));

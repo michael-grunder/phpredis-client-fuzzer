@@ -17,6 +17,15 @@ declare(strict_types=1);
  *     evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
  *     bin/phpredis-fuzz --port=6390 --seed=123 --hook=hooks/evilresp.php
  *
+ * To use the server's simpler CHAOS preset, add:
+ *     --hook-arg evilresp.mode=chaos --hook-arg evilresp.chaos_min=5
+ *     --hook-arg evilresp.chaos_max=75 --hook-arg evilresp.hash=BLAKE3
+ * Temperature is drawn once per run (inclusive, hundredths of a percent).
+ * Equal bounds fix it; zero disables all faults. CHAOS replaces the manual
+ * mutation controls below, retaining seed/reset/probing, canonicalization
+ * and include/exclude settings. Reconnects reuse the same temperature and
+ * verify the server's expanded STATUS. The default mode remains manual.
+ *
  * Point the fuzzer at the proxy, never at the upstream server. Both the RESP
  * mutations and the client's misbehavior on them are the point, so expect
  * exceptions, warnings and wrong replies in the report: the value is in
@@ -126,6 +135,7 @@ declare(strict_types=1);
 
 use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespChaosOptions;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespOptions;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
@@ -137,7 +147,9 @@ use Mgrunder\PhpredisCommandFuzzer\Hooks\PreCommandHook;
 use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 use Random\Randomizer;
 
-return static function (HookRegistry $hooks): void {
+return static function (HookRegistry $hooks, array $arguments = []): void {
+    /** @var array<string, string> $arguments Supplied by HookLoader. */
+    $chaos = new EvilrespChaosOptions($arguments);
     $env = static function (string $name): ?string {
         $value = getenv($name);
 
@@ -156,7 +168,7 @@ return static function (HookRegistry $hooks): void {
         ));
     };
 
-    $modes = array_map('strtoupper', $list($env('EVILRESP_MODES') ?? 'MUTATE,OVERFLOW,RANDOM'));
+    $modes = array_map('strtoupper', $list($chaos->enabled ? 'MUTATE' : ($env('EVILRESP_MODES') ?? 'MUTATE,OVERFLOW,RANDOM')));
     if ($modes === []) {
         throw new InvalidArgumentException('EVILRESP_MODES cannot be empty');
     }
@@ -232,8 +244,8 @@ return static function (HookRegistry $hooks): void {
         new class(
             $hooks,
             $modes,
-            EvilrespOptions::percentage('PROBABILITY', '1-25'),
-            EvilrespOptions::percentage('TOPOLOGY', '0-10'),
+            $chaos->enabled ? [0, 0] : EvilrespOptions::percentage('PROBABILITY', '1-25'),
+            $chaos->enabled ? [0, 0] : EvilrespOptions::percentage('TOPOLOGY', '0-10'),
             $canonicalize,
             $list($env('EVILRESP_INCLUDE')),
             $list($env('EVILRESP_EXCLUDE')),
@@ -241,7 +253,8 @@ return static function (HookRegistry $hooks): void {
             $env('EVILRESP_RESET') !== '0',
             (int) $interval,
             $env('EVILRESP_VERBOSE') !== null,
-            new EvilrespOptions(),
+            $chaos->enabled ? null : new EvilrespOptions(),
+            $chaos,
         ) implements PostConstructorHook, PreCommandHook, PostCommandHook {
             /** DEBUG EVIL EXCLUDE replaces the proxy's list, so its defaults are restated. */
             private const DEFAULT_EXCLUDE = [
@@ -289,6 +302,9 @@ return static function (HookRegistry $hooks): void {
              */
             private WeakMap $clients;
 
+            /** @var WeakMap<object, array<string, array{serial: int, status: string}>> */
+            private WeakMap $chaosStatuses;
+
             /**
              * @param list<string> $modes
              * @param array{int, int} $probability Hundredths of a percent.
@@ -308,11 +324,13 @@ return static function (HookRegistry $hooks): void {
                 private readonly bool $reset,
                 private readonly int $probeInterval,
                 private readonly bool $verbose,
-                private readonly EvilrespOptions $options,
+                private readonly ?EvilrespOptions $options,
+                private readonly EvilrespChaosOptions $chaos,
             ) {
                 /** @var WeakMap<object, array{plan: int, since: int, verify: bool, cooldown: int, failures: int}> $clients */
                 $clients = new WeakMap();
                 $this->clients = $clients;
+                $this->chaosStatuses = new WeakMap();
             }
 
             public function postConstructor(ClientEvent $event): void
@@ -391,7 +409,11 @@ return static function (HookRegistry $hooks): void {
                            alone, unless the run's reset is still owed: a
                            proxy left running by an earlier run with the same
                            seed reports the right plan but a stale index. */
-                        if (!$this->matchesStatus($status, $client, $plan)
+                        $snapshot = ($this->chaosStatuses[$client] ?? [])[$this->nodeKey($node)] ?? null;
+                        $matches = $this->chaos->enabled
+                            ? ($snapshot !== null && $snapshot['serial'] === $plan['serial'] && $snapshot['status'] === $status)
+                            : $this->matchesStatus($status, $client, $plan);
+                        if (!$matches
                             || $this->resetPending($plan)) {
                             $this->arm($client, $node, $plan);
                         }
@@ -456,16 +478,18 @@ return static function (HookRegistry $hooks): void {
                 /* randomizer() has thrown if the registry is unseeded. */
                 assert($seed !== null);
 
-                $mode = $this->modes[$random->getInt(0, count($this->modes) - 1)];
+                $mode = $this->chaos->enabled ? 'CHAOS' : $this->modes[$random->getInt(0, count($this->modes) - 1)];
                 $plan = [
                     'seed' => $seed,
                     'serial' => ++$this->serial,
                     'evilSeed' => $this->seedOverride ?? $seed,
                     'mode' => $mode,
-                    'probability' => $mode === 'OFF' ? '0.00' : $this->percent($random, $this->probability),
-                    'topology' => $this->percent($random, $this->topology),
+                    'probability' => $this->chaos->enabled
+                        ? $this->percent($random, [$this->chaos->minimum, $this->chaos->maximum])
+                        : ($mode === 'OFF' ? '0.00' : $this->percent($random, $this->probability)),
+                    'topology' => $this->chaos->enabled ? '0.00' : $this->percent($random, $this->topology),
                     'summary' => '',
-                    'settings' => $this->options->draw($this->hooks->randomizer('evilresp-options')),
+                    'settings' => $this->options?->draw($this->hooks->randomizer('evilresp-options')) ?? [],
                 ];
                 $plan['summary'] = sprintf(
                     'seed=%d mode=%s probability=%s topology=%s canonicalize=%s include=[%s] exclude=[%s] reset=%s',
@@ -480,6 +504,14 @@ return static function (HookRegistry $hooks): void {
                 );
                 foreach ($plan['settings'] as $name => $value) {
                     $plan['summary'] .= " {$name}={$value}";
+                }
+                if ($this->chaos->enabled) {
+                    $plan['summary'] = sprintf(
+                        'seed=%d mode=CHAOS chaos=%s hash=%s canonicalize=%s include=[%s] exclude=[%s] reset=%s',
+                        $plan['evilSeed'], $plan['probability'], $this->chaos->hash,
+                        $this->canonicalize ?? 'default', implode(',', $this->include),
+                        implode(',', $this->exclude), $this->reset ? 'yes' : 'no',
+                    );
                 }
                 fwrite(STDERR, "evilresp: {$plan['summary']}\n");
 
@@ -514,7 +546,11 @@ return static function (HookRegistry $hooks): void {
                             ScriptLogger::log($client, 'close', []);
                         }
                         foreach ($this->commands($client, $plan, $first && $this->reset) as $command) {
-                            $arguments = ['DEBUG', 'EVIL', ...$command];
+                            $arguments = $this->wireArguments($command);
+                            ScriptLogger::log($client, 'rawCommand', $node === null ? $arguments : [$node, ...$arguments]);
+                        }
+                        if ($this->chaos->enabled) {
+                            $arguments = ['DEBUG', 'EVIL', 'STATUS'];
                             ScriptLogger::log($client, 'rawCommand', $node === null ? $arguments : [$node, ...$arguments]);
                         }
                         $first = false;
@@ -668,9 +704,9 @@ return static function (HookRegistry $hooks): void {
                 }
 
                 throw new UnexpectedValueException(sprintf(
-                    'evilresp: %s rejected DEBUG EVIL %s: %s (is it an evilresp listener?)',
+                    'evilresp: %s rejected %s: %s (is it an evilresp listener?)',
                     $this->describe($client, $node),
-                    implode(' ', $arguments),
+                    implode(' ', $this->wireArguments($arguments)),
                     $error,
                 ));
             }
@@ -683,11 +719,14 @@ return static function (HookRegistry $hooks): void {
             {
                 foreach ($this->commands($client, $plan, $this->resetPending($plan)) as $command) {
                     $reply = $this->send($client, $node, $command);
-                    if ($reply !== true && $reply !== 'OK') {
+                    $accepted = $command[0] === 'CHAOS'
+                        ? $this->chaos->acceptsFingerprint($reply)
+                        : ($reply === true || $reply === 'OK');
+                    if (!$accepted) {
                         $this->assertNotRejected($client, $node, $command, $reply);
                         throw new RuntimeException(sprintf(
-                            'evilresp: DEBUG EVIL %s on %s returned %s instead of OK; reply stream out of step?',
-                            implode(' ', $command),
+                            'evilresp: %s on %s returned an unexpected reply %s; reply stream out of step?',
+                            implode(' ', $this->wireArguments($command)),
                             $this->describe($client, $node),
                             var_export($reply, true),
                         ));
@@ -695,6 +734,23 @@ return static function (HookRegistry $hooks): void {
                     if ($command[0] === 'MODE' && ($command[1] ?? '') === 'RESET') {
                         $this->resetSerial = $plan['serial'];
                     }
+                }
+                if ($this->chaos->enabled) {
+                    // Capture the server's expansion, including new fault settings,
+                    // rather than reimplementing its temperature mapping in PHP.
+                    $status = $this->send($client, $node, ['STATUS']);
+                    $mode = (float) $plan['probability'] === 0.0 ? 'OFF' : 'MUTATE';
+                    if (!is_string($status)
+                        || !str_contains(' ' . $status . ' ', " mode={$mode} ")
+                        || !str_contains(' ' . $status . ' ', " seed={$plan['evilSeed']} ")
+                        || !str_contains(' ' . $status . ' ', " probability={$plan['probability']} ")) {
+                        $this->assertNotRejected($client, $node, ['STATUS'], $status);
+                        throw new RuntimeException('evilresp: STATUS did not confirm DEBUG CHAOS configuration');
+                    }
+                    $snapshots = $this->chaosStatuses[$client] ?? [];
+                    $snapshots[$this->nodeKey($node)] = ['serial' => $plan['serial'], 'status' => $status];
+                    $this->chaosStatuses[$client] = $snapshots;
+                    ScriptLogger::comment("evilresp: CHAOS status {$status}");
                 }
             }
 
@@ -714,12 +770,16 @@ return static function (HookRegistry $hooks): void {
                 if ($reset) {
                     $commands[] = ['MODE', 'RESET'];
                 }
-                $commands[] = ['SEED', (string) $plan['evilSeed']];
-                $commands[] = $plan['mode'] === 'OFF'
-                    ? ['MODE', 'OFF']
-                    : ['MODE', $plan['mode'], 'PROBABILITY', $plan['probability']];
-                if ($this->cluster($client)) {
-                    $commands[] = ['TOPOLOGY', $plan['topology']];
+                if ($this->chaos->enabled) {
+                    $commands[] = ['CHAOS', $plan['probability'], 'SEED', (string) $plan['evilSeed'], 'HASH', $this->chaos->hash];
+                } else {
+                    $commands[] = ['SEED', (string) $plan['evilSeed']];
+                    $commands[] = $plan['mode'] === 'OFF'
+                        ? ['MODE', 'OFF']
+                        : ['MODE', $plan['mode'], 'PROBABILITY', $plan['probability']];
+                    if ($this->cluster($client)) {
+                        $commands[] = ['TOPOLOGY', $plan['topology']];
+                    }
                 }
                 if ($this->canonicalize !== null) {
                     $commands[] = ['CANONICALIZE', $this->canonicalize];
@@ -731,7 +791,7 @@ return static function (HookRegistry $hooks): void {
                     $commands[] = ['EXCLUDE', ...self::DEFAULT_EXCLUDE, ...$this->exclude];
                 }
 
-                return [...$commands, ...EvilrespOptions::commands($plan['settings'])];
+                return $this->chaos->enabled ? $commands : [...$commands, ...EvilrespOptions::commands($plan['settings'])];
             }
 
             /** @param array{serial: int} $plan */
@@ -749,7 +809,7 @@ return static function (HookRegistry $hooks): void {
              */
             private function send(Redis|RedisCluster|Relay\Relay|Relay\Cluster $client, ?array $node, array $arguments): mixed
             {
-                $arguments = ['DEBUG', 'EVIL', ...$arguments];
+                $arguments = $this->wireArguments($arguments);
                 /* Logged before the call, as the catalog logs its own, so a
                    call that throws is in the script too. */
                 if ($client instanceof Redis || $client instanceof Relay\Relay) {
@@ -776,6 +836,20 @@ return static function (HookRegistry $hooks): void {
             private function atomic(Redis|RedisCluster|Relay\Relay|Relay\Cluster $client): bool
             {
                 return $client->getMode() === Redis::ATOMIC;
+            }
+
+            /** @param list<string> $command
+             *  @return list<string>
+             */
+            private function wireArguments(array $command): array
+            {
+                return ($command[0] ?? '') === 'CHAOS' ? ['DEBUG', ...$command] : ['DEBUG', 'EVIL', ...$command];
+            }
+
+            /** @param array{string, int}|null $node */
+            private function nodeKey(?array $node): string
+            {
+                return json_encode($node, JSON_THROW_ON_ERROR);
             }
 
             private function cluster(Redis|RedisCluster|Relay\Relay|Relay\Cluster $client): bool

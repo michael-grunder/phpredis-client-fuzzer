@@ -214,6 +214,29 @@ and reasons are reported under `hook_rejections`. Rejected candidates consume
 seeded randomness but do not consume the executed-step budget. Ten thousand
 consecutive rejections fail the run as an impossible workload.
 
+Configure hooks with repeatable `--hook-arg HOOK.KEY=VALUE` options in either
+fuzzer binary. `HOOK` is the resolved hook filename without `.php` (letters,
+digits, underscores and hyphens); `KEY` uses the same characters. Arguments
+are associated by name, independent of CLI ordering. Duplicate keys, unknown
+hook names and names matching multiple loaded files are errors. Values stay
+strings, including empty strings, commas, spaces and additional `=` signs;
+quote them as needed for your shell. Each hook validates its own keys and values.
+
+The loader passes only that file's arguments as the factory's second parameter:
+
+```php
+return static function (HookRegistry $hooks, array $arguments): void {
+    $hooks->add('my-hook', new MyHook($arguments));
+};
+```
+
+Existing factories accepting only the registry still work. A file returning
+an object directly can use the local `$arguments` array when constructing it.
+Arguments are recorded under `configuration.hooks.sources[].arguments` when
+nonempty, so they are visible in reports; avoid passing secrets. Embedded
+callers can use `HookLoader::load($paths, ['my-hook' => ['key' => 'value']])`.
+Reproducing a run requires the same hook arguments as well as its seed and files.
+
 Embedded callers can construct a `HookRegistry` directly and pass it to
 `new Fuzzer($hooks)`. Hook files execute arbitrary PHP and are never discovered
 or loaded automatically; only load files you trust.
@@ -346,6 +369,35 @@ evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
 bin/phpredis-fuzz --port=6390 --seed=123 --hook=hooks/evilresp.php
 ```
 
+For the simpler server-side `DEBUG CHAOS` preset:
+
+```bash
+bin/phpredis-fuzz-coercive --port=6390 --seed=123 \
+    --hook hooks/evilresp.php \
+    --hook-arg evilresp.mode=chaos \
+    --hook-arg evilresp.chaos_min=5 \
+    --hook-arg evilresp.chaos_max=75
+```
+
+`mode` accepts `manual` (the existing default) or `chaos`. In chaos mode,
+`chaos_min` and `chaos_max` default to 5 and 75. The hook draws one temperature
+per run from this inclusive range, in hundredths, then sends
+`DEBUG CHAOS <temperature> SEED <run-seed> HASH BLAKE3` on each connection.
+Bounds must lie in 0–100 with at most two decimal places; equal bounds select
+a fixed temperature, and both zero disables all faults. `evilresp.hash=TLSH`
+selects TLSH instead of BLAKE3. Bounds and hash require `mode=chaos`.
+
+CHAOS requires a supporting evilresp build and uses its expansion of temperature
+into fault settings. It accepts the returned output fingerprint (including
+TLSH's `TNULL`), then snapshots `DEBUG EVIL STATUS` for reconnect checks.
+Re-arming uses the same temperature and seed. The concrete CHAOS command is
+written to `--script-log`; the output fingerprint describes traffic so far,
+not the configuration. Seed/reset, probing, verbosity, canonicalization and
+include/exclude environment settings below still apply. Manual mode,
+probability, topology and generator/framing/transport environment controls are
+ignored in chaos mode so they cannot override the preset. `MODE RESET` still
+runs once per run unless `EVILRESP_RESET=0` is set.
+
 Point the fuzzer at the proxy, not at the upstream server; the hook fails at
 arming if the target answers `DEBUG EVIL` like a plain Redis or Valkey. The
 mode and probabilities are drawn once per run from
@@ -374,7 +426,7 @@ master `_masters()` reports; a node the client has given up on is retried after
 a cooldown, and only a client none of whose connections answers, repeatedly,
 aborts the run. Nothing is sent while the client is inside MULTI or a pipeline.
 
-The environment selects what the plan is drawn from (all optional):
+In manual mode, the environment selects what the plan is drawn from (all optional):
 `EVILRESP_MODES` (default `MUTATE,OVERFLOW,RANDOM`; `OFF` is allowed as a
 control), `EVILRESP_PROBABILITY` and `EVILRESP_TOPOLOGY` as a fixed percentage
 or a `MIN-MAX` range (defaults `1-25` and `0-10`; topology is only sent to
