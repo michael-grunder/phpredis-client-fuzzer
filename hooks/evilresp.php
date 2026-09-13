@@ -145,6 +145,9 @@ use Mgrunder\PhpredisCommandFuzzer\Hooks\PostCommandHook;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\PostConstructorHook;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\PreCommandHook;
 use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
+use Mgrunder\PhpredisCommandFuzzer\Hooks\ScriptSetupHook;
+use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
+use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
 use Random\Randomizer;
 
 return static function (HookRegistry $hooks, array $arguments = []): void {
@@ -255,7 +258,7 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
             $env('EVILRESP_VERBOSE') !== null,
             $chaos->enabled ? null : new EvilrespOptions(),
             $chaos,
-        ) implements PostConstructorHook, PreCommandHook, PostCommandHook {
+        ) implements PostConstructorHook, PreCommandHook, PostCommandHook, ScriptSetupHook {
             /** DEBUG EVIL EXCLUDE replaces the proxy's list, so its defaults are restated. */
             private const DEFAULT_EXCLUDE = [
                 'AUTH', 'HELLO', 'COMMAND', 'CLIENT', 'SELECT', 'ASKING', 'MULTI',
@@ -337,6 +340,14 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
             {
                 if ($this->atomic($event->client)) {
                     $this->ensureArmed($event->client);
+                }
+            }
+
+            public function recordScriptSetup(): void
+            {
+                if ($this->plan !== null) {
+                    $this->scriptSerial = $this->plan['serial'];
+                    $this->replayArming($this->plan);
                 }
             }
 
@@ -520,8 +531,8 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
 
             /**
              * Clients are armed from postConstructor, before the run opens
-             * its script log, so the first command of a run writes that
-             * arming into the script after the fact. The replay is close
+             * its script log, so recordScriptSetup writes that arming before
+             * scenarios start (preCommand is a fallback for direct hook users). The replay is close
              * rather than exact: in the script every client is connected
              * before the reset, so the ones not issuing it are closed first
              * and reconnect clean, and the proxy's command index will not
@@ -532,7 +543,7 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
              */
             private function replayArming(array $plan): void
             {
-                ScriptLogger::comment("evilresp: {$plan['summary']}");
+                ScriptLogger::comment("phase=setup fault-schedule evilresp: {$plan['summary']}");
                 ScriptLogger::comment('evilresp: the run armed the proxy from postConstructor; replayed here');
                 $first = true;
                 foreach ($this->clients as $client => $state) {
@@ -641,8 +652,8 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
                 $failure = new LogicException('unreachable');
                 for ($attempt = 1; $attempt <= 2; $attempt++) {
                     if ($attempt === 2 && ($client instanceof Redis || $client instanceof Relay\Relay)) {
-                        $client->close();
-                        ScriptLogger::log($client, 'close', []);
+                        InvocationRecorder::invoke(new StrictClientInvoker(), $client, 'close', [],
+                            'cleanup', 'evilresp STATUS retry');
                     }
                     try {
                         $reply = $this->send($client, $node, ['STATUS']);
@@ -813,14 +824,14 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
                 /* Logged before the call, as the catalog logs its own, so a
                    call that throws is in the script too. */
                 if ($client instanceof Redis || $client instanceof Relay\Relay) {
-                    ScriptLogger::log($client, 'rawCommand', $arguments);
-                    $reply = $client->rawCommand(...$arguments);
+                    $reply = InvocationRecorder::invoke(new StrictClientInvoker(), $client, 'rawCommand', $arguments,
+                        'setup', 'evilresp fault-control');
                 } else {
                     if ($node === null) {
                         throw new LogicException('A cluster client needs a node address');
                     }
-                    ScriptLogger::log($client, 'rawCommand', [$node, ...$arguments]);
-                    $reply = $client->rawCommand($node, ...$arguments);
+                    $reply = InvocationRecorder::invoke(new StrictClientInvoker(), $client, 'rawCommand', [$node, ...$arguments],
+                        'setup', 'evilresp fault-control');
                 }
 
                 $this->log(sprintf(

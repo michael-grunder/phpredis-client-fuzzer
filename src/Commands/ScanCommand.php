@@ -2,7 +2,6 @@
 
 namespace Mgrunder\PhpredisCommandFuzzer\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 use Redis;
 use RedisCluster;
 use Relay\Relay;
@@ -51,11 +50,9 @@ abstract class ScanCommand extends Command implements FuzzInterface, FuzzRawInte
            scan cursor is sent as a reference. */
         if ($this->key) {
             $args = [$this->key, &$cursor, $this->pattern, $count];
-            ScriptLogger::logReference($client, $fn, $args, 1);
             $result = $this->invokeClient($client, $fn, $args);
         } else if ($client instanceOf Redis || $client instanceOf Relay) {
             $args = [&$cursor, $this->pattern, $count, $this->type];
-            ScriptLogger::logReference($client, $fn, $args, 0);
             $result = $this->invokeClient($client, $fn, $args);
         } else {
             /* A cluster SCAN cursor belongs to one server.  Keep routing the
@@ -63,7 +60,6 @@ abstract class ScanCommand extends Command implements FuzzInterface, FuzzRawInte
             $this->routeKey ??= $config->getRandomKey(self::ANY);
             $args = [&$cursor, $this->routeKey, $this->pattern, $count,
                      $this->type];
-            ScriptLogger::logReference($client, $fn, $args, 0);
             $result = $this->invokeClient($client, $fn, $args);
         }
         $this->cursor = $cursor;

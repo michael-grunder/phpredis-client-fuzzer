@@ -5,7 +5,6 @@ namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 
 use Relay\Relay;
 use Relay\Cluster;
@@ -38,10 +37,8 @@ class fullscan extends Command implements FuzzInterface {
         $type = $rng & 4 ? $config->getRandomType() : null;
         $args = [$pattern, $count, $type];
 
-        ScriptLogger::logIterable($client, $this->name(), $args);
-
         try {
-            $result = $this->invokeClient($client, $this->name(), $args);
+            $result = $this->invokeClient($client, $this->name(), $args, iterable: true);
             if ($result === false) {
                 $this->logRedisError($client, ...$args);
 

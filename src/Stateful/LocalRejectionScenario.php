@@ -53,6 +53,8 @@ final class LocalRejectionScenario extends ScenarioBase
             $probe->describe(),
         );
 
+        $run->phase('scheduled-call');
+
         $run->expect('multi-acknowledges-entry', $client, $run->call('multi'));
         $run->expect('multi-enters-multi-mode', Redis::MULTI, $run->mode());
         $run->expect('first-write-is-queued', $client, $run->call('set', [$first, $value]));

@@ -29,6 +29,9 @@ final class HookRegistry implements InvocationHook
     /** @var list<array{id: string, hook: InvocationHook}> */
     private array $hooks = [];
 
+    /** @var list<array{id: string, hook: ScriptSetupHook}> */
+    private array $scriptSetupHooks = [];
+
     /** @var list<array{id: string, hook: InvocationHook}> */
     private array $guards = [];
 
@@ -158,6 +161,21 @@ final class HookRegistry implements InvocationHook
                 'A lifecycle hook must implement at least one of: '
                 . implode(', ', self::LIFECYCLE_HOOKS),
             );
+        }
+        if ($hook instanceof ScriptSetupHook) {
+            $this->scriptSetupHooks[] = ['id' => $id, 'hook' => $hook];
+        }
+    }
+
+    /** Emit previously applied fault setup before any scenario calls are logged. */
+    public function recordScriptSetup(): void
+    {
+        foreach ($this->scriptSetupHooks as $registered) {
+            try {
+                $registered['hook']->recordScriptSetup();
+            } catch (\Throwable $throwable) {
+                throw new HookExecutionFailed($registered['id'], $throwable);
+            }
         }
     }
 

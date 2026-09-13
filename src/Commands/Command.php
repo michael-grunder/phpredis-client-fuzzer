@@ -6,7 +6,7 @@ use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
 use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
 use Mgrunder\PhpredisCommandFuzzer\DifferentialOracle;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
+use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
 use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
 use Mgrunder\PhpredisCommandFuzzer\HasWeight;
 use Mgrunder\PhpredisCommandFuzzer\WarningCollector;
@@ -372,7 +372,9 @@ abstract class Command implements HasWeight {
     }
 
     protected function logRedisError(Redis|RedisCluster|Relay|Cluster $client, mixed ...$args): void {
-        $error = $client->getLastError();
+        $error = InvocationRecorder::invoke(new StrictClientInvoker(), $client, 'getLastError', [],
+            context: 'diagnostic');
+        assert(is_string($error) || $error === null);
 
         if ($error === null || $error === '')
             return;
@@ -389,7 +391,8 @@ abstract class Command implements HasWeight {
                 ]);
             }
         } finally {
-            $client->clearLastError();
+            InvocationRecorder::invoke(new StrictClientInvoker(), $client, 'clearLastError', [],
+                context: 'diagnostic');
         }
     }
 
@@ -515,8 +518,6 @@ abstract class Command implements HasWeight {
             ));
         }
 
-        ScriptLogger::log($client, $cmd, $scriptArgs);
-
         $oracle = self::$differentialOracle;
         $oraclePrepared = $oracle?->prepare($this, $client, $cmd, $args) ?? false;
         $errorOffset = count(self::$invocationRedisErrors);
@@ -524,7 +525,7 @@ abstract class Command implements HasWeight {
         $timed = $oraclePrepared || self::$postCommandHooks !== null;
         $started = $timed ? hrtime(true) : 0;
         try {
-            $result = $this->invokeClient($client, $cmd, $args);
+            $result = $this->invokeClient($client, $cmd, $args, $scriptArgs);
         } catch (\Throwable $throwable) {
             /* Do not let diagnostics hide the exception thrown by the client. */
             try {
@@ -585,16 +586,24 @@ abstract class Command implements HasWeight {
         return $result;
     }
 
-    /** @param list<mixed> $args */
+    /**
+     * @param list<mixed> $args
+     * @param array<mixed>|null $scriptArgs
+     */
     final protected function invokeClient(
         Redis|RedisCluster|Relay|Cluster $client,
         string $method,
         array $args,
+        ?array $scriptArgs = null,
+        bool $iterable = false,
     ): mixed {
         $this->clientInvoker ??= new StrictClientInvoker();
 
         return \Mgrunder\PhpredisCommandFuzzer\Values\CallbackContext::invoke(
-            fn (): mixed => $this->clientInvoker->invoke($client, $method, $args),
+            fn (): mixed => InvocationRecorder::invoke(
+                $this->clientInvoker, $client, $method, $args,
+                scriptArguments: $scriptArgs, iterable: $iterable,
+            ),
             $this->allowDeserializationMutations ? function (string $action) use ($client): void {
                 [$operation, $arguments] = \Mgrunder\PhpredisCommandFuzzer\Values\CallbackContext::operation($action);
                 if (method_exists($client, $operation)) {

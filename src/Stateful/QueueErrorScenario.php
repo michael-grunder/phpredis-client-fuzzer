@@ -35,6 +35,8 @@ final class QueueErrorScenario extends ScenarioBase
         $run->expect('setup-set-succeeds', true, $run->call('set', [$key, $initial]));
         $run->expect('setup-key-has-initial-value', $initial, $run->call('get', [$key]));
 
+        $run->phase('scheduled-call');
+
         $run->expect('multi-acknowledges-entry', $client, $run->call('multi'));
         $run->expect('multi-enters-multi-mode', Redis::MULTI, $run->mode());
         $run->expect('write-is-queued', $client, $run->call('set', [$key, $value]));

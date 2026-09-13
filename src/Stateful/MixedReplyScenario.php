@@ -35,6 +35,8 @@ final class MixedReplyScenario extends ScenarioBase
         $keys = $this->prepareMixedKeys($run, $spread);
         $value = $run->value('mixed');
 
+        $run->phase('scheduled-call');
+
         $run->expect('multi-acknowledges-entry', $run->client(), $run->call('multi'));
         $run->expect('multi-enters-multi-mode', Redis::MULTI, $run->mode());
 

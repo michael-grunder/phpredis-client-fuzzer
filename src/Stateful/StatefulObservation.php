@@ -10,6 +10,7 @@ final readonly class StatefulObservation implements \JsonSerializable
 {
     /**
      * @param array<string, mixed>|null $reply
+     * @param list<string> $argumentCode Concrete PHP expressions captured before invocation.
      * @param list<string> $redisErrors
      * @param array<string, int> $warnings
      * @param array{class: class-string<\Throwable>, message: string, code: int}|null $exception
@@ -25,10 +26,14 @@ final readonly class StatefulObservation implements \JsonSerializable
         public float $durationSeconds,
         public ?int $modeBefore,
         public ?int $modeAfter,
+        public string $phase = 'scheduled-call',
+        public ?string $clientId = null,
+        public array $argumentCode = [],
     ) {
     }
 
     /**
+     * @param list<string> $argumentCode Concrete PHP expressions captured before invocation.
      * @param list<string> $redisErrors
      * @param array<string, int> $warnings
      */
@@ -42,6 +47,9 @@ final readonly class StatefulObservation implements \JsonSerializable
         float $durationSeconds,
         ?int $modeBefore,
         ?int $modeAfter,
+        string $phase = 'scheduled-call',
+        ?string $clientId = null,
+        array $argumentCode = [],
     ): self {
         return new self(
             operation: $operation,
@@ -58,6 +66,9 @@ final readonly class StatefulObservation implements \JsonSerializable
             durationSeconds: $durationSeconds,
             modeBefore: $modeBefore,
             modeAfter: $modeAfter,
+            phase: $phase,
+            clientId: $clientId,
+            argumentCode: $argumentCode,
         );
     }
 
@@ -66,6 +77,9 @@ final readonly class StatefulObservation implements \JsonSerializable
     {
         return [
             'operation' => $this->operation,
+            'phase' => $this->phase,
+            'client_id' => $this->clientId,
+            'argument_code' => $this->argumentCode,
             'returned' => $this->returned,
             'reply_type' => $this->replyType,
             'reply' => $this->reply,

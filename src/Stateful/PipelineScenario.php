@@ -33,6 +33,8 @@ final class PipelineScenario extends ScenarioBase
         $keys = $this->prepareMixedKeys($run, false);
         $value = $run->value('pipeline');
 
+        $run->phase('scheduled-call');
+
         $entry = $run->attempt('multi', [$pipeline], 'multi(PIPELINE)');
         $mode = $run->mode();
         if ($mode !== $pipeline) {

@@ -39,10 +39,10 @@ class ScriptLogger {
      */
     private $fp;
 
-    /**
-     * @var array<string, string>
-     */
-    private $objects = [];
+    /** @var \WeakMap<object, string> */
+    private \WeakMap $clientNames;
+    private int $invocationCounter = 0;
+    private int $started;
 
     private int $counter = 1;
     private int $reference_counter = 1;
@@ -174,8 +174,6 @@ class ScriptLogger {
     }
 
     private function initObject(Redis|RedisCluster|Relay|Cluster $client): void {
-        $hash = spl_object_hash($client);
-
         $class        = get_class($client);
         $class_parts  = explode('\\', strtolower(get_class($client)));
         $name         = sprintf("\$%s%d", end($class_parts), $this->counter++);
@@ -280,7 +278,7 @@ class ScriptLogger {
 
         fflush($this->fp);
 
-        $this->objects[$hash] = $name;
+        $this->clientNames[$client] = $name;
     }
 
     /**
@@ -291,6 +289,8 @@ class ScriptLogger {
                                    array $clients = [], bool $try_catch = false,
                                    private readonly InvocationMode $invocationMode = InvocationMode::Strict)
     {
+        $this->clientNames = new \WeakMap();
+        $this->started = hrtime(true);
         $this->file_name = $filename;
         $this->try_catch = $try_catch;
 
@@ -336,8 +336,7 @@ class ScriptLogger {
     /** @param array<Redis|RedisCluster|Relay|Cluster> $clients */
     private function initClients(array $clients): void {
         foreach ($clients as $client) {
-            $hash = spl_object_hash($client);
-            if (isset($this->objects[$hash]))
+            if (isset($this->clientNames[$client]))
                 continue;
 
             $this->initObject($client);
@@ -358,7 +357,8 @@ class ScriptLogger {
      */
     private function writeCommand(Redis|RedisCluster|Relay|Cluster $client,
                                   string $cmd, array $args,
-                                  ?int $reference_index = null): void
+                                  ?int $reference_index = null,
+                                  bool $catchExceptions = false): void
     {
         if (Values\CallbackContext::isMutating()) {
             // The embedded callback performs this call during replay; emitting
@@ -366,47 +366,54 @@ class ScriptLogger {
             self::comment('Deserialization callback invoked ' . $cmd);
             return;
         }
-        $hash = spl_object_hash($client);
-        if ( ! isset($this->objects[$hash]))
+        if ( ! isset($this->clientNames[$client]))
             $this->initObject($client);
 
-        $reference = null;
-        if ($reference_index !== null) {
-            if (!array_key_exists($reference_index, $args)) {
-                throw new \OutOfBoundsException('Reference argument is missing');
+        // Preserve every top-level reference, including aliased arguments.
+        $references = [];
+        $aliases = [];
+        if ($reference_index !== null && !array_key_exists($reference_index, $args)) {
+            throw new \OutOfBoundsException('Reference argument is missing');
+        }
+        foreach ($args as $index => $arg) {
+            $ref = \ReflectionReference::fromArrayElement($args, $index);
+            if ($ref === null && $index !== $reference_index) {
+                continue;
             }
-            $reference = sprintf('$phpredisFuzzReference%d', $this->reference_counter++);
-            fprintf($this->fp, "%s = %s;\n", $reference,
-                    $this->varExport($args[$reference_index]));
+            $id = $ref === null ? 'explicit' : bin2hex($ref->getId());
+            if (!isset($aliases[$id])) {
+                $aliases[$id] = sprintf('$phpredisFuzzReference%d', $this->reference_counter++);
+                fprintf($this->fp, "%s = %s;\n", $aliases[$id], $this->varExport($arg));
+            }
+            $references[$index] = $aliases[$id];
         }
 
         $code_args = [];
         foreach ($args as $index => $arg) {
-            if ($index === $reference_index) {
-                $code_args[] = $reference;
-            } else if ($arg instanceOf ScriptArg) {
-                $code_args[] = $arg->code();
-            } else {
-                $code_args[] = $this->varExport($arg);
-            }
+            $code_args[] = $references[$index] ?? ($arg instanceof ScriptArg
+                ? $arg->code()
+                : $this->varExport($arg));
         }
 
-        if ($this->try_catch) {
+        if ($this->try_catch || $catchExceptions) {
             fprintf($this->fp, "try {\n");
             fprintf($this->fp, "    ");
         }
 
         if ($this->allowDeserializationMutations) {
-            $capture = $this->objects[$hash] . ($reference === null ? '' : ', &' . $reference);
+            $capture = $this->clientNames[$client];
+            foreach ($aliases as $reference) {
+                $capture .= ', &' . $reference;
+            }
             fprintf($this->fp, "\\Mgrunder\\PhpredisCommandFuzzer\\Values\\CallbackContext::replay(%s, function () use (%s) { return %s->%s(%s); });\n",
-                $this->objects[$hash], $capture, $this->objects[$hash], $cmd, implode(', ', $code_args));
+                $this->clientNames[$client], $capture, $this->clientNames[$client], $cmd, implode(', ', $code_args));
         } else {
-            fprintf($this->fp, "%s->%s(%s);\n", $this->objects[$hash], $cmd,
+            fprintf($this->fp, "%s->%s(%s);\n", $this->clientNames[$client], $cmd,
                     implode(", ", $code_args));
         }
 
-        if ($this->try_catch) {
-            fprintf($this->fp, "} catch (Exception \$e) {\n");
+        if ($this->try_catch || $catchExceptions) {
+            fprintf($this->fp, "} catch (\\Throwable \$e) {\n");
             fprintf($this->fp, "    if (\$debug) printf(\"[%%s:%%d] Exception: %%s\\n\", '$cmd', __LINE__, \$e->getMessage());\n");
             fprintf($this->fp, "}\n");
         }
@@ -416,10 +423,10 @@ class ScriptLogger {
 
     /** @param array<mixed> $args */
     private function writeIterableCommand(Redis|RedisCluster|Relay|Cluster $client,
-                                          string $cmd, array $args): void
+                                          string $cmd, array $args,
+                                          bool $catchExceptions = false): void
     {
-        $hash = spl_object_hash($client);
-        if ( ! isset($this->objects[$hash]))
+        if ( ! isset($this->clientNames[$client]))
             $this->initObject($client);
 
         $code_args = [];
@@ -431,7 +438,7 @@ class ScriptLogger {
 
         $iterable = sprintf('$phpredisFuzzIterable%d', $this->iterable_counter++);
         $indent = '';
-        if ($this->try_catch) {
+        if ($this->try_catch || $catchExceptions) {
             fprintf($this->fp, "try {\n");
             $indent = '    ';
         }
@@ -441,7 +448,7 @@ class ScriptLogger {
             "%s%s = %s->%s(%s);\n",
             $indent,
             $iterable,
-            $this->objects[$hash],
+            $this->clientNames[$client],
             $cmd,
             implode(", ", $code_args),
         );
@@ -449,8 +456,8 @@ class ScriptLogger {
         fprintf($this->fp, "%s    foreach (%s as \$phpredisFuzzBatch) {}\n", $indent, $iterable);
         fprintf($this->fp, "%s}\n", $indent);
 
-        if ($this->try_catch) {
-            fprintf($this->fp, "} catch (Exception \$e) {\n");
+        if ($this->try_catch || $catchExceptions) {
+            fprintf($this->fp, "} catch (\\Throwable \$e) {\n");
             fprintf($this->fp, "    if (\$debug) printf(\"[%%s:%%d] Exception: %%s\\n\", '$cmd', __LINE__, \$e->getMessage());\n");
             fprintf($this->fp, "}\n");
         }
@@ -458,11 +465,52 @@ class ScriptLogger {
         fflush($this->fp);
     }
 
+    /** @internal Write and flush the phase before entering client code. */
+    public static function beginInvocation(
+        Redis|RedisCluster|Relay|Cluster $client,
+        string $method,
+        string $phase,
+        string $context = '',
+    ): ?int {
+        $logger = self::$instance;
+        if ($logger === null) {
+            return null;
+        }
+        $logger->initClients([$client]);
+        $record = ++$logger->invocationCounter;
+        self::comment(sprintf(
+            'invocation=%d phase=%s client=%s class=%s method=%s elapsed_us=%d %s',
+            $record, $phase, $logger->clientNames[$client], $client::class, $method,
+            (hrtime(true) - $logger->started) / 1000, $context,
+        ));
+
+        return $record;
+    }
+
+    /** @internal A missing completion identifies the invocation interrupted by a crash. */
+    public static function endInvocation(?int $record, string $outcome): void {
+        if ($record !== null && self::$instance !== null) {
+            self::comment(sprintf('invocation=%d %s elapsed_us=%d', $record, $outcome,
+                (hrtime(true) - self::$instance->started) / 1000));
+        }
+    }
+
+    /** @internal Preserve explicit convergence waits in ordinary script replay. */
+    public static function delay(int $microseconds, string $phase, string $context = ''): void {
+        $logger = self::$instance;
+        if ($logger === null) {
+            return;
+        }
+        self::comment("phase={$phase} delay_us={$microseconds} {$context}");
+        fprintf($logger->fp, "usleep(%d);\n", $microseconds);
+        fflush($logger->fp);
+    }
+
     public static function comment(string $message): void {
         if (self::$instance === null)
             return;
 
-        fprintf(self::$instance->fp, "// %s\n", $message);
+        fprintf(self::$instance->fp, "// %s\n", str_replace(["\r", "\n", "\0"], ["\\r", "\\n", "\\0"], $message));
         fflush(self::$instance->fp);
     }
 
@@ -478,12 +526,12 @@ class ScriptLogger {
      * @param array<mixed> $args
      */
     public static function log(Redis|RedisCluster|Relay|Cluster $client,
-                               string $cmd, array $args): void
+                               string $cmd, array $args, bool $catchExceptions = false): void
     {
         if (self::$instance === null)
             return;
 
-        self::$instance->logCommand($client, $cmd, $args);
+        self::$instance->writeCommand($client, $cmd, $args, catchExceptions: $catchExceptions);
     }
 
     /**
@@ -493,12 +541,12 @@ class ScriptLogger {
      * @param array<mixed> $args
      */
     public static function logIterable(Redis|RedisCluster|Relay|Cluster $client,
-                                       string $cmd, array $args): void
+                                       string $cmd, array $args, bool $catchExceptions = false): void
     {
         if (self::$instance === null)
             return;
 
-        self::$instance->writeIterableCommand($client, $cmd, $args);
+        self::$instance->writeIterableCommand($client, $cmd, $args, $catchExceptions);
     }
 
     /**

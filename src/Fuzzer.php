@@ -181,6 +181,9 @@ final class Fuzzer
         $runFailure = null;
         $relayStats?->sample();
         try {
+            if ($scriptLogging) {
+                $this->hooks?->recordScriptSetup();
+            }
             $statefulOutcomes = (new StatefulScenarioRunner($clientInvoker, $this->peers))->run(
                 $executionClients,
                 $configuration->scenarios,

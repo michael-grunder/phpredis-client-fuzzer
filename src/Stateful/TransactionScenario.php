@@ -56,6 +56,8 @@ final class TransactionScenario extends ScenarioBase
             );
         }
 
+        $run->phase('scheduled-call');
+
         if ($this->scenario === 'watch-unwatch-discard') {
             $run->markWatchActive(true);
             $run->expect('watch-succeeds', true, $run->call('watch', [$key]));

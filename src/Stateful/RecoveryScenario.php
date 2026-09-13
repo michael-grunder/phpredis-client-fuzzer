@@ -38,6 +38,8 @@ final class RecoveryScenario extends ScenarioBase
             $run->expect("setup-key-{$index}-has-initial-value", $initial, $run->call('get', [$key]));
         }
 
+        $run->phase('scheduled-call');
+
         $run->expect('multi-acknowledges-entry', $client, $run->call('multi'));
         $run->expect('multi-enters-multi-mode', Redis::MULTI, $run->mode());
         $run->expect('first-write-is-queued', $client, $run->call('set', [$first, $value]));

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
 
+use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
+use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -55,7 +57,8 @@ final class CallableScenarioPeers implements ScenarioPeers
                 continue;
             }
             try {
-                $peer->close();
+                InvocationRecorder::invoke(new StrictClientInvoker(), $peer, 'close', [],
+                    'cleanup', 'scenario-peer release');
             } catch (\Throwable) {
                 /* Closing a peer is best effort; the run owns nothing here. */
             }

@@ -98,12 +98,12 @@ final class DifferentialOracle
         }
 
         $this->observed = true;
-        $this->clearRedisError($this->subject);
+        $this->clearRedisError($this->subject, 'setup');
         $this->argumentSummaries = array_map(
             static fn (mixed $argument): array => ValueSummary::summarize($argument),
             $arguments,
         );
-        $this->referenceObservation = $this->invoke($this->reference, $method, $arguments);
+        $this->referenceObservation = $this->invoke($this->reference, $method, $arguments, 'reference-read');
 
         return true;
     }
@@ -138,7 +138,7 @@ final class DifferentialOracle
         );
         $initialDifferences = $reference->differences($initial);
         $convergenceStarted = hrtime(true);
-        $final = $this->invoke($this->subject, $method, $arguments);
+        $final = $this->invoke($this->subject, $method, $arguments, 'warm-read');
         $attempts = 2;
         $finalDifferences = $reference->differences($final);
 
@@ -149,8 +149,8 @@ final class DifferentialOracle
                 max(1, (int) round($this->pollIntervalMilliseconds * 1000)),
                 max(1, (int) ceil($remainingNanoseconds / 1000)),
             );
-            usleep($sleepMicroseconds);
-            $final = $this->invoke($this->subject, $method, $arguments);
+            InvocationRecorder::sleep($sleepMicroseconds, 'convergence-poll', $this->context());
+            $final = $this->invoke($this->subject, $method, $arguments, 'convergence-poll');
             $attempts++;
             $finalDifferences = $reference->differences($final);
         }
@@ -212,17 +212,20 @@ final class DifferentialOracle
         Redis|RedisCluster|Relay|Cluster $client,
         string $method,
         array $arguments,
+        string $phase,
     ): DifferentialObservation {
         /* getLastError() is sticky on both clients. Only attribute an error
          * produced by this call to this observation. */
-        $this->clearRedisError($client);
+        $this->clearRedisError($client, $phase);
         $warningsBefore = Command::capturedWarnings();
         $started = hrtime(true);
         $returned = false;
         $reply = null;
         $exception = null;
         try {
-            $reply = $this->clientInvoker->invoke($client, $method, $arguments);
+            $reply = InvocationRecorder::invoke(
+                $this->clientInvoker, $client, $method, $arguments, $phase, $this->context($client),
+            );
             $returned = true;
         } catch (\Throwable $throwable) {
             $exception = $throwable;
@@ -230,10 +233,10 @@ final class DifferentialOracle
 
         $redisErrors = [];
         try {
-            $redisError = $client->getLastError();
-            if ($redisError !== null && $redisError !== '') {
+            $redisError = $this->diagnostic($client, 'getLastError', [], $phase);
+            if (is_string($redisError) && $redisError !== '') {
                 $redisErrors[] = $redisError;
-                $client->clearLastError();
+                $this->diagnostic($client, 'clearLastError', [], $phase);
             }
         } catch (\Throwable $diagnosticFailure) {
             $exception ??= $diagnosticFailure;
@@ -249,10 +252,10 @@ final class DifferentialOracle
         );
     }
 
-    private function clearRedisError(Redis|RedisCluster|Relay|Cluster $client): void
+    private function clearRedisError(Redis|RedisCluster|Relay|Cluster $client, string $phase): void
     {
         try {
-            $client->clearLastError();
+            $this->diagnostic($client, 'clearLastError', [], $phase);
         } catch (\Throwable) {
         }
     }
@@ -275,12 +278,32 @@ final class DifferentialOracle
         return $difference;
     }
 
+    private function context(Redis|RedisCluster|Relay|Cluster|null $client = null): string
+    {
+        $identity = $client === null ? '' : ' client_id=' . $client::class . '#'
+            . ($client === $this->reference ? $this->referenceIndex : $this->subjectIndex);
+
+        return "oracle sequence={$this->sequence} command={$this->command}"
+            . " tolerance_ms={$this->toleranceMilliseconds} poll_interval_ms={$this->pollIntervalMilliseconds}"
+            . $identity;
+    }
+
+    /** @param list<mixed> $arguments */
+    private function diagnostic(
+        Redis|RedisCluster|Relay|Cluster $client,
+        string $method,
+        array $arguments,
+        string $phase,
+    ): mixed {
+        return InvocationRecorder::invoke(new StrictClientInvoker(), $client, $method, $arguments,
+            $phase, $this->context($client) . ' diagnostic');
+    }
+
     private function isAtomic(Redis|RedisCluster|Relay|Cluster $client): bool
     {
         try {
-            $mode = $client instanceof Relay || $client instanceof Cluster
-                ? $client->getMode(true)
-                : $client->getMode();
+            $mode = $this->diagnostic($client, 'getMode',
+                $client instanceof Relay || $client instanceof Cluster ? [true] : [], 'setup');
 
             return $mode === Redis::ATOMIC;
         } catch (\Throwable) {

@@ -51,6 +51,8 @@ final class WatchScenario extends ScenarioBase
             );
         }
 
+        $run->phase('scheduled-call');
+
         $run->markWatchActive(true);
         $run->expect('watch-succeeds', true, $run->call('watch', [$key]));
         if ($commits) {

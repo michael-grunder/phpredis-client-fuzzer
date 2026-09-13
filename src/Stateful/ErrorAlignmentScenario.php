@@ -39,6 +39,8 @@ final class ErrorAlignmentScenario extends ScenarioBase
         $run->call('del', [$second]);
         $run->expect('setup-list-has-one-element', 1, $run->call('rPush', [$list, $run->value('element')]));
 
+        $run->phase('scheduled-call');
+
         $run->expect('multi-acknowledges-entry', $run->client(), $run->call('multi'));
         $run->expect('multi-enters-multi-mode', Redis::MULTI, $run->mode());
         $run->expect('first-write-is-queued', $run->client(), $run->call('set', [$first, $value]));

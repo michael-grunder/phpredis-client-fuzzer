@@ -312,8 +312,8 @@ run's own accounting is closed, so commands a hook issues are not counted in
 the report.
 
 Every call routed through `Command::exec()`, `execRaw()`, or `cmd()` raises the
-command events, including cache saturation traffic. Stateful scenarios call the
-client directly and do not. `preCommand` listeners run before the call is
+command events, including cache saturation traffic. Stateful scenarios and auxiliary oracle reads use the
+invocation recorder and do not raise command events. `preCommand` listeners run before the call is
 written to `--script-log`, so anything a listener issues through the client
 itself lands in the reproduction script ahead of the call, in the order the
 server saw it.
@@ -1002,6 +1002,25 @@ groups the full Redis error, warning, and exception messages under the command
 that produced them.
 `--script-log` writes an executable PHP reproduction script containing the
 concrete generated calls and the selected invocation typing declaration.
+The shared invocation recorder also captures scenario setup, peer operations and
+cleanup, oracle reference reads, warm reads, and every convergence poll in the
+order actually invoked. Explicit poll delays are replayed with `usleep()`;
+phase, client identity, elapsed time, and completion comments locate an
+interrupted call. Scenario observations include `phase`, `client_id`, and
+`argument_code` (concrete PHP expressions captured before the call). Reference
+arguments remain variables in replay, including aliases within a call.
+Recorded calls catch `Throwable` during replay so an expected exception does
+not omit subsequent warm reads or cleanup; `--debug` displays those exceptions.
+Auxiliary calls use the recorder directly without recursively evaluating the
+oracle or dispatching command hooks. Evilresp fault controls carry setup labels
+and concrete schedule arguments. Lifecycle hooks may also implement
+`Hooks\ScriptSetupHook::recordScriptSetup()` to emit fault setup that ran
+before the log opened. The fuzzer calls it before scenarios; it must only write
+replay code, without invoking clients or drawing randomness. Evilresp uses this
+to place its saved arming plan before scenario traffic. Its existing limitation
+still applies: replay cannot recover the proxy command index consumed before
+the log opened. External process signals and OS scheduling
+still require their original fault driver or an `rr` trace.
 `--catch=STRING` stops the workload as soon as a
 captured Redis error, PHP warning, or exception contains `STRING`, using a
 case-insensitive search. The selected output mode is still written, including

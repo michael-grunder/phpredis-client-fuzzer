@@ -84,6 +84,7 @@ abstract class ScenarioBase implements StatefulScenario
             $failure = $throwable::class . ': ' . $throwable->getMessage();
         } finally {
             // Do not discard a transaction that belonged to the embedded caller.
+            $run->phase('cleanup');
             if ($ownsState) {
                 try {
                     if ($run->mode() !== Redis::ATOMIC) {

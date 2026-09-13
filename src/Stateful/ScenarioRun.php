@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
 
 use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
+use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
+use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
+use Mgrunder\PhpredisCommandFuzzer\Values\ValueCode;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\ValueSummary;
 use Redis;
@@ -29,6 +32,7 @@ final class ScenarioRun
     private array $postconditions = [];
 
     private bool $watchActive = false;
+    private string $phase = 'setup';
 
     public function __construct(
         private readonly Redis|RedisCluster|Relay|Cluster $client,
@@ -128,6 +132,7 @@ final class ScenarioRun
         ?string $label = null,
     ): ScenarioCall {
         $operation = $label ?? $method;
+        $argumentCode = array_map(ValueCode::export(...), $arguments);
         $warningsBefore = Command::capturedWarnings();
         $modeBefore = $this->mode($client);
         $started = hrtime(true);
@@ -137,20 +142,23 @@ final class ScenarioRun
         $redisErrors = [];
         try {
             try {
-                $client->clearLastError();
+                $this->diagnostic($client, 'clearLastError');
             } catch (\Throwable) {
                 /* Not every client exposes a usable error slot; ignore it. */
             }
-            $reply = $this->clientInvoker->invoke($client, $method, $arguments);
+            $reply = InvocationRecorder::invoke(
+                $this->clientInvoker, $client, $method, $arguments,
+                $this->phase, $this->context($client) . ' operation=' . $operation,
+            );
             $returned = true;
         } catch (\Throwable $throwable) {
             $exception = $throwable;
         }
         try {
-            $error = $client->getLastError();
+            $error = $this->diagnostic($client, 'getLastError');
             if (is_string($error) && $error !== '') {
                 $redisErrors[] = $error;
-                $client->clearLastError();
+                $this->diagnostic($client, 'clearLastError');
             }
         } catch (\Throwable $diagnosticFailure) {
             $exception ??= $diagnosticFailure;
@@ -166,6 +174,9 @@ final class ScenarioRun
             durationSeconds: (hrtime(true) - $started) / 1e9,
             modeBefore: $modeBefore,
             modeAfter: $this->mode($client),
+            phase: $this->phase,
+            clientId: $this->identity($client),
+            argumentCode: $argumentCode,
         );
 
         return new ScenarioCall(
@@ -181,12 +192,41 @@ final class ScenarioRun
     {
         $client ??= $this->client;
         try {
-            return $client instanceof Relay || $client instanceof Cluster
-                ? $client->getMode(true)
-                : $client->getMode();
+            $mode = $this->diagnostic($client, 'getMode',
+                $client instanceof Relay || $client instanceof Cluster ? [true] : []);
+
+            return is_int($mode) ? $mode : null;
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /** @internal Mark setup, scheduled-call or cleanup before invoking it. */
+    public function phase(string $phase): void
+    {
+        $this->phase = $phase;
+    }
+
+    private function identity(Redis|RedisCluster|Relay|Cluster $client): string
+    {
+        return $client::class . ($client === $this->client
+            ? '#' . $this->clientIndex
+            : '#peer-' . spl_object_id($client));
+    }
+
+    private function context(Redis|RedisCluster|Relay|Cluster $client): string
+    {
+        return "scenario={$this->scenario} seed={$this->seed} client_id=" . $this->identity($client);
+    }
+
+    /** @param list<mixed> $arguments */
+    private function diagnostic(
+        Redis|RedisCluster|Relay|Cluster $client,
+        string $method,
+        array $arguments = [],
+    ): mixed {
+        return InvocationRecorder::invoke(new StrictClientInvoker(), $client, $method, $arguments,
+            $this->phase, $this->context($client) . ' diagnostic');
     }
 
     /** Record and enforce an exact match. */

@@ -472,10 +472,20 @@ final class EvilrespHookTest extends TestCase
         self::assertIsString($path);
         try {
             ScriptLogger::init($path, clients: [$client]);
+            $sent = $client->sent;
+            $hooks->recordScriptSetup();
+            self::assertSame($sent, $client->sent, 'Writing saved setup must not re-arm the live target');
+            ScriptLogger::comment('scenario setup starts here');
             $hooks->dispatchPreCommand($this->pending($client));
             ScriptLogger::finish();
             $script = file_get_contents($path);
             self::assertIsString($script);
+            self::assertSame(1, substr_count($script, 'phase=setup fault-schedule'));
+            $fault = strpos($script, 'phase=setup fault-schedule');
+            $scenario = strpos($script, 'scenario setup starts here');
+            self::assertIsInt($fault);
+            self::assertIsInt($scenario);
+            self::assertLessThan($scenario, $fault);
             self::assertStringContainsString('framing_target=root.1.0.value.2', $script);
             self::assertStringContainsString('transport_probability=25.00', $script);
             self::assertStringContainsString("'FRAMING', 'LENGTH', 'PROBABILITY', '12.50'", $script);
