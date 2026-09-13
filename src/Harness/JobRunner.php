@@ -15,9 +15,11 @@ final class JobRunner
 {
     private int $nextId = 1;
 
+    private readonly PhpStartupTemplate $startup;
+
     /**
      * @param list<string> $phpArgs Startup arguments inserted between the PHP
-     *        binary and the fuzzer script (`-c <ini>` and `--php-args`).
+     *        binary and the fuzzer script (`--php-args`).
      * @param string|null $setsidBinary A verified `setsid(1)` used to run each
      *        child in its own session, or null to launch children in the
      *        harness' own process group. See {@see buildArgv()}.
@@ -27,7 +29,7 @@ final class JobRunner
     public function __construct(
         private readonly HarnessOptions $options,
         private readonly string $php,
-        private readonly array $phpArgs,
+        array $phpArgs,
         private readonly string $baseDir,
         private readonly CommandTemplate $template,
         private readonly ReproStore $store,
@@ -36,7 +38,9 @@ final class JobRunner
         private readonly string $phpVersion,
         private readonly ?string $setsidBinary = null,
         private readonly ?RunLog $runLog = null,
+        ?PhpStartupTemplate $startup = null,
     ) {
+        $this->startup = $startup ?? new PhpStartupTemplate($phpArgs, $options->phpIni);
         Fs::ensureDir($this->workRoot);
     }
 
@@ -54,7 +58,8 @@ final class JobRunner
         Fs::ensureDir($workDir);
 
         $traceDir = $this->options->rr ? $workDir . '/rr-trace' : null;
-        $argv = $this->buildArgv($port, $steps, $seed, $slot, $id, $traceDir);
+        $startup = $this->startup->render($seed, $workDir);
+        $argv = $this->buildArgv($port, $steps, $seed, $slot, $id, $traceDir, $startup['args']);
 
         $process = $this->open($argv, $workDir);
         $status = proc_get_status($process);
@@ -70,6 +75,8 @@ final class JobRunner
             argv: $argv,
             startedAt: microtime(true),
             process: $process,
+            phpArgs: $startup['args'],
+            phpIni: $startup['ini'],
         );
         $job->pid = $status['pid'];
 
@@ -152,7 +159,8 @@ final class JobRunner
         Fs::ensureDir($workDir);
 
         $traceDir = $withRr && $this->rrBinary !== null ? $workDir . '/rr-trace' : null;
-        $argv = $this->buildArgv($port, $steps, $seed, 0, $id, $traceDir);
+        $startup = $this->startup->render($seed, $workDir);
+        $argv = $this->buildArgv($port, $steps, $seed, 0, $id, $traceDir, $startup['args']);
 
         $started = microtime(true);
         $process = $this->open($argv, $workDir);
@@ -479,8 +487,9 @@ final class JobRunner
                 ? null
                 : (RrTrace::isComplete($job->traceDir) ? 'complete' : 'incomplete'),
             'php' => $this->php,
-            'php_args' => $this->phpArgs,
-            'php_ini' => $this->options->phpIni,
+            'php_args' => $job->phpArgs,
+            'php_ini' => $job->phpIni,
+            'php_ini_template' => $this->options->phpIni,
             'php_version' => $this->phpVersion,
             'command' => $job->argv,
             'captured_at' => date('c'),
@@ -488,9 +497,10 @@ final class JobRunner
     }
 
     /**
+     * @param list<string> $phpArgs
      * @return list<string>
      */
-    private function buildArgv(?int $port, int $steps, int $seed, int $slot, int $run, ?string $traceDir): array
+    private function buildArgv(?int $port, int $steps, int $seed, int $slot, int $run, ?string $traceDir, array $phpArgs): array
     {
         $child = $this->template->render([
             'port' => $port ?? '',
@@ -503,9 +513,9 @@ final class JobRunner
         // Run the fuzzer script through the chosen PHP binary unless the caller
         // already put a php interpreter first.
         if (preg_match('/^php\d*(?:\.\d+)?$/', basename($child[0])) === 1) {
-            $child = [$this->php, ...$this->phpArgs, ...array_slice($child, 1)];
+            $child = [$this->php, ...$phpArgs, ...array_slice($child, 1)];
         } else {
-            $child = [$this->php, ...$this->phpArgs, ...$child];
+            $child = [$this->php, ...$phpArgs, ...$child];
         }
 
         // Pin the seed so a captured failure can be reproduced and reduced.

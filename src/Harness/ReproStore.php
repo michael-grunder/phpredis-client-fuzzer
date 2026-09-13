@@ -110,9 +110,11 @@ final class ReproStore
             $this->collectCores($job->pid, $dir);
         }
 
-        $this->copyIni($dir);
+        $ini = $job->phpIni ?? $this->phpIni;
+        $this->copyIni($dir, $ini);
+        $meta['php_ini_capture'] = $ini === null ? null : 'php.ini';
 
-        file_put_contents($dir . '/command.txt', $this->commandText($job));
+        file_put_contents($dir . '/command.txt', $this->commandText($job, $dir, $ini));
         file_put_contents(
             $dir . '/meta.json',
             json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
@@ -139,6 +141,8 @@ final class ReproStore
         if ($outcome->pid !== null) {
             $this->collectCores($outcome->pid, $sub);
         }
+        $generatedIni = $outcome->workDir . '/php.ini';
+        $this->copyIni($sub, is_file($generatedIni) ? $generatedIni : $this->phpIni);
 
         file_put_contents($sub . '/meta.json', json_encode([
             'steps' => $steps,
@@ -163,12 +167,14 @@ final class ReproStore
      * the reproducer, and without it the recorded `-c <path>` may no longer
      * describe the run that crashed.
      */
-    private function copyIni(string $dir): void
+    private function copyIni(string $dir, ?string $ini): void
     {
-        if ($this->phpIni === null) {
+        if ($ini === null) {
             return;
         }
-        @copy($this->phpIni, $dir . '/php.ini');
+        if (!@copy($ini, $dir . '/php.ini')) {
+            throw new \RuntimeException("cannot preserve php ini file: {$ini}");
+        }
     }
 
     /**
@@ -241,16 +247,24 @@ final class ReproStore
         return implode(' ', $parts);
     }
 
-    private function commandText(Job $job): string
+    private function commandText(Job $job, string $dir, ?string $ini): string
     {
+        $argv = $job->argv;
+        if ($ini !== null) {
+            foreach ($argv as $index => $arg) {
+                if ($arg === $ini && ($argv[$index - 1] ?? null) === '-c') {
+                    $argv[$index] = $dir . '/php.ini';
+                }
+            }
+        }
         $lines = [
-            self::formatCommand($job->argv),
+            self::formatCommand($argv),
             '',
             "# cwd:   {$this->coreSearchDir}",
             "# seed:  {$job->seed}",
         ];
-        if ($this->phpIni !== null) {
-            $lines[] = "# ini:   {$this->phpIni} (copied to php.ini)";
+        if ($ini !== null) {
+            $lines[] = "# ini:   {$ini} (copied to php.ini)";
         }
         if ($job->port !== null) {
             $lines[] = "# port:  {$job->port}";

@@ -76,6 +76,7 @@ final class Job
 
     /**
      * @param list<string> $argv Fully resolved argv passed to proc_open().
+     * @param list<string> $phpArgs Concrete PHP startup arguments for this run.
      * @param resource $process
      */
     public function __construct(
@@ -89,6 +90,8 @@ final class Job
         public readonly array $argv,
         public readonly float $startedAt,
         $process,
+        public readonly array $phpArgs = [],
+        public readonly ?string $phpIni = null,
     ) {
         $this->process = $process;
     }

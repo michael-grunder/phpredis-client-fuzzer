@@ -216,6 +216,65 @@ final class HarnessJobRunnerTest extends TestCase
         self::assertFileDoesNotExist($log->path());
     }
 
+    public function testStartupChoicesAreCapturedAndRepeatedDuringReduction(): void
+    {
+        $root = $this->workspace();
+        $ini = $root . '/template.ini';
+        $source = "precision={4-14}\nserialize_precision={5,6,7}\ninclude_path=\"{a b,c d}\"\n";
+        file_put_contents($ini, $source);
+        $runner = $this->runner(
+            $root,
+            ['--php-ini', $ini, '--php-args=-d serialize_precision={10-17}'],
+            [\dirname(__DIR__) . '/Fixtures/startup-child.php', '139'],
+        );
+
+        $first = $runner->spawn(0, null, 7);
+        $second = $runner->spawn(1, null, 8);
+        self::assertNotSame($first->phpIni, $second->phpIni);
+        $job = $this->await($runner, $first);
+        $this->await($runner, $second);
+        self::assertSame(JobStatus::Crashed, $job->status);
+        self::assertNotNull($job->reproDir);
+        self::assertDirectoryDoesNotExist($job->workDir);
+        self::assertSame($source, file_get_contents($ini));
+
+        $captured = (string) file_get_contents($job->reproDir . '/php.ini');
+        self::assertStringNotContainsString('{', $captured);
+        $output = json_decode((string) file_get_contents($job->reproDir . '/stdout.log'), true);
+        self::assertIsArray($output);
+        self::assertSame($captured, $output['ini_contents']);
+        self::assertContains($output['include_path'], ['a b', 'c d']);
+        self::assertIsString($output['serialize_precision']);
+        self::assertContains('serialize_precision=' . $output['serialize_precision'], $job->phpArgs);
+        self::assertSame($job->phpArgs, $this->meta($job->reproDir)['php_args']);
+        self::assertSame($job->argv, $this->meta($job->reproDir)['command']);
+        $command = explode("\n", (string) file_get_contents($job->reproDir . '/command.txt'))[0];
+        self::assertStringContainsString($job->reproDir . '/php.ini', $command);
+        self::assertStringNotContainsString($job->workDir, $command);
+
+        // Reduction must reuse the original snapshot, even if the user edits
+        // the source while the campaign is running.
+        file_put_contents($ini, "precision=99\n");
+        $outcome = $runner->rerun(7, null, 1, 30.0, false);
+        self::assertSame($captured, file_get_contents($outcome->workDir . '/php.ini'));
+        self::assertSame($output, json_decode((string) file_get_contents($outcome->workDir . '/stdout.log'), true));
+        $store = new ReproStore($root . '/out', new CorePattern('core.%e.%p', false), $root, $ini);
+        $store->addMinimized($job->reproDir, $outcome, 1);
+        self::assertSame($captured, file_get_contents($job->reproDir . '/minimized/php.ini'));
+    }
+
+    public function testPhpArgsInjectionWorksWithoutAnIniAndSuccessfulWorkIsCleaned(): void
+    {
+        $root = $this->workspace();
+        $log = new RunLog($root . '/runs.log', 4242);
+        $runner = $this->runner($root, ['--php-args=-d precision={4-4}'], [\dirname(__DIR__) . '/Fixtures/startup-child.php'], null, $log);
+        $job = $this->await($runner, $runner->spawn(0, null, 7));
+        self::assertSame(JobStatus::Passed, $job->status);
+        self::assertNull($job->phpIni);
+        self::assertDirectoryDoesNotExist($job->workDir);
+        self::assertStringContainsString('"precision":"4"', (string) file_get_contents($log->path()));
+    }
+
     private function await(JobRunner $runner, Job $job): Job
     {
         $deadline = microtime(true) + 30.0;
@@ -291,7 +350,7 @@ final class HarnessJobRunnerTest extends TestCase
         return new JobRunner(
             $options,
             PHP_BINARY,
-            [],
+            $options->phpArgs,
             $root,
             new CommandTemplate($command),
             $store,

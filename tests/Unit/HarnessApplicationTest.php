@@ -114,6 +114,43 @@ final class HarnessApplicationTest extends TestCase
         $help = self::contents($output);
         self::assertStringContainsString('--php-args ARGS', $help);
         self::assertStringContainsString('--php-ini FILE', $help);
+        self::assertStringContainsString('{a,b,c}', $help);
+        self::assertStringContainsString('{0.0-100.0}', $help);
+    }
+
+    public function testInvalidStartupRangesAreRejectedBeforeLaunchingWorkers(): void
+    {
+        $error = self::stream();
+        $status = (new HarnessApplication(self::stream(), $error))->run([
+            '--php-args=-d precision={9-1}',
+            '--', \dirname(__DIR__) . '/Fixtures/startup-child.php',
+        ]);
+        self::assertSame(1, $status);
+        self::assertStringContainsString('reversed startup range', self::contents($error));
+    }
+
+    public function testCampaignExpandsStartupArgumentsAndIniForProbesAndWorkers(): void
+    {
+        $root = $this->workspace();
+        Fs::ensureDir($root);
+        $ini = $root . '/template.ini';
+        file_put_contents($ini, "precision={4-4}\n");
+        $error = self::stream();
+        $status = (new HarnessApplication(self::stream(), $error))->run([
+            '--php-ini', $ini,
+            '--php-args=-d serialize_precision={10-10}',
+            '--no-core-check', '--keep-work', '--no-tui',
+            '--seed', '123', '--runs', '1', '--jobs', '1',
+            '--output', $root . '/out', '--run-log', $root . '/runs.log',
+            '--', \dirname(__DIR__) . '/Fixtures/startup-child.php',
+        ]);
+        self::assertSame(0, $status, self::contents($error));
+        $log = (string) file_get_contents($root . '/runs.log');
+        self::assertStringContainsString('"precision":"4"', $log);
+        self::assertStringContainsString('"serialize_precision":"10"', $log);
+        self::assertSame("precision=4\n", file_get_contents($root . '/out/.work/' . getmypid() . '/probe/php.ini'));
+        self::assertSame("precision=4\n", file_get_contents($root . '/out/.work/' . getmypid() . '/run-00001/php.ini'));
+        self::assertSame("precision={4-4}\n", file_get_contents($ini));
     }
 
     public function testHelpDocumentsTheStartupFailureExitCode(): void

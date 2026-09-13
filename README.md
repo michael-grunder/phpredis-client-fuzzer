@@ -767,12 +767,59 @@ the fuzzer script, so `--php /usr/bin/php --php-args -drelay.maxmemory=1g` runs
 every worker as `/usr/bin/php -drelay.maxmemory=1g ...`. It may be repeated, and
 a value that holds several arguments is split the way a shell would
 (`--php-args="-d a=1 -d b=2"`); nothing is passed through a shell, so quoting is
-only interpreted there. `--php-ini FILE` is shorthand for `--php-args "-c FILE"`
-— the file must exist and be readable or the harness refuses to start, and a
-copy of it is stored in every reproducer as `php.ini`, with the absolute path
-recorded in `command.txt` and `meta.json`, so a capture stays reproducible after
-the original ini is edited or deleted. The version banner and the debug-build
-check are probed with the same ini and arguments the runs use.
+only interpreted there.
+
+Startup arguments support random substitutions, selected independently for each
+expression once per run:
+
+- `{a,b,c}` picks one explicit value. Choices are trimmed and cannot be empty
+  or contain commas, braces, or newlines.
+- `{0-100}` picks an integer, including either endpoint. Signed bounds work,
+  including `{-100--1}`. Bounds must fit in a PHP integer.
+- `{0.0-100.0}` picks a floating-point value, including either endpoint. A
+  decimal point in either bound selects floating-point generation; mixed bounds
+  such as `{0-1.0}` also work. Bounds must be finite and ordered low to high.
+
+You can embed several expressions in a value, such as `{64-256}M`. Quote the
+option value to prevent your shell from expanding braces first:
+
+```bash
+bin/phpredis-fuzz-harness --seed 123 \
+    --php-args='-d relay.maxmemory={64,128,256}M -d precision={10-17}' \
+    --php-ini fuzz.ini -- bin/phpredis-fuzz --steps '{steps}'
+```
+
+Expansion happens after argument splitting, so a chosen value is never parsed
+as shell code or split into additional arguments. For choices containing spaces,
+also quote that argument inside the option, e.g.
+`--php-args='-d "include_path={path one,path two}"'`. Ordinary braces such as
+`{name}` and PHP INI environment references such as `${HOME}` are left alone.
+Reversed ranges, out-of-range bounds, and empty list choices are startup errors.
+
+`--php-ini FILE` selects the INI file passed to PHP with `-c`; it must exist and
+be readable. The same expressions work **inside the file**, for example:
+
+```ini
+relay.maxmemory = {64,128,256}M
+precision = {10-17}
+relay.cluster.timeout = {0.1-0.9}
+```
+
+If the file contains substitutions, the harness snapshots its text at startup,
+then writes a concrete `php.ini` in each run's work directory and passes that
+path to PHP. The source file is never modified. Files without substitutions
+continue to be passed directly. The run seed determines the choices without
+consuming the fuzzer's random sequence; reduction retries reproduce the same
+choices from the snapshot. Editing an injected INI template takes effect on the
+next campaign. The version banner and debug-build check use a separate concrete
+rendering with the base seed (or zero when no seed is given).
+
+Every captured failure keeps the INI actually used as `php.ini`, including a
+generated file. `meta.json` records the concrete startup arguments and original
+launch command; `command.txt` uses the captured INI's absolute path so it remains
+usable after the work directory is removed. Minimized captures also keep their
+generated INI. `--php-args "-c FILE"` alone does not process or preserve INI
+contents; use `--php-ini` for that.
 
 Port handling is deliberately two-mode. Give one or more `--port` values;
 `--port-select` is `cycle` (round-robin, default) or `random`. Without

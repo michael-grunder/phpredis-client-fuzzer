@@ -9,6 +9,7 @@ use Mgrunder\PhpredisCommandFuzzer\Harness\CorePattern;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
 use Mgrunder\PhpredisCommandFuzzer\Harness\HarnessOptions;
 use Mgrunder\PhpredisCommandFuzzer\Harness\JobRunner;
+use Mgrunder\PhpredisCommandFuzzer\Harness\PhpStartupTemplate;
 use Mgrunder\PhpredisCommandFuzzer\Harness\PlainView;
 use Mgrunder\PhpredisCommandFuzzer\Harness\PortPool;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Reducer;
@@ -75,6 +76,7 @@ final class HarnessApplication
 
         $phpIni = $options->phpIni === null ? null : $this->resolveIni($options->phpIni);
         $phpArgs = $phpIni === null ? $options->phpArgs : ['-c', $phpIni, ...$options->phpArgs];
+        $startup = new PhpStartupTemplate($options->phpArgs, $phpIni);
 
         $rrBinary = null;
         if ($options->rr) {
@@ -113,15 +115,6 @@ final class HarnessApplication
         $outputDir = $this->absolute($options->output);
         Fs::ensureDir($outputDir);
 
-        if ($options->capturesLeaks() && !$this->phpIsDebug($php, $phpArgs)) {
-            $this->write(
-                "warning: --capture leaks needs a debug PHP build; this php will not emit Zend MM leak reports\n",
-                true,
-            );
-        }
-
-        $phpVersion = $this->probePhp($php, $phpArgs);
-
         $store = new ReproStore($outputDir, $core, $baseDir, $phpIni);
 
         // Opened before anything is spawned so an unwritable path is a startup
@@ -141,11 +134,30 @@ final class HarnessApplication
         $workRoot = $outputDir . '/.work/' . $store->pid();
         Fs::ensureDir($workRoot);
 
+        // Probes must also receive valid concrete startup values. Their private
+        // rendering does not consume randomness from the campaign.
+        $probeDir = $workRoot . '/probe';
+        Fs::ensureDir($probeDir);
+        try {
+            $probe = $startup->render($options->seed ?? 0, $probeDir);
+            if ($options->capturesLeaks() && !$this->phpIsDebug($php, $probe['args'])) {
+                $this->write(
+                    "warning: --capture leaks needs a debug PHP build; this php will not emit Zend MM leak reports\n",
+                    true,
+                );
+            }
+            $phpVersion = $this->probePhp($php, $probe['args']);
+        } finally {
+            if (!$options->keepWork) {
+                Fs::removeTree($probeDir);
+            }
+        }
+
         $this->writeRunInfo($options, $outputDir, $template, $phpVersion, $phpArgs, $rrBinary, $core, $store->pid(), $setsid, $workRoot, $runLog);
         $runner = new JobRunner(
             $options,
             $php,
-            $phpArgs,
+            $options->phpArgs,
             $baseDir,
             $template,
             $store,
@@ -154,6 +166,7 @@ final class HarnessApplication
             $phpVersion,
             $setsid,
             $runLog,
+            $startup,
         );
         $reducer = new Reducer($runner, $options->reduceTimeout);
         $ports = new PortPool($options->ports, $options->portSelect, $options->isolatePorts);
@@ -459,9 +472,13 @@ Harness options:
                         script, e.g. --php-args -drelay.maxmemory=1g. May be
                         repeated, and a value holding several arguments is
                         split like a shell would: --php-args="-d a=1 -d b=2"
+                        Random choices per run: {a,b,c}, {0-100} (integer),
+                        {0.0-100.0} (float). Quote braces in your shell.
   --php-ini FILE        Run each fuzzer with this php.ini (shorthand for
                         --php-args "-c FILE"). The file must exist, and a copy
                         of it is stored with every reproducer as php.ini
+                        The same choices work inside FILE; a generated INI
+                        is written in each run's work directory and captured.
   --port P [P ...]      One or more Redis ports; also accepts --port=P,P
   --port-select MODE    cycle (round-robin, default) or random
   --isolate-ports       Never hand one port to two running jobs at once
