@@ -46,7 +46,7 @@ final class Application
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
         'seconds', 'seed', 'forks', 'commands', 'weight', 'keys', 'members', 'shards',
         'key-skew', 'key-read-group',
-        'min-length', 'max-length', 'max-command-keys', 'max-prefix-length',
+        'min-length', 'max-length', 'max-value-bytes', 'max-command-keys', 'max-prefix-length',
         'wrongtype-chance', 'crossslot-chance', 'saturate-chance',
         'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
         'invocation-mode', 'include',
@@ -59,7 +59,7 @@ final class Application
 
     private const FLAG_OPTIONS = [
         'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking',
-        'no-relay-compatibility', 'differential',
+        'no-relay-compatibility', 'differential', 'allow-deserialization-mutations',
     ];
 
     private const REPEATABLE_OPTIONS = ['weight', 'hook', 'hook-arg', 'key-read-group'];
@@ -252,6 +252,8 @@ final class Application
                 members: $options->integer('members', 10),
                 minLength: $options->integer('min-length', 4),
                 maxLength: $options->integer('max-length', 32),
+                maxValueBytes: $options->integer('max-value-bytes', 4097),
+                allowDeserializationMutations: $options->has('allow-deserialization-mutations'),
                 maxKeysPerCommand: $options->integer('max-command-keys', 10),
                 maxPrefixLength: $options->integer('max-prefix-length', 0),
                 wrongTypeChance: $options->number('wrongtype-chance', 0.0),
@@ -549,6 +551,9 @@ Run configuration:
   --differential-poll-ms=N   Delay between convergence attempts (default: 1)
   --output=MODE              json, simple, or detailed (default: json)
   --raw                      Enable raw-protocol command paths
+  --max-value-bytes=N         Boundary-value string cap, 1..1048576 (default: 4097)
+  --allow-deserialization-mutations
+                             Opt in to callbacks that close/reconfigure/re-enter clients
   --raw-chaos                Enable rawCommand calls with arbitrary scalar arguments
   --include-blocking         Enable blocking commands
   --include=CATEGORY,...     Enable opt-in command categories: admin, local,

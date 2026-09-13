@@ -50,6 +50,8 @@ class ScriptLogger {
 
     private bool $try_catch = false;
 
+    private bool $allowDeserializationMutations = false;
+
     /** @return list<string> */
     private function moduleInfoArray(string $module): array {
         ob_start();
@@ -117,6 +119,16 @@ class ScriptLogger {
             "<?php\n\ndeclare(strict_types=%d);\n\n",
             $this->invocationMode === InvocationMode::Strict ? 1 : 0,
         );
+        $this->allowDeserializationMutations = ($details['deserialization-mutations'] ?? false) === true;
+        foreach (Values\ValueCode::fixtureClasses() as $class) {
+            $file = (new \ReflectionClass($class))->getFileName();
+            $source = $file === false ? false : file_get_contents($file);
+            if ($source === false) {
+                throw new \RuntimeException('Cannot embed value fixture ' . $class);
+            }
+            $source = substr($source, 5);
+            fprintf($this->fp, "if (!class_exists(%s, false)) { eval(<<<'FUZZER_FIXTURE'\n%s\nFUZZER_FIXTURE\n); }\n\n", var_export($class, true), $source);
+        }
         fprintf($this->fp, "// Date: %s\n", date('Y-m-d H:i:s'));
 
         if (class_exists('\Relay\Relay'))
@@ -146,6 +158,8 @@ class ScriptLogger {
     }
 
     private function varExport(mixed $v): string {
+        if (Values\ValueCode::requiresExport($v))
+            return Values\ValueCode::export($v);
         if ($v === [])
             return '[]';
 
@@ -346,6 +360,12 @@ class ScriptLogger {
                                   string $cmd, array $args,
                                   ?int $reference_index = null): void
     {
+        if (Values\CallbackContext::isMutating()) {
+            // The embedded callback performs this call during replay; emitting
+            // it a second time would change the failing sequence.
+            self::comment('Deserialization callback invoked ' . $cmd);
+            return;
+        }
         $hash = spl_object_hash($client);
         if ( ! isset($this->objects[$hash]))
             $this->initObject($client);
@@ -376,8 +396,14 @@ class ScriptLogger {
             fprintf($this->fp, "    ");
         }
 
-        fprintf($this->fp, "%s->%s(%s);\n", $this->objects[$hash], $cmd,
-                implode(", ", $code_args));
+        if ($this->allowDeserializationMutations) {
+            $capture = $this->objects[$hash] . ($reference === null ? '' : ', &' . $reference);
+            fprintf($this->fp, "\\Mgrunder\\PhpredisCommandFuzzer\\Values\\CallbackContext::replay(%s, function () use (%s) { return %s->%s(%s); });\n",
+                $this->objects[$hash], $capture, $this->objects[$hash], $cmd, implode(', ', $code_args));
+        } else {
+            fprintf($this->fp, "%s->%s(%s);\n", $this->objects[$hash], $cmd,
+                    implode(", ", $code_args));
+        }
 
         if ($this->try_catch) {
             fprintf($this->fp, "} catch (Exception \$e) {\n");

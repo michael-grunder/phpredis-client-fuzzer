@@ -1111,6 +1111,65 @@ Because the safety gates and `--commands` filters are independent, a pattern
 list that does not match `crash` still excludes it: `--commands='@cached'` with
 `--include=crash` never runs it.
 
+### Boundary values and deserialization callbacks
+
+Ordinary value generation mixes the existing random strings with a seeded
+boundary corpus. It includes empty and binary strings, NUL/CRLF/high bytes,
+invalid UTF-8, repeated and random bytes, numeric-looking strings, integer
+limits, signed zero, infinities and NaN. Serializer-enabled clients also receive
+empty/sparse/associative/nested arrays, aliased references, copied arrays, and
+fixture objects. Ordinary `__toString`, `__serialize`, `__unserialize` and
+`__wakeup` callbacks are included, along with occasional throwing callbacks.
+These ordinary fixtures do not call client methods.
+
+`maxValueBytes` / `--max-value-bytes=N` bounds boundary-corpus string payloads
+(default **4097**, allowed **1..1048576**). Candidate lengths include 31/32/33,
+255/256/257, 511/512/513 and 4095/4096/4097, restricted to this cap. Compound
+fixtures use short payloads and a fixed, small number of elements and nesting
+levels. Serialized framing and field names are additional bytes. The existing
+`minLength`/`maxLength` settings still control ordinary random strings and
+allocation-sensitive arguments; general integer and SETBIT/SETRANGE offset
+generators do not draw from the integer-limit corpus. Hash fields also include
+numeric-looking and binary names.
+
+Callbacks that re-enter or mutate Redis/Relay clients are **disabled by
+default**. Enable them explicitly through `allowDeserializationMutations: true`
+or `--allow-deserialization-mutations`. `--include=all` does not enable them.
+The opted-in fixtures call `close()`, reset the serializer with `setOption()`,
+or issue DEL for the dedicated `fuzzer:{0}:deserialization-callback` key through
+the currently decoding client. Normal client prefix behavior applies. They do
+not exit the process. Mutations are limited to one per outer command invocation
+and cannot recurse through another mutating callback.
+
+Permission is checked both when generating fixtures and when invoking callbacks.
+An object left by an opted-in run stays inert when decoded by a default run or
+outside an enabled command invocation. Permission is scoped to `Command`
+invocations; direct application-owned client calls do not implicitly acquire it.
+The HTTP adapter keeps both the cap and mutation permission server-controlled.
+
+For an explicitly selected disposable target, a focused workload can use:
+
+```bash
+bin/phpredis-fuzz --commands=set,get --serializer=php --seed=42 \
+    --max-value-bytes=4097 --steps=1000
+# Add --allow-deserialization-mutations only when testing those known edge cases.
+```
+
+Reproduction scripts embed the fixture definitions and reconstruct references
+and shared fixture objects without running serialization callbacks during
+argument construction. Opted-in scripts recreate the callback context; nested
+mutation calls are annotated rather than replayed a second time. These fixtures
+are bounded value graphs; queued caller mutation and general cyclic/object-graph
+reduction are separate workloads.
+
+The local catalog also includes `_unserialize`, `_unpack` and `_uncompress`,
+gated by the installed encoder/decoder methods and the existing `local` flag.
+Each encodes a generated value, tests a truncated/bad-header/bad-length/trailing
+or wrong-codec input, then attempts the original valid decode even after an
+exception. Both calls use normal diagnostics and reproduction logging. These
+are recovery probes, not cross-serializer equality assertions: JSON and PHP
+serialization intentionally preserve different types and reference structures.
+
 ### Sorted-set argument coverage
 
 ZSET generators exercise both client methods and raw protocol arguments.

@@ -7,6 +7,7 @@ use Relay\Cluster;
 use Redis;
 use RedisCluster;
 use Mgrunder\PhpredisCommandFuzzer\KeyAccessSampler;
+use Mgrunder\PhpredisCommandFuzzer\Values\ValueCorpus;
 
 /**
  * Class FuzzConfig
@@ -45,6 +46,33 @@ class FuzzConfig {
     private int $expire_max     =   1000;
     private float $wrongtype    =    0.0;
     private float $crossslot    =    0.0;
+
+    private int $max_value_bytes = 4097;
+    private bool $allow_deserialization_mutations = false;
+
+    public function setMaxValueBytes(int $bytes): self {
+        new ValueCorpus($bytes);
+        $this->max_value_bytes = $bytes;
+        return $this;
+    }
+
+    public function setAllowDeserializationMutations(bool $allow): self {
+        $this->allow_deserialization_mutations = $allow;
+        return $this;
+    }
+
+    public function getRandomValueString(): string {
+        return (new ValueCorpus($this->max_value_bytes))->string();
+    }
+
+    /** @return list<string> */
+    public function getRandomValueStrings(): array {
+        $values = [];
+        $count = rand(1, $this->members);
+        for ($i = 0; $i < $count; $i++)
+            $values[] = $this->getRandomValueString();
+        return $values;
+    }
 
     private int $databases = 16;
 
@@ -448,6 +476,11 @@ class FuzzConfig {
     }
 
     private function getMember(string $type, int $member): string {
+        if (in_array($type, ['hash', 'field', 'hash:int', 'hash:float'], true)) {
+            $boundary = ['0', '01', '-1', '', "a\0b", "\xfffield"];
+            if ($member % 16 < count($boundary))
+                return $boundary[$member % 16];
+        }
         return sprintf("%s:%d", self::typeToMember($type), $member);
     }
 
@@ -483,11 +516,14 @@ class FuzzConfig {
     public function getRandomValue(Redis|RedisCluster|Relay|Cluster $client,
                                    string $type): mixed
     {
-        if ($this->serializerEnabled($client) && rand(0, 1)) {
-            return [$this->getRandomString()];
-        } else {
+        if (rand(0, 3) === 0) {
             return $this->getRandomString();
         }
+
+        return (new ValueCorpus($this->max_value_bytes))->value(
+            $this->serializerEnabled($client),
+            $this->allow_deserialization_mutations,
+        );
     }
 
     /**

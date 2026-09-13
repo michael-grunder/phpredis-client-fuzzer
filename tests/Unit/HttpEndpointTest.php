@@ -11,6 +11,26 @@ use PHPUnit\Framework\TestCase;
 
 final class HttpEndpointTest extends TestCase
 {
+    public function testValueLimitsAndMutationPermissionRemainServerControlled(): void
+    {
+        foreach ([false, true] as $allowed) {
+            $endpoint = new FuzzerEndpoint(
+                static fn (): \Redis => new \Redis(),
+                new RunConfiguration(maxSteps: 1, seed: 42, commands: ['isconnected'], includeLocal: true,
+                    maxValueBytes: 32, allowDeserializationMutations: $allowed),
+            );
+            $response = $endpoint->handle(['maxValueBytes' => 999999, 'allowDeserializationMutations' => !$allowed,
+                'max-value-bytes' => 999999, 'allow-deserialization-mutations' => !$allowed]);
+            self::assertTrue($response['ok']);
+            $actual = $response['result']['configuration'] ?? null;
+            if (!is_array($actual)) {
+                self::fail('Expected run configuration');
+            }
+            self::assertSame(32, $actual['maxValueBytes'] ?? null);
+            self::assertSame($allowed, $actual['allowDeserializationMutations'] ?? null);
+        }
+    }
+
     public function testKeyProfilesRemainServerControlled(): void
     {
         $configuration = new RunConfiguration(

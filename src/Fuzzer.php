@@ -63,8 +63,9 @@ final class Fuzzer
 
         $registry = (new CommandFilter())->apply(new Registry(), $configuration);
         $registry->apply(
-            function (Command $command) use ($clientInvoker): void {
+            function (Command $command) use ($clientInvoker, $configuration): void {
                 $command->setClientInvoker($clientInvoker);
+                $command->setAllowDeserializationMutations($configuration->allowDeserializationMutations);
                 $command->setInvocationHook($this->hooks);
             },
         );
@@ -151,6 +152,8 @@ final class Fuzzer
                 'invocation-mode' => $configuration->invocationMode->value,
                 'raw' => $configuration->raw,
                 'raw-chaos' => $configuration->rawChaos,
+                'max-value-bytes' => $configuration->maxValueBytes,
+                'deserialization-mutations' => $configuration->allowDeserializationMutations,
                 'saturate-chance' => $configuration->saturateChance,
                 'saturate-steps' => $configuration->saturateSteps ?? 'keyspace',
                 'saturate-target' => $configuration->saturateTarget ?? 'disabled',
@@ -571,6 +574,8 @@ final class Fuzzer
             ->setMembers($configuration->members)
             ->setMinLen($configuration->minLength)
             ->setMaxLen($configuration->maxLength)
+            ->setMaxValueBytes($configuration->maxValueBytes)
+            ->setAllowDeserializationMutations($configuration->allowDeserializationMutations)
             ->setMaxKeys($configuration->maxKeysPerCommand)
             ->setMaxPrefixLen($configuration->maxPrefixLength)
             ->setWrongtype($configuration->wrongTypeChance)

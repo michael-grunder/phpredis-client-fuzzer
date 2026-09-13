@@ -32,6 +32,8 @@ final class ApplicationTest extends TestCase
         self::assertStringContainsString('--key-skew=N', self::contents($output));
         self::assertStringContainsString('--key-read-group=W:A', self::contents($output));
         self::assertStringContainsString('--raw-chaos', self::contents($output));
+        self::assertStringContainsString('--max-value-bytes=N', self::contents($output));
+        self::assertStringContainsString('--allow-deserialization-mutations', self::contents($output));
         self::assertStringContainsString('--include=CATEGORY,...', self::contents($output));
         self::assertStringNotContainsString('--include-admin', self::contents($output));
         self::assertStringNotContainsString('--include-local', self::contents($output));

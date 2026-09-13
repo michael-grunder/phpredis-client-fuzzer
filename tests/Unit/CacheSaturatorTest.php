@@ -175,7 +175,7 @@ final class CacheSaturatorTest extends TestCase
             'zadd', 'zrange',
         ], array_column($invoker->calls, 0));
         self::assertSame('string:0', $invoker->calls[0][1][0]);
-        self::assertIsString($invoker->calls[0][1][1]);
+        self::assertNull($invoker->calls[0][1][1]); // Seeded corpus includes null payloads.
         self::assertSame('list:0', $invoker->calls[2][1][0]);
         self::assertGreaterThanOrEqual(2, count($invoker->calls[2][1]));
         self::assertSame('set:0', $invoker->calls[4][1][0]);

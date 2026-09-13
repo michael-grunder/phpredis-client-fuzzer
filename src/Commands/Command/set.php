@@ -51,7 +51,7 @@ class set extends Command implements ProxyInterface, FuzzInterface,
         return $this->execRaw(
             $client,
             $config->getRandomKey($this->type()),
-            $config->getRandomString()
+            $config->getRandomValueString()
         );
     }
 }

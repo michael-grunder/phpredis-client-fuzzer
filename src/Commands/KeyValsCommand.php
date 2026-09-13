@@ -50,7 +50,7 @@ abstract class KeyValsCommand extends Command implements FuzzInterface,
         return $this->execRaw(
             $client,
             $config->getRandomKey($this->type()),
-            ...$config->getRandomStrings(),
+            ...$config->getRandomValueStrings(),
         );
     }
 }

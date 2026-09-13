@@ -102,7 +102,7 @@ final class HookRandomnessTest extends TestCase
                 if ($draw) {
                     $hooks->randomizer('noise')->getInt(0, PHP_INT_MAX);
                 }
-                $seen[] = [$invocation->method, $invocation->arguments];
+                $seen[] = [$invocation->method, \Mgrunder\PhpredisCommandFuzzer\Values\ValueCode::export($invocation->arguments)];
             });
             (new Fuzzer($hooks))->run(
                 [new \Redis()],

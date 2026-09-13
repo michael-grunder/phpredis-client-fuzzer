@@ -42,7 +42,7 @@ abstract class KeyValCommand extends Command
         return $this->execRaw(
             $client,
             $config->getRandomKey($this->type()),
-            $config->getRandomString(),
+            $config->getRandomValueString(),
         );
     }
 }

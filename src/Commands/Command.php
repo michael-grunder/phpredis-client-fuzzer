@@ -25,6 +25,12 @@ use Redis;
 use RedisCluster;
 
 abstract class Command implements HasWeight {
+    private bool $allowDeserializationMutations = false;
+
+    final public function setAllowDeserializationMutations(bool $allow): void {
+        $this->allowDeserializationMutations = $allow;
+    }
+
     public const READ         = (1 << 1);
     public const WRITE        = (1 << 2);
     public const DELETE       = (1 << 3);
@@ -587,7 +593,15 @@ abstract class Command implements HasWeight {
     ): mixed {
         $this->clientInvoker ??= new StrictClientInvoker();
 
-        return $this->clientInvoker->invoke($client, $method, $args);
+        return \Mgrunder\PhpredisCommandFuzzer\Values\CallbackContext::invoke(
+            fn (): mixed => $this->clientInvoker->invoke($client, $method, $args),
+            $this->allowDeserializationMutations ? function (string $action) use ($client): void {
+                [$operation, $arguments] = \Mgrunder\PhpredisCommandFuzzer\Values\CallbackContext::operation($action);
+                if (method_exists($client, $operation)) {
+                    $this->cmd($client, $operation, ...$arguments);
+                }
+            } : null,
+        );
     }
 
     /**

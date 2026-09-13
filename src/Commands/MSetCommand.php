@@ -63,7 +63,7 @@ abstract class MSetCommand extends Command implements ProxyInterface,
 
         foreach ($keys as $key) {
             $args[] = $key;
-            $args[] = $config->getRandomString();
+            $args[] = $config->getRandomValueString();
         }
 
         return $this->execRaw($client, ...$args);

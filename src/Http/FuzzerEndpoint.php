@@ -73,6 +73,8 @@ final class FuzzerEndpoint
             members: $this->configuration->members,
             minLength: $this->configuration->minLength,
             maxLength: $this->configuration->maxLength,
+            maxValueBytes: $this->configuration->maxValueBytes,
+            allowDeserializationMutations: $this->configuration->allowDeserializationMutations,
             maxKeysPerCommand: $this->configuration->maxKeysPerCommand,
             maxPrefixLength: $this->configuration->maxPrefixLength,
             wrongTypeChance: $this->configuration->wrongTypeChance,

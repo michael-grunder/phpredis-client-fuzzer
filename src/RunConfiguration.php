@@ -48,7 +48,10 @@ final readonly class RunConfiguration implements \JsonSerializable
         public bool $rawChaos = false,
         public float $keySkew = 0.0,
         public array $keyReadGroups = [],
+        public int $maxValueBytes = 4097,
+        public bool $allowDeserializationMutations = false,
     ) {
+        new Values\ValueCorpus($maxValueBytes);
         KeyAccessSampler::validate($keySkew, $keyReadGroups);
         if ($maxSteps < 0) {
             throw new \InvalidArgumentException('maxSteps cannot be negative');
@@ -126,6 +129,8 @@ final readonly class RunConfiguration implements \JsonSerializable
             'members' => $this->members,
             'minLength' => $this->minLength,
             'maxLength' => $this->maxLength,
+            'maxValueBytes' => $this->maxValueBytes,
+            'allowDeserializationMutations' => $this->allowDeserializationMutations,
             'maxKeysPerCommand' => $this->maxKeysPerCommand,
             'maxPrefixLength' => $this->maxPrefixLength,
             'wrongTypeChance' => $this->wrongTypeChance,

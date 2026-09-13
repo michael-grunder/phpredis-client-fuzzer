@@ -56,7 +56,7 @@ abstract class KeyMemValCommand extends Command implements ProxyInterface,
             $client,
             $config->getRandomKey($this->type()),
             $config->getRandomMember($this->type()),
-            $config->getRandomString(),
+            $config->getRandomValueString(),
         );
     }
 }

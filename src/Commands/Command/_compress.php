@@ -24,6 +24,6 @@ class _compress extends ValueCommand {
     protected function randomValue(Redis|RedisCluster|Relay|Cluster $client,
                                    FuzzConfig $config): mixed
     {
-        return $config->getRandomString();
+        return $config->getRandomValueString();
     }
 }
