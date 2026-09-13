@@ -1071,11 +1071,24 @@ vendor/bin/phpredis-fuzz \
     --seed=123456
 ```
 
-The built-in scenarios verify transaction commit, discard cleanup, and
-`WATCH`/`UNWATCH` cleanup. Each terminal operation asserts that the client is
-back in atomic mode; commit also verifies both writes and discard verifies the
-key remains absent. A failed postcondition makes the CLI exit nonzero. Clients
-missing a required method produce a structured `skipped` outcome.
+The built-in scenarios initialize and read back known values in scenario-owned
+keys on every run, including repeated seeds. They require MULTI and each queued
+SET to return the same client object and leave it in MULTI mode. Commit requires
+exactly two successful SET replies from EXEC and verifies both writes; discard
+requires a successful reply and verifies the initial value is preserved. Both
+require atomic mode before reading back results. The commit scenario retains
+two distinct hash tags to exercise client-managed cluster transactions.
+
+`watch-unwatch-discard` also checks WATCH and UNWATCH acknowledgements. It is a
+cleanup smoke test: it does not prove watch installation or removal, which
+requires another connection to mutate the watched key before EXEC.
+
+Scenarios require an initially atomic client and preserve an existing caller
+transaction when rejecting that precondition. Failure cleanup records DISCARD
+and, when needed, UNWATCH; cleanup failures remain visible alongside the original
+failure. Scenario keys retain their final values. A failed postcondition makes
+the CLI exit nonzero. Clients missing a required method produce a structured
+`skipped` outcome.
 
 The `STATEFUL` command flag is separate from scenarios. Standalone random
 `MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH`, and pipeline commands are

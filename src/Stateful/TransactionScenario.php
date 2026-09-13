@@ -32,14 +32,12 @@ final class TransactionScenario implements StatefulScenario
         int $clientIndex,
     ): StatefulOutcome {
         $clientId = $client::class . '#' . $clientIndex;
-        $required = $this->scenario === 'watch-unwatch-discard'
-            ? ['watch', 'unwatch', 'multi', 'discard', 'get', 'set', 'getMode']
-            : ['multi', 'set', 'get', 'getMode'];
-        if ($this->scenario === 'transaction-exec') {
+        $required = ['multi', 'discard', 'set', 'get', 'getMode'];
+        if ($this->scenario === 'watch-unwatch-discard') {
+            $required[] = 'watch';
+            $required[] = 'unwatch';
+        } elseif ($this->scenario === 'transaction-exec') {
             $required[] = 'exec';
-        }
-        if ($this->scenario === 'transaction-discard') {
-            $required[] = 'discard';
         }
 
         foreach ($required as $method) {
@@ -64,79 +62,82 @@ final class TransactionScenario implements StatefulScenario
         $key2 = 'fuzzer:state:' . $seed . ':' . $this->scenario
             . ':{' . $nextClientIndex . '}:value';
         $value = "state-{$seed}";
+        $initial = "initial-{$seed}";
+        $keys = $this->scenario === 'transaction-exec' ? [$key, $key2] : [$key];
+        $ownsState = false;
+        $watchMayBeActive = false;
         try {
-            if ($this->scenario === 'watch-unwatch-discard') {
-                $this->call($client, 'watch', [$key], $steps);
-                $this->call($client, 'unwatch', [], $steps);
-                $this->call($client, 'multi', [], $steps);
-                $this->call($client, 'set', [$key, $value], $steps);
-                $this->call($client, 'discard', [], $steps);
-                $read = $this->call($client, 'get', [$key], $steps);
-                $this->postcondition(
+            $this->expect($postconditions, 'starts-in-atomic-mode', Redis::ATOMIC, $this->mode($client));
+            $ownsState = true;
+
+            // Reinitialize even when the same seed and client are reused.
+            foreach ($keys as $index => $scenarioKey) {
+                $this->expect(
                     $postconditions,
-                    'unwatch-discard-leaves-key-missing',
-                    $read->returned && ($read->replyType === 'false' || $read->replyType === 'null'),
-                    'false or null',
-                    $read->replyType,
+                    "setup-set-{$index}-succeeds",
+                    true,
+                    $this->call($client, 'set', [$scenarioKey, $initial], $steps),
                 );
-            } elseif ($this->scenario === 'transaction-discard') {
-                $this->call($client, 'multi', [], $steps);
-                $this->call($client, 'set', [$key, $value], $steps);
-                $this->call($client, 'discard', [], $steps);
-                $read = $this->call($client, 'get', [$key], $steps);
-                $this->postcondition(
+                $this->expect(
                     $postconditions,
-                    'discard-leaves-key-missing',
-                    $read->returned && ($read->replyType === 'false' || $read->replyType === 'null'),
-                    'false or null',
-                    $read->replyType,
-                );
-            } else {
-                $this->call($client, 'multi', [], $steps);
-                $this->call($client, 'set', [$key, $value], $steps);
-                $this->call($client, 'set', [$key2, $value], $steps);
-                $this->call($client, 'exec', [], $steps);
-                $read1 = $this->call($client, 'get', [$key], $steps);
-                $read2 = $this->call($client, 'get', [$key2], $steps);
-                $this->postcondition(
-                    $postconditions,
-                    'exec-commits-first-key',
-                    $read1->returned && $read1->reply === ValueSummary::summarize($value),
-                    ValueSummary::summarize($value),
-                    $read1->reply,
-                );
-                $this->postcondition(
-                    $postconditions,
-                    'exec-commits-second-key',
-                    $read2->returned && $read2->reply === ValueSummary::summarize($value),
-                    ValueSummary::summarize($value),
-                    $read2->reply,
+                    "setup-key-{$index}-has-initial-value",
+                    $initial,
+                    $this->call($client, 'get', [$scenarioKey], $steps),
                 );
             }
 
-            $mode = $this->mode($client);
-            $this->postcondition(
-                $postconditions,
-                'terminal-operation-restores-atomic-mode',
-                $mode === Redis::ATOMIC,
-                Redis::ATOMIC,
-                $mode,
-            );
+            if ($this->scenario === 'watch-unwatch-discard') {
+                $watchMayBeActive = true;
+                $this->expect($postconditions, 'watch-succeeds', true, $this->call($client, 'watch', [$key], $steps));
+                $this->expect($postconditions, 'unwatch-succeeds', true, $this->call($client, 'unwatch', [], $steps));
+                $watchMayBeActive = false;
+            }
+
+            $this->expect($postconditions, 'multi-acknowledges-entry', $client, $this->call($client, 'multi', [], $steps));
+            $this->expect($postconditions, 'multi-enters-multi-mode', Redis::MULTI, $this->mode($client));
+            foreach ($keys as $index => $scenarioKey) {
+                $this->expect(
+                    $postconditions,
+                    "set-{$index}-is-queued",
+                    $client,
+                    $this->call($client, 'set', [$scenarioKey, $value], $steps),
+                );
+                $this->expect($postconditions, "set-{$index}-preserves-multi-mode", Redis::MULTI, $this->mode($client));
+            }
+
+            if ($this->scenario === 'transaction-exec') {
+                $this->expect($postconditions, 'exec-returns-two-successful-replies', [true, true], $this->call($client, 'exec', [], $steps));
+            } else {
+                $this->expect($postconditions, 'discard-succeeds', true, $this->call($client, 'discard', [], $steps));
+            }
+            $this->expect($postconditions, 'terminal-operation-restores-atomic-mode', Redis::ATOMIC, $this->mode($client));
+
+            foreach ($keys as $index => $scenarioKey) {
+                $this->expect(
+                    $postconditions,
+                    $this->scenario === 'transaction-exec' ? "exec-commits-key-{$index}" : 'discard-preserves-initial-value',
+                    $this->scenario === 'transaction-exec' ? $value : $initial,
+                    $this->call($client, 'get', [$scenarioKey], $steps),
+                );
+            }
+            $this->expect($postconditions, 'final-reads-preserve-atomic-mode', Redis::ATOMIC, $this->mode($client));
         } catch (\Throwable $throwable) {
             $failure = $throwable::class . ': ' . $throwable->getMessage();
         } finally {
-            /* A failed scenario must not poison the following workload. */
-            try {
-                if ($this->mode($client) !== Redis::ATOMIC) {
-                    $client->discard();
+            // Do not discard a transaction that belonged to the embedded caller.
+            if ($ownsState) {
+                try {
+                    if ($this->mode($client) !== Redis::ATOMIC) {
+                        $this->expect($postconditions, 'cleanup-discard-succeeds', true, $this->call($client, 'discard', [], $steps));
+                    }
+                    if ($watchMayBeActive) {
+                        $this->expect($postconditions, 'cleanup-unwatch-succeeds', true, $this->call($client, 'unwatch', [], $steps));
+                    }
+                    $this->expect($postconditions, 'cleanup-restores-atomic-mode', Redis::ATOMIC, $this->mode($client));
+                } catch (\Throwable $throwable) {
+                    $failure = ($failure === null ? '' : $failure . '; ')
+                        . 'Cleanup failed: ' . $throwable::class . ': ' . $throwable->getMessage();
                 }
-            } catch (\Throwable) {
-            }
-        }
-
-        foreach ($postconditions as $postcondition) {
-            if (!$postcondition['passed']) {
-                $failure ??= 'Postcondition failed: ' . $postcondition['name'];
             }
         }
 
@@ -159,7 +160,7 @@ final class TransactionScenario implements StatefulScenario
         string $method,
         array $arguments,
         array &$steps,
-    ): StatefulObservation {
+    ): mixed {
         $warningsBefore = Command::capturedWarnings();
         $modeBefore = $this->mode($client);
         $started = hrtime(true);
@@ -198,14 +199,14 @@ final class TransactionScenario implements StatefulScenario
             modeAfter: $this->mode($client),
         );
         $steps[] = $observation;
-        if (!$returned && $exception !== null) {
+        if ($exception !== null) {
             throw $exception;
         }
         if ($redisErrors !== []) {
             throw new \RuntimeException($redisErrors[0]);
         }
 
-        return $observation;
+        return $reply;
     }
 
     private function mode(Redis|RedisCluster|Relay|Cluster $client): ?int
@@ -220,19 +221,22 @@ final class TransactionScenario implements StatefulScenario
     }
 
     /** @param list<array{name: string, passed: bool, expected: mixed, observed: mixed}> $postconditions */
-    private function postcondition(
+    private function expect(
         array &$postconditions,
         string $name,
-        bool $passed,
         mixed $expected,
         mixed $observed,
     ): void {
+        $passed = $expected === $observed;
         $postconditions[] = [
             'name' => $name,
             'passed' => $passed,
-            'expected' => $expected,
-            'observed' => $observed,
+            'expected' => ValueSummary::summarize($expected),
+            'observed' => ValueSummary::summarize($observed),
         ];
+        if (!$passed) {
+            throw new \RuntimeException('Postcondition failed: ' . $name);
+        }
     }
 
     /**
