@@ -16,6 +16,7 @@ use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
 use Mgrunder\PhpredisCommandFuzzer\Log\Log;
+use Mgrunder\PhpredisCommandFuzzer\Stateful\ScenarioPeers;
 use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
 use Redis;
 use RedisCluster;
@@ -27,8 +28,15 @@ final class Fuzzer
     private const RELAY_STATS_SAMPLE_INTERVAL = 100;
     private const MAX_CONSECUTIVE_HOOK_REJECTIONS = 10000;
 
-    public function __construct(private readonly ?HookRegistry $hooks = null)
-    {
+    /**
+     * @param ScenarioPeers|null $peers Optional source of a second connection
+     *        for the stateful scenarios that need one to prove watch
+     *        semantics. Without it those scenarios report `skipped`.
+     */
+    public function __construct(
+        private readonly ?HookRegistry $hooks = null,
+        private readonly ?ScenarioPeers $peers = null,
+    ) {
     }
 
     /**
@@ -173,7 +181,7 @@ final class Fuzzer
         $runFailure = null;
         $relayStats?->sample();
         try {
-            $statefulOutcomes = (new StatefulScenarioRunner($clientInvoker))->run(
+            $statefulOutcomes = (new StatefulScenarioRunner($clientInvoker, $this->peers))->run(
                 $executionClients,
                 $configuration->scenarios,
                 $seed,

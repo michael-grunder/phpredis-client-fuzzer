@@ -16,6 +16,16 @@ final class StatefulScenarioRegistry
             'transaction-exec',
             'transaction-discard',
             'watch-unwatch-discard',
+            'transaction-mixed-replies',
+            'transaction-cross-slot-replies',
+            'transaction-error-alignment',
+            'transaction-queue-error',
+            'transaction-local-rejection',
+            'watch-abort',
+            'watch-unwatch-commit',
+            'pipeline-replies',
+            'queued-value-mutation',
+            'disconnect-recovery',
         ];
     }
 
@@ -78,6 +88,16 @@ final class StatefulScenarioRegistry
             'transaction-exec' => new TransactionScenario('transaction-exec', $clientInvoker),
             'transaction-discard' => new TransactionScenario('transaction-discard', $clientInvoker),
             'watch-unwatch-discard' => new TransactionScenario('watch-unwatch-discard', $clientInvoker),
+            'transaction-mixed-replies' => new MixedReplyScenario('transaction-mixed-replies', $clientInvoker),
+            'transaction-cross-slot-replies' => new MixedReplyScenario('transaction-cross-slot-replies', $clientInvoker),
+            'transaction-error-alignment' => new ErrorAlignmentScenario('transaction-error-alignment', $clientInvoker),
+            'transaction-queue-error' => new QueueErrorScenario('transaction-queue-error', $clientInvoker),
+            'transaction-local-rejection' => new LocalRejectionScenario('transaction-local-rejection', $clientInvoker),
+            'watch-abort' => new WatchScenario('watch-abort', $clientInvoker),
+            'watch-unwatch-commit' => new WatchScenario('watch-unwatch-commit', $clientInvoker),
+            'pipeline-replies' => new PipelineScenario('pipeline-replies', $clientInvoker),
+            'queued-value-mutation' => new QueuedValueScenario('queued-value-mutation', $clientInvoker),
+            'disconnect-recovery' => new RecoveryScenario('disconnect-recovery', $clientInvoker),
             default => throw new \InvalidArgumentException(
                 "Unknown stateful scenario: {$name}",
             ),

@@ -618,8 +618,12 @@ children keep the clients they inherited — exercising that machinery is a
 deliberate part of what `--forks` tests. The option requires `ext-pcntl` and
 accepts at most 1,024 children; `--forks=0` (the default) does not fork.
 
-`--scenarios` accepts `transaction-exec`, `transaction-discard`, and
-`watch-unwatch-discard`. Use `none` to explicitly disable them, or `random` to
+`--scenarios` accepts `transaction-exec`, `transaction-discard`,
+`watch-unwatch-discard`, `transaction-mixed-replies`,
+`transaction-cross-slot-replies`, `transaction-error-alignment`,
+`transaction-queue-error`, `transaction-local-rejection`, `watch-abort`,
+`watch-unwatch-commit`, `pipeline-replies`, `queued-value-mutation`, and
+`disconnect-recovery`. Use `none` to explicitly disable them, or `random` to
 select a deterministic random subset (including no scenarios) from the full
 catalog. The subset is derived from the workload seed, so a reported seed
 reproduces the selection. Explicit names may be combined with `random` to add
@@ -1080,15 +1084,64 @@ require atomic mode before reading back results. The commit scenario retains
 two distinct hash tags to exercise client-managed cluster transactions.
 
 `watch-unwatch-discard` also checks WATCH and UNWATCH acknowledgements. It is a
-cleanup smoke test: it does not prove watch installation or removal, which
-requires another connection to mutate the watched key before EXEC.
+cleanup smoke test: it does not prove watch installation or removal, which is
+what `watch-abort` and `watch-unwatch-commit` do with a second connection.
+
+| Scenario | Sequence | Postcondition |
+| --- | --- | --- |
+| `transaction-exec` | MULTI, two queued SETs across two hash tags, EXEC | Two successful replies and both writes committed |
+| `transaction-discard` | MULTI, queued SET, DISCARD | Successful DISCARD and the initial value preserved |
+| `watch-unwatch-discard` | WATCH, UNWATCH, MULTI, queued SET, DISCARD | Both acknowledgements and a clean discard |
+| `transaction-mixed-replies` | MULTI, GET (missing), SET, INCR, HGETALL, EXEC | Exactly `[false, true, 1, []]`: reply count, order, indexes, types and values |
+| `transaction-cross-slot-replies` | The same sequence with one hash tag per key | The same replies after the client reassembles them across nodes |
+| `transaction-error-alignment` | MULTI, SET, INCR on a list (WRONGTYPE), SET, EXEC | Three replies, the error in position 1, both writes committed |
+| `transaction-queue-error` | MULTI, SET, raw `GET` with no arguments, EXEC | The rejection reaches the caller, EXEC aborts, nothing is written, the next transaction is answered correctly |
+| `transaction-local-rejection` | MULTI, SET, SINTERCARD with a negative LIMIT, SET, EXEC | Exactly two replies: the locally rejected call books no queue slot |
+| `watch-abort` | WATCH, a peer writes the key, MULTI, SET, EXEC | EXEC aborts and the peer's value survives |
+| `watch-unwatch-commit` | WATCH, UNWATCH, a peer writes the key, MULTI, SET, EXEC | EXEC commits, which is what proves UNWATCH cleared the watch |
+| `pipeline-replies` | Pipeline with heterogeneous replies, an empty pipeline, a discarded pipeline | Queue count and order, a cleanly dropped write, and an aligned atomic command afterwards |
+| `queued-value-mutation` | MULTI, queued values whose caller-side inputs are then mutated and released, EXEC | The committed values are the ones that were queued |
+| `disconnect-recovery` | MULTI, queued writes, `close()` with replies outstanding, reconnect | Atomic mode, no queued write applied, and the next commands answered by their own replies |
+
+`watch-abort` and `watch-unwatch-commit` need a second connection. The CLI
+builds one lazily from the same `--client` configuration as the client under
+test, so it shares its target, prefix, database and serializer, and closes it
+when the scenarios finish. Embedded callers pass a `ScenarioPeers`
+implementation to `Fuzzer` (`CallableScenarioPeers` wraps a factory closure);
+without one, both scenarios report `skipped`:
+
+```php
+use Mgrunder\PhpredisCommandFuzzer\Stateful\CallableScenarioPeers;
+
+$peers = new CallableScenarioPeers(function (object $client): ?Redis {
+    // Build a second connection configured exactly like $client.
+    $peer = new Redis();
+
+    return $peer->connect('127.0.0.1', 6379) ? $peer : null;
+});
+
+$result = (new Fuzzer(hooks: null, peers: $peers))->run([$redis], $configuration);
+```
+
+The factory is called at most once per client, only when a scenario needs it,
+and every peer it returns is closed when the scenarios finish.
 
 Scenarios require an initially atomic client and preserve an existing caller
 transaction when rejecting that precondition. Failure cleanup records DISCARD
 and, when needed, UNWATCH; cleanup failures remain visible alongside the original
 failure. Scenario keys retain their final values. A failed postcondition makes
 the CLI exit nonzero. Clients missing a required method produce a structured
-`skipped` outcome.
+`skipped` outcome, and so does a client that cannot express the sequence: a
+client without pipelining (RedisCluster), one that sends SINTERCARD instead of
+rejecting it locally, one that cannot be used after `close()`, or a peer that
+does not observe the scenario keyspace.
+
+Where PhpRedis and Relay legitimately report the same server outcome
+differently — an errored element inside EXEC, an aborted EXEC, a rejected
+queue-time command — the postcondition accepts a documented set of replies and
+records the concrete observation. Arity, ordering, mode transitions and the
+committed data are always exact, and no difference between the clients is
+normalized away.
 
 The `STATEFUL` command flag is separate from scenarios. Standalone random
 `MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH`, and pipeline commands are

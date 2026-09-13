@@ -6,6 +6,8 @@ namespace Mgrunder\PhpredisCommandFuzzer\Cli;
 
 use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
+use Mgrunder\PhpredisCommandFuzzer\Stateful\CallableScenarioPeers;
+use Mgrunder\PhpredisCommandFuzzer\Stateful\ScenarioPeers;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
 use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
 use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
@@ -304,7 +306,14 @@ final class Application
             }
 
             if ($forks === 0) {
-                return $this->execute($clients, $runConfiguration, $hooks, $outputMode, $this->output);
+                return $this->execute(
+                    $clients,
+                    $runConfiguration,
+                    $hooks,
+                    $outputMode,
+                    $this->output,
+                    $this->scenarioPeers($clients, $clientConfigurations, $factory, $runConfiguration),
+                );
             }
 
             return (new ForkPool($this->output, $this->error))->run(
@@ -336,15 +345,25 @@ final class Application
                         }
                     }
 
+                    $childConfiguration = $configure(
+                        $childSeeds[$index],
+                        $this->childScriptLog($scriptLog, $index),
+                    );
+
                     return $this->execute(
                         $clients,
-                        $configure(
-                            $childSeeds[$index],
-                            $this->childScriptLog($scriptLog, $index),
-                        ),
+                        $childConfiguration,
                         $hooks,
                         $outputMode,
                         $output,
+                        // Built from the child's own clients, which were
+                        // re-created above for Redis and RedisCluster.
+                        $this->scenarioPeers(
+                            $clients,
+                            $clientConfigurations,
+                            $factory,
+                            $childConfiguration,
+                        ),
                     );
                 },
             );
@@ -367,8 +386,9 @@ final class Application
         HookRegistry $hooks,
         OutputMode $outputMode,
         $output,
+        ?ScenarioPeers $peers = null,
     ): int {
-        $result = (new Fuzzer($hooks))->run($clients, $configuration);
+        $result = (new Fuzzer($hooks, $peers))->run($clients, $configuration);
 
         fwrite($output, (new ResultFormatter())->format($result, $outputMode));
 
@@ -377,6 +397,45 @@ final class Application
             && !$result->hasStatefulFailure()
             ? ExitCode::SUCCESS
             : ExitCode::FAILURE;
+    }
+
+    /**
+     * Second connections for the scenarios that have to observe a client from
+     * another connection. Each peer is built lazily from the same
+     * `--client` configuration as the client it belongs to, so it shares its
+     * prefix, database, serializer and target.
+     *
+     * @param list<\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster> $clients
+     * @param list<ClientConfiguration> $clientConfigurations
+     */
+    private function scenarioPeers(
+        array $clients,
+        array $clientConfigurations,
+        ClientFactory $factory,
+        RunConfiguration $configuration,
+    ): ?ScenarioPeers {
+        if ($configuration->scenarios === []) {
+            return null;
+        }
+
+        /** @var array<int, int> $positions */
+        $positions = [];
+        foreach ($clients as $position => $client) {
+            $positions[spl_object_id($client)] ??= $position;
+        }
+
+        return new CallableScenarioPeers(
+            static function (
+                \Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster $client,
+            ) use ($positions, $clientConfigurations, $factory): \Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster|null {
+                $position = $positions[spl_object_id($client)] ?? null;
+                if ($position === null || !isset($clientConfigurations[$position])) {
+                    return null;
+                }
+
+                return $factory->create($clientConfigurations[$position]);
+            },
+        );
     }
 
     /**
@@ -560,9 +619,18 @@ Run configuration:
                              flush, stateful, crash, or all (all enables the
                              first four; crash is never enabled by all and must
                              be named explicitly)
-  --scenarios=NAME,...       Run seeded scenarios first: transaction-exec,
-                             transaction-discard, watch-unwatch-discard,
-                             none, or random (random may select any subset)
+  --scenarios=NAME,...       Run seeded state-machine scenarios first:
+                             transaction-exec, transaction-discard,
+                             watch-unwatch-discard, transaction-mixed-replies,
+                             transaction-cross-slot-replies,
+                             transaction-error-alignment,
+                             transaction-queue-error,
+                             transaction-local-rejection, watch-abort,
+                             watch-unwatch-commit, pipeline-replies,
+                             queued-value-mutation, disconnect-recovery,
+                             none, or random (random may select any subset).
+                             watch-abort and watch-unwatch-commit open a second
+                             connection from the same --client configuration
   --verbose                  Log command execution to stderr
   --help                     Show this help without connecting to Redis
 

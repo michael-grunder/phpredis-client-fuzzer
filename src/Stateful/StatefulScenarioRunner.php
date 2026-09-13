@@ -13,8 +13,14 @@ use Relay\Relay;
 
 final class StatefulScenarioRunner
 {
+    /**
+     * @param ScenarioPeers|null $peers Optional source of second connections.
+     *        Scenarios that need one to prove watch semantics report `skipped`
+     *        when it is absent; every other scenario ignores it.
+     */
     public function __construct(
         private readonly ClientInvoker $clientInvoker = new StrictClientInvoker(),
+        private readonly ?ScenarioPeers $peers = null,
     ) {
     }
 
@@ -30,14 +36,20 @@ final class StatefulScenarioRunner
         }
 
         $outcomes = [];
-        foreach (StatefulScenarioRegistry::select(
-            $scenarioNames,
-            $seed,
-            $this->clientInvoker,
-        ) as $scenario) {
-            foreach ($clients as $clientIndex => $client) {
-                $outcomes[] = $scenario->run($client, $seed, $clientIndex);
+        try {
+            foreach (StatefulScenarioRegistry::select(
+                $scenarioNames,
+                $seed,
+                $this->clientInvoker,
+            ) as $scenario) {
+                foreach ($clients as $clientIndex => $client) {
+                    $outcomes[] = $scenario->run($client, $seed, $clientIndex, $this->peers);
+                }
             }
+        } finally {
+            /* Peers exist for the scenarios only; the random command stream
+               must not keep extra connections open. */
+            $this->peers?->release();
         }
 
         return $outcomes;

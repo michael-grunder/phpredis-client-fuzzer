@@ -15,10 +15,13 @@ interface StatefulScenario
 
     /**
      * @param Redis|RedisCluster|Relay|Cluster $client
+     * @param ScenarioPeers|null $peers Optional source of a second connection;
+     *        scenarios that need one report `skipped` without it.
      */
     public function run(
         Redis|RedisCluster|Relay|Cluster $client,
         int $seed,
         int $clientIndex,
+        ?ScenarioPeers $peers = null,
     ): StatefulOutcome;
 }
