@@ -220,11 +220,11 @@ final class HarnessJobRunnerTest extends TestCase
     {
         $root = $this->workspace();
         $ini = $root . '/template.ini';
-        $source = "precision={4-14}\nserialize_precision={5,6,7}\ninclude_path=\"{a b,c d}\"\n";
+        $source = "precision={4-14}\nserialize_precision={5,6,7}\ninclude_path=\"{a b,c d}\"\nmemory_limit={16m-32m}\n";
         file_put_contents($ini, $source);
         $runner = $this->runner(
             $root,
-            ['--php-ini', $ini, '--php-args=-d serialize_precision={10-17}'],
+            ['--php-ini', $ini, '--php-args=-d serialize_precision={10-17} -d memory_limit={32m-64m}'],
             [\dirname(__DIR__) . '/Fixtures/startup-child.php', '139'],
         );
 
@@ -246,6 +246,15 @@ final class HarnessJobRunnerTest extends TestCase
         self::assertContains($output['include_path'], ['a b', 'c d']);
         self::assertIsString($output['serialize_precision']);
         self::assertContains('serialize_precision=' . $output['serialize_precision'], $job->phpArgs);
+        self::assertIsString($output['memory_limit']);
+        self::assertContains('memory_limit=' . $output['memory_limit'], $job->phpArgs);
+        self::assertGreaterThanOrEqual(32 * 1024 * 1024, (int) $output['memory_limit']);
+        self::assertLessThanOrEqual(64 * 1024 * 1024, (int) $output['memory_limit']);
+        $iniValues = parse_ini_string($captured);
+        self::assertIsArray($iniValues);
+        self::assertIsString($iniValues['memory_limit']);
+        self::assertGreaterThanOrEqual(16 * 1024 * 1024, (int) $iniValues['memory_limit']);
+        self::assertLessThanOrEqual(32 * 1024 * 1024, (int) $iniValues['memory_limit']);
         self::assertSame($job->phpArgs, $this->meta($job->reproDir)['php_args']);
         self::assertSame($job->argv, $this->meta($job->reproDir)['command']);
         $command = explode("\n", (string) file_get_contents($job->reproDir . '/command.txt'))[0];

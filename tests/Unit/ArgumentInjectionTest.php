@@ -60,6 +60,44 @@ final class ArgumentInjectionTest extends TestCase
         self::assertSame('0.5', ArgumentInjection::expand('{.5-.5}', $random));
     }
 
+    #[DataProvider('sizeRanges')]
+    public function testSizeRangesMatchPhpIniQuantities(string $lower, string $upper): void
+    {
+        $min = ini_parse_quantity($lower);
+        $max = ini_parse_quantity($upper);
+        $random = new Randomizer(new Mt19937(7));
+        $bytesRandom = new Randomizer(new Mt19937(7));
+        $range = '{' . $lower . '-' . $upper . '}';
+        self::assertTrue(ArgumentInjection::validate($range));
+        for ($i = 0; $i < 100; $i++) {
+            $value = ArgumentInjection::expand($range, $random);
+            self::assertSame(ArgumentInjection::expand('{' . $min . '-' . $max . '}', $bytesRandom), $value);
+            self::assertMatchesRegularExpression('/^-?\d+$/D', $value);
+            self::assertGreaterThanOrEqual($min, (int) $value);
+            self::assertLessThanOrEqual($max, (int) $value);
+        }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function sizeRanges(): iterable
+    {
+        yield 'megabytes' => ['8m', '128m'];
+        yield 'kilobytes' => ['1k', '2K'];
+        yield 'gigabytes' => ['0g', '1G'];
+        yield 'different units with equal bounds' => ['1024k', '1M'];
+        yield 'bare byte bound' => ['1023', '1k'];
+        yield 'signed bounds' => ['-2K', '-1k'];
+        yield 'unlimited sentinel' => ['-1', '0m'];
+        yield 'whitespace' => ['1 K', '2 k'];
+        yield 'PHP leading zero semantics' => ['010k', '8k'];
+    }
+
+    public function testSizeListChoicesRemainLiteral(): void
+    {
+        $value = ArgumentInjection::expand('{8m,128m}', new Randomizer(new Mt19937(7)));
+        self::assertContains($value, ['8m', '128m']);
+    }
+
     public function testOrdinaryBracesAndEnvironmentInterpolationAreUnchanged(): void
     {
         $text = 'key={tag} path=${HOME}/lib empty={}';
@@ -109,5 +147,12 @@ final class ArgumentInjectionTest extends TestCase
         yield 'blank choice' => ['{a, }'];
         yield 'integer overflow' => ['{0-999999999999999999999999999}'];
         yield 'float overflow' => ['{0.0-' . str_repeat('9', 400) . '.0}'];
+        yield 'reversed size range after conversion' => ['{1m-8k}'];
+        yield 'size overflow' => ['{0-' . PHP_INT_MAX . 'g}'];
+        yield 'negative size overflow' => ['{' . PHP_INT_MIN . 'k-0}'];
+        yield 'fractional size' => ['{1.5m-2m}'];
+        yield 'fractional bare bound in size range' => ['{1.5-2m}'];
+        yield 'unsupported unit' => ['{1t-2t}'];
+        yield 'unsupported double letter unit' => ['{8mb-128mb}'];
     }
 }

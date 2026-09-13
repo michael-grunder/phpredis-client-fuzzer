@@ -779,13 +779,21 @@ expression once per run:
 - `{0.0-100.0}` picks a floating-point value, including either endpoint. A
   decimal point in either bound selects floating-point generation; mixed bounds
   such as `{0-1.0}` also work. Bounds must be finite and ordered low to high.
+- `{8m-128m}` converts the bounds to bytes using PHP's INI quantity parser,
+  then picks an integer byte count from **8388608 through 134217728**, inclusive.
+  Suffixes `K`, `M`, and `G` are case-insensitive and multiply by 1024,
+  1024², and 1024³, just as for `memory_limit`. Units may differ between bounds
+  (`{512k-2m}`); a bound without a suffix is bytes (`{1024-8m}`). Fractional
+  sizes, unsupported suffixes such as `MB` or `T`, and overflowing quantities
+  are rejected rather than using PHP's warning-based fallback values. Lists
+  such as `{8m,128m}` continue to select literal strings.
 
 You can embed several expressions in a value, such as `{64-256}M`. Quote the
 option value to prevent your shell from expanding braces first:
 
 ```bash
 bin/phpredis-fuzz-harness --seed 123 \
-    --php-args='-d relay.maxmemory={64,128,256}M -d precision={10-17}' \
+    --php-args='-d relay.maxmemory={8m-128m} -d precision={10-17}' \
     --php-ini fuzz.ini -- bin/phpredis-fuzz --steps '{steps}'
 ```
 
@@ -800,7 +808,7 @@ Reversed ranges, out-of-range bounds, and empty list choices are startup errors.
 be readable. The same expressions work **inside the file**, for example:
 
 ```ini
-relay.maxmemory = {64,128,256}M
+relay.maxmemory = {8m-128m}
 precision = {10-17}
 relay.cluster.timeout = {0.1-0.9}
 ```

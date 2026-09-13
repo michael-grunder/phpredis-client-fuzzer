@@ -37,9 +37,19 @@ final class ArgumentInjection
                 return $choices[$random?->getInt(0, count($choices) - 1) ?? 0];
             }
 
-            $number = self::NUMBER;
+            $number = self::NUMBER . '(?:\s*[a-zA-Z]+)?';
             if (preg_match('/^\s*(' . $number . ')\s*-\s*(' . $number . ')\s*$/D', $body, $bounds) !== 1) {
                 return $match[0];
+            }
+
+            if (preg_match('/[a-zA-Z]$/', $bounds[1]) === 1 || preg_match('/[a-zA-Z]$/', $bounds[2]) === 1) {
+                $min = self::size($bounds[1]);
+                $max = self::size($bounds[2]);
+                if ($min > $max) {
+                    throw new \InvalidArgumentException("reversed startup size range: {$match[0]}");
+                }
+
+                return (string) ($random?->getInt($min, $max) ?? $min);
             }
 
             $floating = str_contains($bounds[1], '.') || str_contains($bounds[2], '.');
@@ -69,6 +79,20 @@ final class ArgumentInjection
 
             return (string) ($random?->getInt($min, $max) ?? $min);
         }, $text) ?? throw new \RuntimeException('cannot expand startup injections');
+    }
+
+    private static function size(string $text): int
+    {
+        // Use PHP's own INI quantity parser for K/M/G and overflow checks.
+        // Reject warned quantities instead of accepting its legacy fallback.
+        set_error_handler(static function (int $severity, string $message) use ($text): never {
+            throw new \InvalidArgumentException("invalid startup size bound {$text}: {$message}");
+        }, E_WARNING);
+        try {
+            return ini_parse_quantity($text);
+        } finally {
+            restore_error_handler();
+        }
     }
 
     private static function integer(string $text): int

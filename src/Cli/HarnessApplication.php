@@ -474,6 +474,8 @@ Harness options:
                         split like a shell would: --php-args="-d a=1 -d b=2"
                         Random choices per run: {a,b,c}, {0-100} (integer),
                         {0.0-100.0} (float). Quote braces in your shell.
+                        Size ranges: {8m-128m} selects integer bytes using
+                        PHP INI units K/M/G (case-insensitive, powers of 1024).
   --php-ini FILE        Run each fuzzer with this php.ini (shorthand for
                         --php-args "-c FILE"). The file must exist, and a copy
                         of it is stored with every reproducer as php.ini
