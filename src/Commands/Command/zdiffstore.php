@@ -18,7 +18,7 @@ class zdiffstore extends Command implements FuzzInterface, FuzzRawInterface {
     }
 
     public function flags(): int {
-        return self::WRITE;
+        return self::WRITE | self::INVALIDATING;
     }
 
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,

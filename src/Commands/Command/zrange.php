@@ -22,36 +22,27 @@ class zrange extends Command implements FuzzInterface, FuzzRawInterface {
         return self::READ | self::CACHED;
     }
 
-//    /**
-//     * @return array<mixed>
-//     */
-//    private function baseArgs(FuzzConfig $config): array {
-//        [$start, $end] = $this->randomRange($config->getMembers());
-//
-//        return [
-//            $config->getRandomKey($this->type()),
-//            $start,
-//            $end,
-//        ];
-//    }
-
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,
                          FuzzConfig $config): mixed
     {
         $key = $config->getRandomKey($this->type());
-        $args = new ZRangeArgs($config);
+        if (rand(0, 1)) {
+            $args = new ZRangeArgs($config);
 
+            return $this->exec($client, $key, $args->start(), $args->end(), $args->options());
+        }
+
+        // Legacy bool/null/omitted options require rank bounds.
+        [$start, $end] = $config->randomRange();
         $options = match (rand(0, 4)) {
             0 => [],
             1 => [false],
             2 => [true],
             3 => [null],
-            4 => [$args->options()],
+            4 => [[]],
         };
 
-        return $this->exec(
-            $client, $key, $args->start(), $args->end(), ...$options
-        );
+        return $this->exec($client, $key, $start, $end, ...$options);
     }
 
     public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,

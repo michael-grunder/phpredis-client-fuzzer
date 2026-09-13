@@ -17,9 +17,7 @@ class zinterstore extends MZSetCommand {
     protected function randomOptions(Redis|RedisCluster|Relay|Cluster $client,
                                      array $keys): array|string|null
     {
-        $result = [];
-
-        if (self::isRelay($client))
+        if (self::isRelay($client) && rand(0, 2) === 0)
             return parent::randomOptions($client, $keys);
 
         if (rand(1, 2) == 1)
@@ -29,6 +27,6 @@ class zinterstore extends MZSetCommand {
     }
 
     public function flags(): int {
-        return self::WRITE;
+        return self::WRITE | self::INVALIDATING;
     }
 }

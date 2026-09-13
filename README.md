@@ -1111,6 +1111,44 @@ Because the safety gates and `--commands` filters are independent, a pattern
 list that does not match `crash` still excludes it: `--commands='@cached'` with
 `--include=crash` never runs it.
 
+### Sorted-set argument coverage
+
+ZSET generators exercise both client methods and raw protocol arguments.
+ZADD selects a named, seeded corpus: NX/XX with present and missing members,
+LT/GT with lower/equal/higher scores, CH with changed/unchanged scores, and
+single-pair INCR combinations. It also covers duplicate members, equal scores,
+zero/signed-zero, numeric score strings, infinities, mixed-case and reordered
+options, and associative option arrays.
+
+Seven of eight selections use the ordinary corpus; one of eight selects parser
+edge cases such as conflicting options, null/nested/referenced options, NaN,
+or INCR with multiple pairs. These names describe inputs; clients can reject,
+ignore, or interpret some option structures differently. Results remain visible
+through the normal diagnostics. Reproduction scripts label the ZADD variant and
+preserve the referenced-option construction.
+
+Except for the plain random ZADD variant, each selection first removes up to two
+generated members and optionally installs a known score. These setup operations
+use the same method/raw surface and key as the final call, and pass through the
+normal hooks and reproduction logger. This adds up to two setup calls per ZADD
+step, including when commands are queued. The small fixed cases use at most two
+score/member pairs; the plain variant uses the configured member limit. Setup
+does not replace a wrong-type key, and command errors remain part of the run.
+These generators exercise branches; they do not assert a semantic model of the
+returned values.
+
+Range generators cover rank, score and lex bounds, exclusive score endpoints,
+infinities, REV, WITHSCORES, and LIMIT with zero or unlimited counts. ZRANGESTORE
+includes both keys and omits WITHSCORES. Union/intersection variants include
+optional weights, signed/zero/fractional weights, MIN/MAX/SUM aggregation, and
+WITHSCORES for reads. ZRANDMEMBER includes omitted, zero, positive and negative
+counts. ZRANK/ZREVRANK use the optional method argument only when the installed
+client signature supports it; their raw forms also exercise WITHSCORE.
+
+Blocking ZSET commands retain the blocking safety gate and configured timeout.
+Related multi-key operations retain their cluster hash tags. Server versions
+that lack an option can still report an ordinary Redis error.
+
 ## Command coverage
 
 Composer also installs `vendor/bin/phpredis-coverage`, which reports the Redis

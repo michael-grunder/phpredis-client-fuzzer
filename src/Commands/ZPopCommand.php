@@ -24,7 +24,7 @@ class ZPopCommand extends Command implements FuzzInterface, FuzzRawInterface {
     private function countArg(int $max): array {
         return match (rand(0, 1)) {
             0 => [],
-            1 => [rand(0, max($max, 2) - 1)],
+            1 => [rand(0, $max)],
         };
     }
 
@@ -34,7 +34,7 @@ class ZPopCommand extends Command implements FuzzInterface, FuzzRawInterface {
         return $this->$fn(
             $client,
             $config->getRandomKey($this->type()),
-            ...$this->countArg($config->getMaxLen()),
+            ...$this->countArg($config->getMembers()),
         );
     }
 }

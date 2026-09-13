@@ -18,7 +18,7 @@ class zdiff extends Command implements FuzzInterface, FuzzRawInterface {
     }
 
     public function flags(): int {
-        return self::WRITE;
+        return self::READ;
     }
 
     /**
@@ -28,23 +28,25 @@ class zdiff extends Command implements FuzzInterface, FuzzRawInterface {
         if (rand(1, 2) == 1)
             return ['WITHSCORES' => rand(1, 2) === 1];
 
-        return self::isRelay($client) ? null : [];
+        return rand(0, 1) ? null : [];
     }
 
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,
                          FuzzConfig $config): mixed
     {
-        return $this->exec(
-            $client,
-            $config->getRandomKeys($this->type()),
-            $this->randomOptions($client)
-        );
+        $args = [$config->getRandomKeys($this->type())];
+        if (rand(0, 1)) {
+            $args[] = $this->randomOptions($client);
+        }
+
+        return $this->exec($client, ...$args);
     }
 
     public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
                             FuzzConfig $config): mixed
     {
-        $args = $config->getRandomKeys($this->type());
+        $keys = $config->getRandomKeys($this->type());
+        $args = [count($keys), ...$keys];
         if (rand() & 1)
             $args[] = 'WITHSCORES';
 

@@ -1,95 +1,86 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mgrunder\PhpredisCommandFuzzer\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-
-class ZRangeArgs {
-    private const BY = ['BYRANK' => 1, 'BYSCORE' => 1, 'BYLEX' => 1];
-
-    private FuzzConfig $config;
-
+class ZRangeArgs
+{
     private string $by;
-
-    private mixed $start;
-    private mixed $end;
-
+    private int|string $start;
+    private int|string $end;
     private bool $rev;
+    private bool $withScores;
     private ?int $offset = null;
-    private ?int $limit = null;
+    private int $limit = -1;
 
-    /** @return array{mixed, mixed} */
-    private function randomRange(string $by): array {
-        $range = match ($by) {
-            'BYRANK' => $this->config->randomRange(),
-            'BYSCORE' => [
-                (rand() & 1) ? '-inf' : rand(-32768, 0),
-                (rand() & 1) ? '+inf' : rand(0, 32768),
-            ],
-            'BYLEX' => $this->config->randomLexRange(),
-            default => throw new \LogicException("Unknown range mode: {$by}"),
+    public function __construct(FuzzConfig $config, bool $allowWithScores = true)
+    {
+        $this->by = ['BYRANK', 'BYSCORE', 'BYLEX'][rand(0, 2)];
+        [$this->start, $this->end] = match ($this->by) {
+            'BYRANK' => $config->randomRange(),
+            'BYSCORE' => ZSetRange::scores($config),
+            'BYLEX' => ZSetRange::lex($config),
         };
-
-        return [$range[0], $range[1]];
-    }
-
-    public function __construct(FuzzConfig $config) {
-        $this->config = $config;
-
-        $this->by = array_rand(self::BY);
-        [$this->start, $this->end] = $this->randomRange($this->by);
-
-        $rng = rand();
-
-        $this->rev = (bool)($rng & 1);
-        if ($this->rev) {
+        $this->rev = (bool) rand(0, 1);
+        // REV changes the rank traversal, not the order of rank indexes.
+        if ($this->rev && $this->by !== 'BYRANK') {
             [$this->start, $this->end] = [$this->end, $this->start];
         }
-
-        if ($rng & 3) {
+        $this->withScores = $allowWithScores && (bool) rand(0, 1);
+        if ($this->by !== 'BYRANK' && rand(0, 1)) {
             $this->offset = rand(0, $config->getMembers());
-            $this->limit = rand(0, $config->getMembers());
+            $this->limit = rand(-1, $config->getMembers());
         }
     }
 
-    /** @return list<string|array<string, array{int, int|null}>>|null */
-    public function options(): ?array {
-        $result = null;
-
-        if ($this->by !== 'BYRANK')
-            $result[] = $this->by;
-        if ($this->rev)
-            $result[] = 'REV';
-        if ($this->offset !== null)
-            $result[] = ['LIMIT' => [$this->offset, $this->limit]];
-
-        return $result;
-    }
-
-    /** @return list<int|string|null> */
-    public function optionsRaw(): array {
+    /** @return array<int|string, string|bool|array{int, int}> */
+    public function options(): array
+    {
         $result = [];
-
-        if ($this->by !== 'BYRANK')
+        if ($this->by !== 'BYRANK') {
             $result[] = $this->by;
-
-        if ($this->rev)
+        }
+        if ($this->rev) {
             $result[] = 'REV';
-
+        }
+        if ($this->withScores) {
+            $result['WITHSCORES'] = true;
+        }
         if ($this->offset !== null) {
-            $result[] = 'LIMIT';
-            $result[] = $this->offset;
-            $result[] = $this->limit;
+            $result['LIMIT'] = [$this->offset, $this->limit];
         }
 
         return $result;
     }
 
-    public function start(): mixed {
+    /** @return list<int|string> */
+    public function optionsRaw(): array
+    {
+        $result = [];
+        if ($this->by !== 'BYRANK') {
+            $result[] = $this->by;
+        }
+        if ($this->rev) {
+            $result[] = 'REV';
+        }
+        if ($this->offset !== null) {
+            array_push($result, 'LIMIT', $this->offset, $this->limit);
+        }
+        if ($this->withScores) {
+            $result[] = 'WITHSCORES';
+        }
+
+        return $result;
+    }
+
+    public function start(): int|string
+    {
         return $this->start;
     }
 
-    public function end(): mixed {
+    public function end(): int|string
+    {
         return $this->end;
     }
 }

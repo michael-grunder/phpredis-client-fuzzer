@@ -21,7 +21,7 @@ abstract class ZRangeByScoreCommand extends Command implements FuzzInterface,
         if (rand(1, 2) == 1) {
             $options['limit'] = [
                 rand(0, $config->getMembers()),
-                rand(0, $config->getMembers())
+                rand(-1, $config->getMembers())
             ];
         }
 
@@ -63,13 +63,7 @@ abstract class ZRangeByScoreCommand extends Command implements FuzzInterface,
     private function getPreambleArgs(FuzzConfig $config): array {
         $key = $config->getRandomKey($this->type());
 
-        $scores = [$config->getRandomFloat(), $config->getRandomFloat()];
-        sort($scores);
-
-        if (rand(1, 2) == 1)
-            $scores[0] = '-inf';
-        if (rand(1, 2) == 1)
-            $scores[1] = '+inf';
+        $scores = ZSetRange::scores($config);
 
         if ($this->reverse())
             [$start, $end] = [$scores[1], $scores[0]];
@@ -85,7 +79,7 @@ abstract class ZRangeByScoreCommand extends Command implements FuzzInterface,
         [$key, $start, $end] = $this->getPreambleArgs($config);
         $options = $this->getRandomOptions($config);
 
-        return $this->exec($client, $key, $start, $end, $options);
+        return $this->exec($client, $key, $start, $end, ...(rand(0, 3) === 0 ? [] : [$options]));
     }
 
     public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,

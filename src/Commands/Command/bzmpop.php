@@ -48,8 +48,10 @@ class bzmpop extends Command implements FuzzInterface, FuzzRawInterface {
             $args[] = $key;
 
         $args[] = rand() & 1 ? 'MIN' : 'MAX';
-        if (rand() & 1)
+        if (rand() & 1) {
+            $args[] = 'COUNT';
             $args[] = rand(1, $config->getMembers());
+        }
 
         return $this->execRaw($client, ...$args);
     }

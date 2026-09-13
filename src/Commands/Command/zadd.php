@@ -9,6 +9,8 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\PhpredisCommandFuzzer\Commands\ZAddArgs;
+use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
 
 use Relay\Relay;
 use Relay\Cluster;
@@ -59,14 +61,27 @@ class zadd extends Command implements ProxyInterface, FuzzInterface,
     {
         $key = $config->getRandomKey($this->type());
 
-        $args = [];
+        $args = new ZAddArgs($config);
+        $raw = $fn === 'execRaw';
+        ScriptLogger::comment('ZADD variant: ' . $args->variant);
 
-        $members = rand(1, $config->getMembers());
-        for ($i = 0; $i < $members; $i++) {
-            $args[] = $config->getRandomFloat();
-            $args[] = $config->getRandomMember($this->type());
+        if ($args->variant !== 'plain') {
+            // Setup uses the same surface as the final call so prefixes and
+            // member codecs agree, including when the sequence is queued.
+            if ($raw) {
+                $route = self::isCluster($client) ? [$this->clusterRawRoutingKey()] : [];
+                $this->cmd($client, 'rawCommand', ...[...$route, 'ZREM', $key, $args->member, $args->otherMember]);
+                if ($args->initialScore !== null) {
+                    $this->cmd($client, 'rawCommand', ...[...$route, 'ZADD', $key, $args->initialScore, $args->member]);
+                }
+            } else {
+                $this->cmd($client, 'zRem', $key, $args->member, $args->otherMember);
+                if ($args->initialScore !== null) {
+                    $this->cmd($client, 'zAdd', $key, $args->initialScore, $args->member);
+                }
+            }
         }
 
-        return $this->$fn($client, $key, ...$args);
+        return $this->$fn($client, $key, ...$args->arguments($raw));
     }
 }

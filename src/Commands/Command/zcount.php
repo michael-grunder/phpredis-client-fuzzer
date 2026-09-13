@@ -4,6 +4,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\PhpredisCommandFuzzer\Commands\ZSetRange;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
@@ -27,16 +28,7 @@ class zcount extends Command implements FuzzInterface, FuzzRawInterface {
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
                                 FuzzConfig $config, string $fn): mixed
     {
-        $min = $config->getRandomFloat();
-        $max = $config->getRandomFloat();
-
-        if ($max < $min)
-            [$max, $min] = [$min, $max];
-
-        if (rand(1, 2) == 1)
-            $min = '-inf';
-        if (rand(1, 2) == 1)
-            $max = '+inf';
+        [$min, $max] = ZSetRange::scores($config);
 
         return $this->$fn(
             $client,

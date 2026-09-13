@@ -7,6 +7,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\PhpredisCommandFuzzer\Commands\ZSetRange;
 
 use Redis;
 use RedisCluster;
@@ -30,8 +31,7 @@ class zlexcount extends Command implements FuzzInterface, FuzzRawInterface {
         return $this->$fn(
             $client,
             $config->getRandomKey($this->type()),
-            FuzzConfig::randomLexArg(),
-            FuzzConfig::randomLexArg(),
+            ...ZSetRange::lex($config),
         );
     }
 }

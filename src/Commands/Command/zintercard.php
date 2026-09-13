@@ -41,7 +41,6 @@ class zintercard extends Command implements FuzzInterface, FuzzRawInterface {
         if (rand() & 1) {
             $args[] = 'LIMIT';
             $args[] = rand(0, $config->getMembers());
-            $args[] = rand(0, $config->getMembers());
         }
 
         return $this->execRaw($client, ...$args);

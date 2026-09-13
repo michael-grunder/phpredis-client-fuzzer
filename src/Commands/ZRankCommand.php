@@ -24,10 +24,25 @@ abstract class ZRankCommand extends Command implements FuzzInterface,
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,
                                 FuzzConfig $config, string $fn): mixed
     {
-        return $this->$fn(
-            $client,
+        $args = [
             $config->getRandomKey($this->type()),
-            $config->getRandomMember($this->type())
-        );
+            $config->getRandomMember($this->type()),
+        ];
+        if ($fn === 'execRaw') {
+            if (rand(0, 1)) {
+                $args[] = 'WITHSCORE';
+            }
+        } else {
+            // Some PhpRedis versions expose only the two-argument API.
+            $method = new \ReflectionMethod($client, $this->name());
+            if ($method->getNumberOfParameters() >= 3 || $method->isVariadic()) {
+                $withScore = rand(0, 2);
+                if ($withScore !== 0) {
+                    $args[] = $withScore === 2;
+                }
+            }
+        }
+
+        return $this->$fn($client, ...$args);
     }
 }

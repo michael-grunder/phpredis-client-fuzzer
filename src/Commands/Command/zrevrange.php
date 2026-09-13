@@ -24,12 +24,14 @@ class zrevrange extends Command implements FuzzInterface, FuzzRawInterface {
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,
                          FuzzConfig $config): mixed
     {
-        $options = match(rand(1, 5)) {
+        $options = match(rand(1, 7)) {
             1 => null,
             2 => true,
             3 => ['withscores'],
             4 => ['withscores' => false],
             5 => ['withscores' => true],
+            6 => false,
+            7 => [],
         };
 
         [$start, $end] = $config->randomRange();
@@ -37,7 +39,7 @@ class zrevrange extends Command implements FuzzInterface, FuzzRawInterface {
         return $this->exec(
             $client,
             $config->getRandomKey($this->type()),
-            $start, $end, $options
+            $start, $end, ...(rand(0, 3) === 0 ? [] : [$options])
         );
     }
     public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,
