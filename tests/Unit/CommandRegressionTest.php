@@ -291,7 +291,10 @@ final class CommandRegressionTest extends TestCase
             }
         };
         $config = (new FuzzConfig())->setCluster(true)->setShards(4);
-        $command = new scan();
+        $command = new class extends scan {
+            public function name(): string { return 'scan'; }
+            protected function chooseVariant(): string { return 'iterate'; }
+        };
 
         $command->fuzz($client, $config);
         $command->fuzz($client, $config);

@@ -312,8 +312,12 @@ run's own accounting is closed, so commands a hook issues are not counted in
 the report.
 
 Every call routed through `Command::exec()`, `execRaw()`, or `cmd()` raises the
-command events, including cache saturation traffic. Stateful scenarios and auxiliary oracle reads use the
-invocation recorder and do not raise command events. `preCommand` listeners run before the call is
+command events, including cache saturation traffic. SCAN, HSCAN, SSCAN and ZSCAN
+use the same hook and diagnostic path through `cmdArguments()`, which preserves
+their by-reference cursor even when a hook replaces the arguments. Pre-command
+hooks see the input cursor; post-command hooks see its value after the call.
+Stateful scenarios and auxiliary oracle reads use the invocation recorder and
+do not raise command events. `preCommand` listeners run before the call is
 written to `--script-log`, so anything a listener issues through the client
 itself lands in the reproduction script ahead of the call, in the order the
 server saw it.
@@ -1334,6 +1338,41 @@ client signature supports it; their raw forms also exercise WITHSCORE.
 Blocking ZSET commands retain the blocking safety gate and configured timeout.
 Related multi-key operations retain their cluster hash tags. Server versions
 that lack an option can still report an ordinary Redis error.
+
+### SCAN cursor coverage
+
+SCAN, HSCAN, SSCAN and ZSCAN retain separate method and raw iteration state for
+each client object. Keys, MATCH/TYPE filters and cluster routing remain attached
+to that cursor across steps. A new run configuration, changed prefix, database,
+SCAN retry option or observable connection context starts a fresh iteration.
+Local context getters are capability-gated and recorded; if they fail or report
+a disconnected client, no cursor is retained. Both surfaces skip non-atomic
+clients and discard their iteration state.
+
+Normal method iteration starts with `null`, raw iteration with `0`. Empty
+batches, including a method's `false` with a nonzero cursor, continue on the next
+step. Null, integer zero and string zero finish an iteration; errors, exceptions,
+invalid returned cursors and hook changes to keys/routes/filters discard it.
+Raw replies retain their observed shape and value; only a two-element
+cursor/batch reply with a plausible unsigned 64-bit cursor can advance raw state.
+Each step issues one scan call with a bounded COUNT hint. The client retains its
+configured retry/no-retry behavior; COUNT does not bound the server's reply size.
+
+After the first ordinary sample, seven of eight selections continue normally.
+The remaining selections choose a named cursor probe or early restart. Probes
+include null, integer/string zero, negative and PHP maximum integers, unsigned
+64-bit boundary strings and overflow, empty/invalid strings, and a referenced
+cursor alias. They use separate temporary state so parser rejection cannot
+poison normal iteration. Raw null/alias probes send zero, since these PHP forms
+have no distinct protocol representation. The seed controls selection, and
+`--script-log` records variant names and executable cursor variables.
+
+PhpRedis cluster SCAN's method signature does not include TYPE; it is supplied
+only when the selected method exposes that parameter. Raw SCAN can still send
+TYPE. No cross-client cursor reuse is generated. Reconnects or topology changes
+that leave all observable local context unchanged cannot be detected by these
+snapshots. These generators do not assert complete key enumeration while the
+dataset changes, and do not change Relay's separate `fullscan()` generator.
 
 ## Command coverage
 

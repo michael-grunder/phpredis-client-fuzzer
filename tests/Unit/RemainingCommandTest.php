@@ -38,6 +38,16 @@ final class RemainingCommandRecordingInvoker implements ClientInvoker
         string $method,
         array $arguments,
     ): mixed {
+        // SCAN now inspects local context before issuing its raw protocol call.
+        if (in_array($method, ['getMode', 'getOption', 'getDBNum', 'getHost', 'getPort', 'isConnected'], true)) {
+            return match ($method) {
+                'getMode' => Redis::ATOMIC,
+                'getOption', 'getDBNum' => 0,
+                'getHost' => 'fake',
+                'getPort' => 6379,
+                'isConnected' => true,
+            };
+        }
         $this->calls[] = ['method' => $method, 'arguments' => $arguments];
 
         return true;
@@ -160,6 +170,7 @@ final class RemainingCommandTest extends TestCase
                 $command->fuzzRaw($this->client, $this->config);
             }
 
+            self::assertGreaterThanOrEqual(20, count($invoker->calls), $name);
             foreach ($invoker->calls as $call) {
                 self::assertSame('rawCommand', $call['method'], $name);
                 self::assertSame($name, $call['arguments'][0], $name);

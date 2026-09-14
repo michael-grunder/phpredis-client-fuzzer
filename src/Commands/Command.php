@@ -98,6 +98,8 @@ abstract class Command implements HasWeight {
 
     private ?InvocationHook $invocationHook = null;
 
+    private int $redisErrorsLogged = 0;
+
     /* RedisCluster and Relay\Cluster require rawCommand() to start with a
        routing key (or node address). FuzzConfig refreshes this for every
        command scope before arguments are generated. */
@@ -379,6 +381,8 @@ abstract class Command implements HasWeight {
         if ($error === null || $error === '')
             return;
 
+        $this->redisErrorsLogged++;
+
         if (self::$capturingInvocation)
             self::$invocationRedisErrors[] = $error;
 
@@ -476,6 +480,26 @@ abstract class Command implements HasWeight {
     final public function cmd(Redis|RedisCluster|Relay|Cluster $client,
                               string $cmd, mixed ...$args): mixed
     {
+        return $this->cmdArguments($client, $cmd, $args);
+    }
+
+    /**
+     * Dispatch an argument array without losing output parameters to variadic
+     * unpacking. The caller receives the effective arguments, including hook
+     * replacements and client changes to the referenced parameter.
+     *
+     * @param array<mixed> $args
+     * @param-out bool $redisError
+     */
+    final protected function cmdArguments(
+        Redis|RedisCluster|Relay|Cluster $client,
+        string $cmd,
+        array &$args,
+        ?int $referenceIndex = null,
+        ?bool &$redisError = null,
+    ): mixed
+    {
+        $redisError = false;
         $scriptArgs = $args;
         foreach ($args as $i => $arg) {
             if ($arg instanceof ScriptArg)
@@ -504,6 +528,13 @@ abstract class Command implements HasWeight {
                 $args = $decision->arguments;
                 $scriptArgs = $args;
             }
+        }
+
+        if ($referenceIndex !== null && array_key_exists($referenceIndex, $args)) {
+            // A replacement hook may supply a plain value instead of a reference.
+            // Keep the output parameter shared through every dispatch layer and
+            // make ScriptLogger reconstruct it as a variable in replay.
+            $scriptArgs[$referenceIndex] =& $args[$referenceIndex];
         }
 
         /* Listeners run before the call is logged so that anything they
@@ -558,7 +589,9 @@ abstract class Command implements HasWeight {
             throw $throwable;
         }
 
+        $errorsBefore = $this->redisErrorsLogged;
         $this->logRedisError($client, ...$args);
+        $redisError = $this->redisErrorsLogged !== $errorsBefore;
         if ($oraclePrepared) {
             $oracle->complete(
                 $cmd,
