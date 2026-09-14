@@ -35,10 +35,11 @@ final class SubscribeApplication
             $active = [$control];
             $invocations = 0;
             $callback = null;
+            // Relay subscription confirmations carry a null message in non-compatibility mode.
             $callback = function (
                 \Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster $c,
                 string $channel,
-                string $message,
+                ?string $message,
             ) use (&$callback, &$active, &$invocations, $steps): void {
                 $invocations++;
                 if ($invocations > $steps) { $c->unsubscribe(); return; }
