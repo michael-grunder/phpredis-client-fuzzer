@@ -84,6 +84,13 @@ class FuzzConfig {
     private ?KeyAccessSampler $key_access = null;
     private int $access_flags = 0;
 
+    private ?RecentClients $recent_clients = null;
+
+    /** @internal Observations live only as long as this run's argument configuration. */
+    public function recentClients(): RecentClients {
+        return $this->recent_clients ??= new RecentClients();
+    }
+
     /** @internal Configure before generating command arguments. */
     public function setKeyAccess(?KeyAccessSampler $sampler): self {
         $this->key_access = $sampler;
@@ -247,6 +254,7 @@ class FuzzConfig {
      *                                are valid input rather than an error.
      */
     public function beginStep(bool $crossslot_capable): SlotPolicy {
+        $this->recent_clients?->advanceStep();
         $this->access_flags = 0;
         $this->slot_tag = rand() % $this->shards;
         $this->slot_cursor = 0;

@@ -1320,11 +1320,38 @@ the endpoint's server-side configuration controls it.
 
 `CLIENT` is an `admin` command, enabled with `--include=admin`. It exercises
 `LIST`, `GETNAME`, `SETNAME`, and `KILL` through both client methods and raw
-protocol calls, including cluster node routing. `KILL` samples an address from
-`CLIENT LIST` on the same node and can disconnect the calling connection or
-another client, including another stress-test worker. The selected address is
-logged for reproduction. If the lookup returns no usable addresses (including
-a queued transaction/pipeline reply), the step stops at the lookup.
+protocol calls, including cluster node routing. Completed `LIST` replies populate
+a run-owned cache, separated by client object and cluster routing key. Each
+snapshot retains up to 64 clients, expires after 256 fuzz steps, and replaces
+the previous snapshot for its route; at most 16 routes per client are retained.
+Empty lists clear the snapshot. Errors, malformed replies, and queued
+transaction/pipeline replies do not refresh it. Standalone observations are
+shared across routing keys because there is only one target.
+
+`KILL` prefers recently observed addresses and IDs, including matching and
+deliberately contradictory filter combinations. It also samples every supported
+`TYPE` value (`normal`, `master`, `replica`, `slave`, `pubsub`), observed `USER`
+and `LADDR` filters, and kills across all types by omitting `TYPE`. `SKIPME` is
+omitted or set to `yes` or `no`; an all-types kill always specifies it explicitly.
+With usable targeted variants, four out of five selections choose that family;
+otherwise independent filters still run without an extra lookup. These commands
+can disconnect the calling connection, another stress-test worker, or replication
+connections. Stale IDs and zero-match replies are legitimate fuzz outcomes;
+disconnect exceptions and differences between client replies remain visible.
+
+PhpRedis standalone uses its filter-array API; Relay uses separate arguments.
+PhpRedis cluster's narrower `client()` API uses only the legacy address form.
+When it has no cached address, that step executes `LIST` to seed a later step.
+Enable raw execution to exercise extended filters with PhpRedis cluster.
+`MAXAGE` is exercised through raw calls and Relay methods because the current
+PhpRedis filter-array parser ignores it. `LADDR` requires Redis 6.2 and `MAXAGE`
+requires Redis 7.4; older servers can report ordinary Redis errors for these
+variants. No additional server-version lookup is performed.
+
+Concrete arguments are logged for reproduction; debug logs also include the
+observation age and route for targeted kills. Seeded choices are reproducible
+given the same observations, but connection IDs and addresses are live server
+state, so replaying a script later may match different connections or none.
 The `connection` group is reserved for direct socket lifecycle operations;
 `CLIENT` needs only the admin opt-in. For a disposable target:
 
