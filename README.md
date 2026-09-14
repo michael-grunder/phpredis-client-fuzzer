@@ -737,6 +737,54 @@ it only with disposable fuzzer workers and Redis targets; signals such as
 `SIGQUIT` may produce core dumps or other diagnostic artifacts, and `CLIENT
 KILL` disconnects live connections.
 
+### Subscription callback fuzzing
+
+`phpredis-fuzz-subscribe` exercises recursive subscriptions. With Relay, it also
+runs the normal command catalog on the connection delivering the callback.
+`--no-fork` disables PhpRedis compatibility so Relay subscription confirmations
+(whose message is `null`) start the workload without a publisher process.
+Every non-terminal callback runs a command batch before continuing the
+subscribe/publish/unsubscribe sequence; the terminal callback unsubscribes.
+In forked mode, Relay runs a batch for each received `command` action. PhpRedis
+clients keep the subscription workload without executing catalog commands in
+their callbacks.
+
+```bash
+# Use only a disposable target.
+vendor/bin/phpredis-fuzz-subscribe --client=relay --no-fork \
+    --host=127.0.0.1 --port=6379 --seed=42 --steps=100 \
+    --commands=get,set,hget,hset --command-steps=3 --verbose \
+    --script-log=/tmp/subscribe-42
+```
+
+`--steps` defaults to 100: it limits callbacks with `--no-fork` and publisher
+actions otherwise. `--command-steps` is a positive number of catalog steps per
+batch (default 1). `--commands` accepts the usual command, glob, exclusion, and
+flag filters; omitting it selects all commands allowed by the normal safety
+defaults. Blocking, local, admin, flush, raw, crashing, and stateful categories
+remain excluded, even when named explicitly. The no-fork workload can therefore
+execute up to `(steps - 1) * command-steps` catalog steps.
+
+The default seed is 1. Subscription actions and successive batch seeds use
+separate seeded generators, so the command runner's process-global reseeding
+does not disturb subscription sequencing. Repeat the seed, options, and initial
+server/client state to reproduce generated commands and arguments. Forked mode
+still depends on message delivery and process scheduling.
+
+Warnings, exceptions, and Redis errors are emitted as separate fields in JSON
+diagnostics, alongside the client class, batch number, and batch seed.
+`--verbose` also prints successful outcomes. `--script-log=PREFIX` writes each
+batch's concrete command calls to `PREFIX.000001.php`, `PREFIX.000002.php`, and
+so on, refusing to overwrite existing files. These scripts replay the command
+batch outside the subscription callback; use the original subscription command
+and seed when investigating behavior that depends on callback context. The
+ordinary command runner's capability discovery and diagnostics also run inside
+the callback. A no-fork callback setup failure (such as a log file collision)
+unsubscribes and returns a nonzero exit status. `pcntl` is required for forked
+runs only. `Cli\SubscribeApplication` accepts an optional `clientFactory`
+closure taking a `ClientConfiguration`, plus `output` and `error` streams, for
+callers supplying their own client construction and output destinations.
+
 ### Parallel fuzzing harness
 
 `phpredis-fuzz-harness` runs many `phpredis-fuzz*` workers in parallel behind an
