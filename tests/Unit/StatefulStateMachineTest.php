@@ -43,7 +43,9 @@ final class StatefulStateMachineTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function scenarioNames(): iterable
     {
-        foreach (StatefulScenarioRegistry::names() as $name) {
+        // CacheScenarioTest covers the collection/HLL fixtures with a value model;
+        // this fake models transaction queues and uses a non-none serializer.
+        foreach (array_diff(StatefulScenarioRegistry::names(), ['cache-hll', 'cache-collections']) as $name) {
             yield $name => [$name];
         }
     }

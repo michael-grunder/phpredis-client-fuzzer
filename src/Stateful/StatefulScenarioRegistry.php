@@ -26,6 +26,8 @@ final class StatefulScenarioRegistry
             'pipeline-replies',
             'queued-value-mutation',
             'disconnect-recovery',
+            'cache-hll',
+            'cache-collections',
         ];
     }
 
@@ -98,6 +100,8 @@ final class StatefulScenarioRegistry
             'pipeline-replies' => new PipelineScenario('pipeline-replies', $clientInvoker),
             'queued-value-mutation' => new QueuedValueScenario('queued-value-mutation', $clientInvoker),
             'disconnect-recovery' => new RecoveryScenario('disconnect-recovery', $clientInvoker),
+            'cache-hll' => new HllCacheScenario('cache-hll', $clientInvoker),
+            'cache-collections' => new CollectionCacheScenario('cache-collections', $clientInvoker),
             default => throw new \InvalidArgumentException(
                 "Unknown stateful scenario: {$name}",
             ),

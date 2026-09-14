@@ -659,8 +659,9 @@ accepts at most 1,024 children; `--forks=0` (the default) does not fork.
 `watch-unwatch-discard`, `transaction-mixed-replies`,
 `transaction-cross-slot-replies`, `transaction-error-alignment`,
 `transaction-queue-error`, `transaction-local-rejection`, `watch-abort`,
-`watch-unwatch-commit`, `pipeline-replies`, `queued-value-mutation`, and
-`disconnect-recovery`. Use `none` to explicitly disable them, or `random` to
+`watch-unwatch-commit`, `pipeline-replies`, `queued-value-mutation`,
+`disconnect-recovery`, `cache-hll`, and `cache-collections`.
+Use `none` to explicitly disable them, or `random` to
 select a deterministic random subset (including no scenarios) from the full
 catalog. The subset is derived from the workload seed, so a reported seed
 reproduces the selection. Explicit names may be combined with `random` to add
@@ -853,6 +854,15 @@ every worker as `/usr/bin/php -drelay.maxmemory=1g ...`. It may be repeated, and
 a value that holds several arguments is split the way a shell would
 (`--php-args="-d a=1 -d b=2"`); nothing is passed through a shell, so quoting is
 only interpreted there.
+
+The default worker interpreter is `PHP_BINARY` from the harness process. When
+launching the harness with `farmrun`, workers therefore use that farm build too.
+For a separately built coverage extension, set `--php` to the interpreter it
+was built against (for example, `--php /usr/bin/php8.5`). With `--php-args '-n'`,
+the supplied INI must configure any shared extensions and their `extension_dir`;
+these are not inherited from the harness's INI. Extensions compiled into PHP
+remain loaded with `-n`, so it cannot replace a built-in Relay with a coverage
+shared library.
 
 Startup arguments support random substitutions, selected independently for each
 expression once per run:
@@ -1231,7 +1241,8 @@ a populate/mutate sequence, because doing so would erase the pending
 invalidation state this tolerance mechanism is intended to observe. The
 initial Relay read can therefore be cold, warm, or awaiting invalidation; the
 immediate repeat and convergence polling distinguish those cases. Explicit
-deterministic cold/populate/mutate scenarios remain follow-up work.
+deterministic populate/read/mutate sequences are available separately through
+the opt-in `cache-hll` and `cache-collections` scenarios below.
 
 ### Stateful scenarios
 
@@ -1248,8 +1259,9 @@ vendor/bin/phpredis-fuzz \
 ```
 
 The built-in scenarios initialize and read back known values in scenario-owned
-keys on every run, including repeated seeds. They require MULTI and each queued
-SET to return the same client object and leave it in MULTI mode. Commit requires
+keys on every run, including repeated seeds. The transaction scenarios require
+MULTI and each queued SET to return the same client object and leave it in MULTI
+mode. Commit requires
 exactly two successful SET replies from EXEC and verifies both writes; discard
 requires a successful reply and verifies the initial value is preserved. Both
 require atomic mode before reading back results. The commit scenario retains
@@ -1274,6 +1286,44 @@ what `watch-abort` and `watch-unwatch-commit` do with a second connection.
 | `pipeline-replies` | Pipeline with heterogeneous replies, an empty pipeline, a discarded pipeline | Queue count and order, a cleanly dropped write, and an aligned atomic command afterwards |
 | `queued-value-mutation` | MULTI, queued values whose caller-side inputs are then mutated and released, EXEC | The committed values are the ones that were queued |
 | `disconnect-recovery` | MULTI, queued writes, `close()` with replies outstanding, reconnect | Atomic mode, no queued write applied, and the next commands answered by their own replies |
+| `cache-hll` | PFADD, GET of the exact HLL keys, repeated PFCOUNT, PFADD/PFMERGE, warm and count again | Sparse/dense encodings and counts agree with server counts before and after mutation |
+| `cache-collections` | Populate, partial/full warm-up, repeated targeted reads, mutate, read again | String, hash, list, set, and sorted-set replies agree with bounded known fixtures |
+
+The cache scenarios exercise Relay's in-memory cache paths and also run with
+PhpRedis as ordinary server-backed correctness checks, on standalone or cluster
+clients. Select them with `--scenarios=cache-hll,cache-collections` and
+`--serializer=none --compression=none --seed=20260914`. They run once per client
+before random steps, independently of the random command filters and step limit.
+They are disabled by default; `--scenarios=random` can select them too.
+
+This first iteration requires serializer and compression `none`; other settings
+produce a recorded `skipped` outcome without changing client options. Prefixes
+are preserved and related keys share a hash tag. Use a disposable Redis 7+
+target for the collection scenario's bit-offset and extended range forms.
+Fixtures reset only their own keys on repeated runs and leave their final values
+available for inspection. They do not flush the cache or require raw modes.
+
+`cache-hll` creates 12,000 seeded elements for a dense HLL and two for a sparse
+HLL, plus a known-missing key. It warms before any PFCOUNT, then rebuilds to warm
+after server PFCOUNT has populated the cardinality header. It adds 2,000 new
+elements and exercises both a new and an already-cached PFMERGE destination.
+For Relay, reference PFCOUNT calls temporarily disable `OPT_USE_CACHE` and
+restore its previous value in `finally`; all calls and option changes are logged.
+The scenario checks Redis's native `HYLL` representation and its encodings.
+
+`cache-collections` covers empty/binary/long strings, partial then complete hash
+and list reads, missing fields and indices, overlapping/disjoint/identical sets
+with both input orders, and separate sorted-set score and equal-score lex
+fixtures. Random member replies are checked for membership and count, rather
+than compared to a fixed server-random selection. Sorted-set `LIMIT` calls are
+labelled as intentional cache misses. All fixtures are read again after mutation.
+
+On Relay, targeted reads also record process-wide hit/miss/error counter deltas
+in their postconditions. These are observations, not required hit counts:
+cache settings, admission, eviction and other workers can affect them. A passed
+scenario proves reply correctness; use those deltas and a coverage report to
+verify which in-memory paths executed. Serializer/compressor and queued-mode
+matrices remain subsequent experiments.
 
 `watch-abort` and `watch-unwatch-commit` need a second connection. The CLI
 builds one lazily from the same `--client` configuration as the client under

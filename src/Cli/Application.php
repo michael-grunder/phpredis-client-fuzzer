@@ -629,6 +629,7 @@ Run configuration:
                              transaction-local-rejection, watch-abort,
                              watch-unwatch-commit, pipeline-replies,
                              queued-value-mutation, disconnect-recovery,
+                             cache-hll, cache-collections,
                              none, or random (random may select any subset).
                              watch-abort and watch-unwatch-commit open a second
                              connection from the same --client configuration
