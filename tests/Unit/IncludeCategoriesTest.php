@@ -15,6 +15,7 @@ final class IncludeCategoriesTest extends TestCase
 
         self::assertFalse($includes->admin);
         self::assertFalse($includes->local);
+        self::assertFalse($includes->connection);
         self::assertFalse($includes->flush);
         self::assertFalse($includes->stateful);
         self::assertFalse($includes->crash);
@@ -22,10 +23,11 @@ final class IncludeCategoriesTest extends TestCase
 
     public function testCsvSelectsCategoriesCaseInsensitively(): void
     {
-        $includes = IncludeCategories::parse(' admin,LOCAL,stateful ');
+        $includes = IncludeCategories::parse(' admin,LOCAL,Connection,stateful ');
 
         self::assertTrue($includes->admin);
         self::assertTrue($includes->local);
+        self::assertTrue($includes->connection);
         self::assertFalse($includes->flush);
         self::assertTrue($includes->stateful);
         self::assertFalse($includes->crash);
@@ -38,6 +40,7 @@ final class IncludeCategoriesTest extends TestCase
         self::assertTrue($includes->crash);
         self::assertFalse($includes->admin);
         self::assertFalse($includes->local);
+        self::assertFalse($includes->connection);
         self::assertFalse($includes->flush);
         self::assertFalse($includes->stateful);
     }
@@ -48,6 +51,7 @@ final class IncludeCategoriesTest extends TestCase
 
         self::assertTrue($includes->admin);
         self::assertTrue($includes->local);
+        self::assertTrue($includes->connection);
         self::assertTrue($includes->flush);
         self::assertTrue($includes->stateful);
         self::assertFalse($includes->crash);
@@ -59,6 +63,17 @@ final class IncludeCategoriesTest extends TestCase
 
         self::assertTrue($includes->admin);
         self::assertTrue($includes->crash);
+    }
+
+    public function testConnectionAndLocalAreIndependent(): void
+    {
+        $connection = IncludeCategories::parse('connection');
+        self::assertTrue($connection->connection);
+        self::assertFalse($connection->local);
+
+        $local = IncludeCategories::parse('local');
+        self::assertTrue($local->local);
+        self::assertFalse($local->connection);
     }
 
     public function testUnknownCategoryIsRejected(): void

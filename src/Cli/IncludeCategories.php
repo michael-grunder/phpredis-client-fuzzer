@@ -13,14 +13,15 @@ final readonly class IncludeCategories
      *
      * @var list<string>
      */
-    private const ALL = ['admin', 'local', 'flush', 'stateful'];
+    private const ALL = ['admin', 'local', 'connection', 'flush', 'stateful'];
 
     /** @var list<string> */
-    private const CATEGORIES = ['admin', 'local', 'flush', 'stateful', 'crash'];
+    private const CATEGORIES = ['admin', 'local', 'connection', 'flush', 'stateful', 'crash'];
 
     private function __construct(
         public bool $admin,
         public bool $local,
+        public bool $connection,
         public bool $flush,
         public bool $stateful,
         public bool $crash,
@@ -30,7 +31,7 @@ final readonly class IncludeCategories
     public static function parse(?string $value): self
     {
         if ($value === null) {
-            return new self(false, false, false, false, false);
+            return new self(false, false, false, false, false, false);
         }
 
         $values = Options::split($value);
@@ -51,7 +52,7 @@ final readonly class IncludeCategories
 
             if (!in_array($category, self::CATEGORIES, true)) {
                 throw new \InvalidArgumentException(
-                    "Unknown --include category: {$input}; expected admin, local, flush, "
+                    "Unknown --include category: {$input}; expected admin, local, connection, flush, "
                     . 'stateful, crash, or all (all excludes crash)',
                 );
             }
@@ -62,6 +63,7 @@ final readonly class IncludeCategories
         return new self(
             admin: isset($selected['admin']),
             local: isset($selected['local']),
+            connection: isset($selected['connection']),
             flush: isset($selected['flush']),
             stateful: isset($selected['stateful']),
             crash: isset($selected['crash']),

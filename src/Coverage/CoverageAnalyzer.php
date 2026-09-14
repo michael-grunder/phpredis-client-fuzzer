@@ -74,7 +74,7 @@ final class CoverageAnalyzer
              * than the target.  CRASH counts as client-side too: crash() only
              * exists in debug builds, so method_exists() alone would move it
              * between buckets depending on the extension build. */
-            if (($command->flags() & (Command::LOCAL | Command::CRASH)) !== 0
+            if (($command->flags() & (Command::LOCAL | Command::CONNECTION | Command::CRASH)) !== 0
                 || method_exists($class, $name)) {
                 $clientApi[] = $name;
             } else {

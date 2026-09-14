@@ -50,6 +50,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public array $keyReadGroups = [],
         public int $maxValueBytes = 4097,
         public bool $allowDeserializationMutations = false,
+        public bool $includeConnection = false,
     ) {
         new Values\ValueCorpus($maxValueBytes);
         KeyAccessSampler::validate($keySkew, $keyReadGroups);
@@ -145,6 +146,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'rawChaos' => $this->rawChaos,
             'includeBlocking' => $this->includeBlocking,
             'includeLocal' => $this->includeLocal,
+            'includeConnection' => $this->includeConnection,
             'includeAdmin' => $this->includeAdmin,
             'includeFlush' => $this->includeFlush,
             'includeCrashing' => $this->includeCrashing,

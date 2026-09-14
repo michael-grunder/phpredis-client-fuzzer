@@ -26,7 +26,7 @@ final class RegistryTest extends TestCase
     {
         $registry = (new CommandFilter())->apply(new Registry(), new RunConfiguration());
         $excluded = Command::BLOCKING | Command::LOCAL | Command::ADMIN
-            | Command::FLUSH | Command::CRASH | Command::RAW | Command::STATEFUL;
+            | Command::FLUSH | Command::CRASH | Command::RAW | Command::STATEFUL | Command::CONNECTION;
 
         foreach ($registry as $command) {
             self::assertSame(0, $command->flags() & $excluded, $command->name());
@@ -47,6 +47,34 @@ final class RegistryTest extends TestCase
         foreach ($registry->names() as $name) {
             self::assertStringStartsWith('get', $name);
         }
+    }
+
+    public function testConnectionCommandsCanBeSelectedAndWeightedWithoutLocal(): void
+    {
+        $registry = (new CommandFilter())->apply(
+            new Registry(),
+            new RunConfiguration(
+                commands: ['@connection'],
+                weights: ['@connection' => 2.5],
+                includeConnection: true,
+            ),
+        );
+
+        self::assertEqualsCanonicalizing(['connect', 'close', 'pclose'], $registry->names());
+        foreach ($registry as $command) {
+            self::assertSame(Command::CONNECTION, $command->flags(), $command->name());
+            self::assertSame(2.5, $command->weight(), $command->name());
+        }
+    }
+
+    public function testLocalDoesNotEnableConnectionChangesEvenWhenNamed(): void
+    {
+        $registry = (new CommandFilter())->apply(
+            new Registry(),
+            new RunConfiguration(commands: ['close', 'pclose', 'isconnected', 'setoption'], includeLocal: true),
+        );
+
+        self::assertEqualsCanonicalizing(['isconnected', 'setoption'], $registry->names());
     }
 
     public function testStatefulCommandsCanBeEnabledExplicitly(): void

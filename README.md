@@ -761,8 +761,8 @@ vendor/bin/phpredis-fuzz-subscribe --client=relay --no-fork \
 actions otherwise. `--command-steps` is a positive number of catalog steps per
 batch (default 1). `--commands` accepts the usual command, glob, exclusion, and
 flag filters; omitting it selects all commands allowed by the normal safety
-defaults. Blocking, local, admin, flush, raw, crashing, and stateful categories
-remain excluded, even when named explicitly. The no-fork workload can therefore
+defaults. Blocking, local, connection, admin, flush, raw, crashing, and stateful
+categories remain excluded, even when named explicitly. The no-fork workload can therefore
 execute up to `(steps - 1) * command-steps` catalog steps.
 
 The default seed is 1. Subscription actions and successive batch seeds use
@@ -1273,8 +1273,31 @@ The `STATEFUL` command flag is separate from scenarios. Standalone random
 `MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH`, and pipeline commands are
 excluded by default; use `--include=stateful` when deliberately mixing them
 into the random stream. The `--include` option accepts a comma-separated list
-of `admin`, `local`, `flush`, `stateful`, and `crash`; `--include=all` enables
-the first four.
+of `admin`, `local`, `connection`, `flush`, `stateful`, and `crash`;
+`--include=all` enables every listed category except `crash`.
+
+Connection-changing commands such as `close` and `pclose` require
+`--include=connection` (or `includeConnection: true` for library callers).
+They are excluded by default and are no longer enabled by `--include=local`.
+The catalog's `connect` entry also carries the `connection` flag;
+this entry does not yet implement fuzz execution. Use `@connection` in command
+filters or weights to target the group. Connection-status getters such as
+`isconnected` remain in `local`. HTTP callers cannot enable this category;
+the endpoint's server-side configuration controls it.
+
+`CLIENT` is an `admin` command, enabled with `--include=admin`. It exercises
+`LIST`, `GETNAME`, `SETNAME`, and `KILL` through both client methods and raw
+protocol calls, including cluster node routing. `KILL` samples an address from
+`CLIENT LIST` on the same node and can disconnect the calling connection or
+another client, including another stress-test worker. The selected address is
+logged for reproduction. If the lookup returns no usable addresses (including
+a queued transaction/pipeline reply), the step stops at the lookup.
+The `connection` group is reserved for direct socket lifecycle operations;
+`CLIENT` needs only the admin opt-in. For a disposable target:
+
+```bash
+bin/phpredis-fuzz --include=admin --commands=client --seed=42 --steps=100
+```
 
 `crash` is never enabled by `all` and has to be named on its own. It selects
 the deliberately process-crashing catalog entry (`Relay\Relay::crash()`), which
@@ -1703,6 +1726,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `rawChaos` | `false` | Enable raw-protocol calls with a real command name and arbitrary scalar arguments |
 | `includeBlocking` | `false` | Include blocking commands |
 | `includeLocal` | `false` | Include client-local state changes, including runtime option mutation and Relay cluster slot-cache invalidation |
+| `includeConnection` | `false` | Include connection-changing commands such as `close` and `pclose` (CLI: `--include=connection`) |
 | `includeAdmin` | `false` | Include administrative commands |
 | `includeFlush` | `false` | Include `FLUSHDB` and `FLUSHALL` |
 | `includeCrashing` | `false` | Include deliberately crashing commands (CLI: `--include=crash`, never enabled by `--include=all`) |

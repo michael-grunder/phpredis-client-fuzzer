@@ -84,6 +84,7 @@ final class FuzzerEndpoint
             raw: $this->configuration->raw,
             includeBlocking: $this->configuration->includeBlocking,
             includeLocal: $this->configuration->includeLocal,
+            includeConnection: $this->configuration->includeConnection,
             includeAdmin: $this->configuration->includeAdmin,
             includeFlush: $this->configuration->includeFlush,
             includeCrashing: $this->configuration->includeCrashing,

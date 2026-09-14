@@ -23,6 +23,9 @@ final class CommandFilter
         if (!$configuration->includeLocal) {
             $excludedFlags |= Command::LOCAL;
         }
+        if (!$configuration->includeConnection) {
+            $excludedFlags |= Command::CONNECTION;
+        }
         if (!$configuration->includeAdmin) {
             $excludedFlags |= Command::ADMIN;
         }

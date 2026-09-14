@@ -11,6 +11,29 @@ use PHPUnit\Framework\TestCase;
 
 final class HttpEndpointTest extends TestCase
 {
+    public function testConnectionPermissionRemainsServerControlled(): void
+    {
+        foreach ([false, true] as $allowed) {
+            $endpoint = new FuzzerEndpoint(
+                static fn (): \Redis => new \Redis(),
+                new RunConfiguration(
+                    maxSteps: 1,
+                    seed: 42,
+                    commands: ['isconnected'],
+                    includeLocal: true,
+                    includeConnection: $allowed,
+                ),
+            );
+
+            $response = $endpoint->handle(['includeConnection' => !$allowed, 'include' => 'connection']);
+
+            self::assertTrue($response['ok']);
+            $configuration = $response['result']['configuration'] ?? null;
+            self::assertIsArray($configuration);
+            self::assertSame($allowed, $configuration['includeConnection']);
+        }
+    }
+
     public function testValueLimitsAndMutationPermissionRemainServerControlled(): void
     {
         foreach ([false, true] as $allowed) {

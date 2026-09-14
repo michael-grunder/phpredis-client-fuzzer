@@ -6,7 +6,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 
 class connect extends Command {
     public function flags(): int {
-        return 0;
+        return self::CONNECTION;
     }
 
     public function type(): string {

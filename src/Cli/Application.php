@@ -269,6 +269,7 @@ final class Application
                 raw: $options->has('raw'),
                 includeBlocking: $options->has('include-blocking'),
                 includeLocal: $includes->local,
+                includeConnection: $includes->connection,
                 includeAdmin: $includes->admin,
                 includeFlush: $includes->flush,
                 includeCrashing: $includes->crash,
@@ -616,9 +617,9 @@ Run configuration:
   --raw-chaos                Enable rawCommand calls with arbitrary scalar arguments
   --include-blocking         Enable blocking commands
   --include=CATEGORY,...     Enable opt-in command categories: admin, local,
-                             flush, stateful, crash, or all (all enables the
-                             first four; crash is never enabled by all and must
-                             be named explicitly)
+                             connection, flush, stateful, crash, or all.
+                             all enables every listed category except crash,
+                             which must be named explicitly.
   --scenarios=NAME,...       Run seeded state-machine scenarios first:
                              transaction-exec, transaction-discard,
                              watch-unwatch-discard, transaction-mixed-replies,

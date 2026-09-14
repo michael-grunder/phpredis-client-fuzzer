@@ -75,6 +75,21 @@ final class CommandCatalogApplicationTest extends TestCase
         self::assertStringContainsString('Unknown command flag: @unknown', self::contents($error));
     }
 
+    public function testConnectionFilterListsConnectionChanges(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+
+        $status = (new CommandCatalogApplication($output, $error))->run(['--commands=@connection']);
+        $contents = self::contents($output);
+
+        self::assertSame(0, $status);
+        self::assertMatchesRegularExpression('/^close\s+none\s+connection\s+client$/m', $contents);
+        self::assertMatchesRegularExpression('/^pclose\s+none\s+connection\s+client$/m', $contents);
+        self::assertDoesNotMatchRegularExpression('/^isconnected\s+/m', $contents);
+        self::assertSame('', self::contents($error));
+    }
+
     public function testHelpDoesNotInspectRedis(): void
     {
         $output = self::stream();

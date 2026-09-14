@@ -45,6 +45,7 @@ final class CommandCatalogApplication
                 raw: true,
                 includeBlocking: true,
                 includeLocal: true,
+                includeConnection: true,
                 includeAdmin: true,
                 includeFlush: true,
                 includeCrashing: true,

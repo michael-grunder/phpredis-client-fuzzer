@@ -51,6 +51,7 @@ abstract class Command implements HasWeight {
      * SlotPolicy and FuzzConfig::beginStep(). */
     public const CROSSSLOT    = (1 << 17);
     public const STATEFUL     = (1 << 18);
+    public const CONNECTION   = (1 << 19);
 
     public const STRING = 'string';
     public const INT    = 'int';
@@ -82,6 +83,7 @@ abstract class Command implements HasWeight {
         'admin' => self::ADMIN,
         'scan' => self::SCAN,
         'local' => self::LOCAL,
+        'connection' => self::CONNECTION,
         'crash' => self::CRASH,
         'crossslot' => self::CROSSSLOT,
         'stateful' => self::STATEFUL,
