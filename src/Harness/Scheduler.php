@@ -196,7 +196,7 @@ final class Scheduler
         match ($job->status) {
             JobStatus::Passed => $this->stats->passed++,
             JobStatus::Skipped => $this->stats->skipped++,
-            JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut, JobStatus::Leaked
+            JobStatus::Failed, JobStatus::Crashed, JobStatus::TimedOut, JobStatus::Leaked, JobStatus::MemoryFailed
                 => $this->onCapture($job),
             JobStatus::CaptureFailed => $this->onCaptureFailure($job),
             JobStatus::RrAborted => $this->onRrAbort($job),
@@ -313,6 +313,9 @@ final class Scheduler
         }
         if ($job->status === JobStatus::Leaked) {
             $this->stats->leaks++;
+        }
+        if ($job->status === JobStatus::MemoryFailed) {
+            $this->stats->memory++;
         }
         $this->stats->reproducers++;
 
@@ -503,6 +506,7 @@ final class Scheduler
             JobStatus::Passed => $head . 'ok',
             JobStatus::Skipped => $head . ($job->note !== '' ? $job->note : 'skipped'),
             JobStatus::Crashed => $head . 'CRASH ' . FailureClassifier::signalLabel($job->signal) . $repro . $min,
+            JobStatus::MemoryFailed => $head . 'MEMORY' . $repro . $min,
             JobStatus::Failed => $head . 'FAIL exit ' . ($job->exitCode ?? '?') . $repro . $min,
             JobStatus::TimedOut => $head . 'TIMEOUT'
                 . ($job->killSignal === 9 ? ' (SIGKILL)' : '') . $repro . $min,
@@ -523,12 +527,13 @@ final class Scheduler
         $lines = [
             '',
             sprintf(
-                'harness: %d runs, %d failures, %d crashes, %d timeouts, %d leaks, %d reproducers, %d reduced in %s',
+                'harness: %d runs, %d failures, %d crashes, %d timeouts, %d leaks, %d memory, %d reproducers, %d reduced in %s',
                 $this->stats->completed,
                 $this->stats->failures,
                 $this->stats->crashes,
                 $this->stats->timeouts,
                 $this->stats->leaks,
+                $this->stats->memory,
                 $this->stats->reproducers,
                 $this->stats->reductions,
                 $this->stats->formatElapsed(),

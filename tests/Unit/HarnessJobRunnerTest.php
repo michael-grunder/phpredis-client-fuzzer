@@ -14,6 +14,7 @@ use Mgrunder\PhpredisCommandFuzzer\Harness\JobStatus;
 use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
 use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Runs real child processes (plain PHP one-liners and a shell stand-in for
@@ -282,6 +283,61 @@ final class HarnessJobRunnerTest extends TestCase
         self::assertNull($job->phpIni);
         self::assertDirectoryDoesNotExist($job->workDir);
         self::assertStringContainsString('"precision":"4"', (string) file_get_contents($log->path()));
+    }
+
+    #[DataProvider('memoryOutputs')]
+    public function testMemoryLimitFailureIsCapturedFromEitherOutput(string $display, string $logFile): void
+    {
+        $root = $this->workspace();
+        $log = new RunLog($root . '/runs.log', 4242);
+        $runner = $this->runner(
+            $root,
+            ['--capture', 'memory', '--php-args=-d display_errors=' . $display . ' -d log_errors=0 -d html_errors=0'],
+            [\dirname(__DIR__) . '/Fixtures/memory-child.php', '3'],
+            null,
+            $log,
+        );
+        $job = $this->await($runner, $runner->spawn(0, null, 7));
+        self::assertSame(JobStatus::MemoryFailed, $job->status);
+        self::assertSame(255, $job->exitCode);
+        self::assertNotNull($job->reproDir);
+        $meta = $this->meta($job->reproDir);
+        self::assertSame('memory', $meta['kind']);
+        self::assertTrue($meta['memory']);
+        self::assertIsString($meta['memory_message']);
+        self::assertStringContainsString('Allowed memory size', $meta['memory_message']);
+        self::assertStringContainsString('Allowed memory size', (string) file_get_contents($job->reproDir . '/' . $logFile));
+        self::assertStringContainsString(':: memory', (string) file_get_contents($log->path()));
+
+        $outcome = $runner->rerun(7, null, 1, 10.0, false);
+        self::assertSame('memory', $outcome->verdict->kind());
+        self::assertNotNull($outcome->memory);
+        $store = new ReproStore($root . '/out', new CorePattern('core.%e.%p', false), $root);
+        $store->addMinimized($job->reproDir, $outcome, 1);
+        self::assertSame($meta['memory_message'], $this->meta($job->reproDir . '/minimized')['memory_message']);
+        self::assertSame('memory', $this->meta($job->reproDir . '/minimized')['kind']);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function memoryOutputs(): iterable
+    {
+        yield 'stdout' => ['1', 'stdout.log'];
+        yield 'stderr' => ['stderr', 'stderr.log'];
+    }
+
+    public function testMemoryFailureIsNotCapturedAsAnOrdinaryFailure(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner(
+            $root,
+            ['--capture', 'failures', '--php-args=-d display_errors=stderr -d log_errors=0'],
+            [\dirname(__DIR__) . '/Fixtures/memory-child.php', '3'],
+        );
+        $job = $this->await($runner, $runner->spawn(0, null, 7));
+        self::assertSame(JobStatus::Skipped, $job->status);
+        self::assertSame('memory (not captured)', $job->note);
+        self::assertTrue($job->failure);
+        self::assertNull($job->reproDir);
     }
 
     private function await(JobRunner $runner, Job $job): Job

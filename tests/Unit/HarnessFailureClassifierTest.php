@@ -149,4 +149,26 @@ final class HarnessFailureClassifierTest extends TestCase
         self::assertTrue($exitThree->matches(FailureClassifier::fromExit(false, null, 3)));
         self::assertFalse($exitThree->matches(FailureClassifier::fromExit(false, null, 4)));
     }
+
+    public function testMemoryIsDistinctFromAnOrdinaryFatalExitAndLeak(): void
+    {
+        $memory = FailureClassifier::fromExit(false, null, 255, memory: true);
+        self::assertTrue($memory->failed);
+        self::assertFalse($memory->crashed);
+        self::assertSame('memory', $memory->kind());
+        self::assertTrue($memory->matches(FailureClassifier::fromExit(false, null, 1, memory: true)));
+        foreach ([
+            FailureClassifier::fromExit(false, null, 255),
+            FailureClassifier::fromExit(false, null, 255, leaked: true),
+            FailureClassifier::fromExit(false, null, 255, timedOut: true),
+            FailureClassifier::fromExit(true, 11, null),
+        ] as $other) {
+            self::assertFalse($memory->matches($other));
+            self::assertFalse($other->matches($memory));
+        }
+        self::assertSame('memory', FailureClassifier::fromExit(false, null, 255, leaked: true, memory: true)->kind());
+        self::assertSame('crash', FailureClassifier::fromExit(true, 11, null, memory: true)->kind());
+        self::assertSame('timeout', FailureClassifier::fromExit(false, null, null, timedOut: true, memory: true)->kind());
+        self::assertSame('failure', FailureClassifier::fromExit(true, 9, null)->kind());
+    }
 }

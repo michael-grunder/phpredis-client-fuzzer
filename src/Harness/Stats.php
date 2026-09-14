@@ -25,6 +25,8 @@ final class Stats
 
     public int $leaks = 0;
 
+    public int $memory = 0;
+
     public int $reproducers = 0;
 
     /**

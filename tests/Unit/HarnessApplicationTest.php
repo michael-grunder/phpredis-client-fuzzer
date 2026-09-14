@@ -165,6 +165,29 @@ final class HarnessApplicationTest extends TestCase
         self::assertSame('', self::contents($error));
     }
 
+    public function testMemoryCaptureCountsAsAReproducerAndReducesOnlyMemoryFailures(): void
+    {
+        $root = $this->workspace();
+        $output = self::stream();
+        $error = self::stream();
+        $status = (new HarnessApplication($output, $error))->run([
+            '--capture', 'memory', '--reduce', 'steps', '--steps', '8',
+            '--php-args=-d display_errors=stderr -d log_errors=0 -d html_errors=0',
+            '--no-core-check', '--no-tui', '--quiet',
+            '--seed', '123', '--reproducers', '1', '--jobs', '1',
+            '--output', $root . '/out',
+            '--', \dirname(__DIR__) . '/Fixtures/memory-child.php', '{steps}',
+        ]);
+        self::assertSame(1, $status, self::contents($error));
+        $captures = glob($root . '/out/*/minimized/meta.json');
+        self::assertIsArray($captures);
+        self::assertCount(1, $captures);
+        $meta = json_decode((string) file_get_contents($captures[0]), true);
+        self::assertIsArray($meta);
+        self::assertSame(3, $meta['steps']);
+        self::assertSame('memory', $meta['kind']);
+    }
+
     private function workspace(): string
     {
         $this->root = sys_get_temp_dir() . '/phpredis-fuzz-harness-app-' . getmypid() . '-' . mt_rand();

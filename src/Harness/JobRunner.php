@@ -133,12 +133,15 @@ final class JobRunner
             $job->leak = LeakReport::scan($job->workDir . '/stderr.log');
         }
 
+        $job->memory = MemoryReport::scan($job->workDir . '/stderr.log', $job->workDir . '/stdout.log');
+
         $verdict = FailureClassifier::fromExit(
             $status['signaled'],
             $job->signal,
             $job->exitCode,
             $job->timedOut,
             $job->leak !== null,
+            $job->memory !== null,
         );
 
         // Before resolve(), which moves this run's stdout into a reproducer or
@@ -198,13 +201,16 @@ final class JobRunner
             ? LeakReport::scan($workDir . '/stderr.log')
             : null;
 
+        $memory = MemoryReport::scan($workDir . '/stderr.log', $workDir . '/stdout.log');
+
         return new JobOutcome(
-            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false, $leak !== null),
+            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false, $leak !== null, $memory !== null),
             $workDir,
             $traceDir,
             microtime(true) - $started,
             $status['pid'],
             $leak,
+            $memory,
         );
     }
 
@@ -320,6 +326,7 @@ final class JobRunner
         $capture = match ($kind) {
             'crash' => $this->options->capturesCrashes(),
             'leak' => $this->options->capturesLeaks(),
+            'memory' => $this->options->capturesMemory(),
             'timeout' => $this->options->capturesTimeouts(),
             'failure' => $this->options->capturesFailures(),
             default => false,
@@ -376,6 +383,7 @@ final class JobRunner
             'crash' => JobStatus::Crashed,
             'timeout' => JobStatus::TimedOut,
             'leak' => JobStatus::Leaked,
+            'memory' => JobStatus::MemoryFailed,
             default => JobStatus::Failed,
         };
         $job->note = $this->describeVerdict($job, $verdict);
@@ -447,6 +455,7 @@ final class JobRunner
     {
         return match ($verdict->kind()) {
             'crash' => $verdict->signalName(),
+            'memory' => 'memory',
             'timeout' => $job->killSignal === 9 ? 'timeout (SIGKILL)' : 'timeout',
             'leak' => $job->leak !== null
                 ? sprintf('leak %d (%d bytes, %s)', $job->leak->count, $job->leak->bytes, $job->leak->source)
@@ -475,6 +484,9 @@ final class JobRunner
             'kill_signal_name' => $job->killSignal !== null
                 ? FailureClassifier::signalLabel($job->killSignal)
                 : null,
+            'kind' => $verdict->kind(),
+            'memory' => $verdict->memory,
+            'memory_message' => $job->memory?->message,
             'leaked' => $verdict->leaked,
             'leak_count' => $job->leak?->count,
             'leak_bytes' => $job->leak?->bytes,

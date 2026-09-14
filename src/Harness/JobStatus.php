@@ -27,6 +27,9 @@ enum JobStatus: string
     /** A debug PHP build reported a Zend MM memory leak, captured as a reproducer. */
     case Leaked = 'leaked';
 
+    /** Fatal allocation error, captured as a reproducer. */
+    case MemoryFailed = 'memory';
+
     /**
      * The fuzzer rejected its command line (ExitCode::STARTUP) and never ran a
      * command, so every run of this campaign would fail the same way.

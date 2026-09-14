@@ -34,6 +34,7 @@ final class Reducer
             $job->exitCode,
             $job->timedOut,
             $job->leak !== null,
+            $job->memory !== null,
         );
         $trialTimeout = max(10.0, $job->duration() * 4.0);
         $deadline = microtime(true) + $this->budgetSeconds;

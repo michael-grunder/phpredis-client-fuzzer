@@ -195,6 +195,9 @@ final class TuiView implements View
         if (in_array('leaks', $state->capture, true)) {
             $parts[] = sprintf('<fg=blue>leaks</> %d', $stats->leaks);
         }
+        if (in_array('memory', $state->capture, true)) {
+            $parts[] = sprintf('<fg=red>memory</> %d', $stats->memory);
+        }
         $parts[] = sprintf('<fg=green>reproducers</> %d', $stats->reproducers);
         if ($stats->failedReproducers > 0) {
             $parts[] = sprintf('<fg=red>failed repros</> %d', $stats->failedReproducers);
@@ -257,6 +260,7 @@ final class TuiView implements View
             JobStatus::Crashed => ['CRASH', 'red'],
             JobStatus::TimedOut => ['TIMEOUT', 'magenta'],
             JobStatus::Leaked => ['LEAK', 'blue'],
+            JobStatus::MemoryFailed => ['MEMORY', 'red'],
             JobStatus::StartupFailed => ['STARTUP', 'red'],
             JobStatus::CaptureFailed => ['NOTRACE', 'red'],
             JobStatus::RrAborted => ['RRABORT', 'yellow'],

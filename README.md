@@ -936,6 +936,15 @@ concurrency is capped at the number of ports.
   requested, and warns at startup if `--php` is not a debug build. The
   reproducer's `meta.json` records `leak_count`, `leak_bytes`, `leak_site`, and
   `leak_source` (`zend-mm` or `relay-shm`).
+- `memory` — PHP reported `Allowed memory size ... exhausted`, `Out of memory`,
+  or `Possible integer overflow in memory allocation`. Both stdout and stderr
+  are scanned, including debug-build diagnostics. The reproducer's `meta.json`
+  records `kind: "memory"`, `memory: true`, and `memory_message`; the full logs
+  retain the stack trace. Reduction requires another memory failure, so an
+  unrelated exit with the same code does not count. Crashes and timeouts take
+  precedence over memory errors, which take precedence over leak reports.
+  Use `--capture crashes,memory` to capture these alongside crashes. A SIGKILL
+  alone is not classified as memory exhaustion without an allocation diagnostic.
 - `timeouts` — the run was still going when it hit `--run-timeout` and the
   harness killed it. Termination escalates: `SIGTERM` first for a clean exit,
   then `SIGKILL` after a short grace period if it is still alive. The
@@ -945,7 +954,7 @@ concurrency is capped at the number of ports.
 - `failures` — any other non-zero exit (the fuzzer's own "caught a diagnostic"
   exit).
 
-`--capture crashes,leaks,timeouts,failures` captures everything. Each capture
+`--capture crashes,leaks,memory,timeouts,failures` captures everything. Each capture
 becomes `<output>/<harness-pid>.<nnnnn>/` — for example `48213.00001` — holding
 `command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump,
 the `php.ini` copy when `--php-ini` was used,
@@ -973,7 +982,7 @@ output verbatim.
 ```
 
 The label after `::` is the same one the dashboard shows — `ok`, `SIGSEGV`,
-`timeout (SIGKILL)`, `leak 2 (2048 bytes, zend-mm)`, `exit 1`, or `stopped` for
+`timeout (SIGKILL)`, `memory`, `leak 2 (2048 bytes, zend-mm)`, `exit 1`, or `stopped` for
 a run the shutdown had to kill — so `grep '^#' runs.log | grep -v ':: ok'` lists
 every run that did not pass, and `grep -v '^#' runs.log | jq …` reads the run
 documents as the stream of JSON that `--output=json` produces. Blocks are
@@ -1072,7 +1081,8 @@ hint, so a slow-draining run reads differently from a wedged one.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
 the harness prints a line per finished run and a periodic summary. The dashboard
 tallies failures, crashes, timeouts, reproducers, and reductions, plus a `leaks`
-count whenever `leaks` is in `--capture`, a `failed repros` count once a capture
+count whenever `leaks` is in `--capture`, a `memory` count when `memory` is
+selected, a `failed repros` count once a capture
 has had to be parked under `failed/`, and an `rr aborts` count once rr has died
 on a run of its own accord. The process exits non-zero when at least one
 reproducer was captured. Point it only at a disposable Redis target.

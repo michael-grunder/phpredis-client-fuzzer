@@ -30,6 +30,9 @@ final class Job
     /** Parsed Zend MM leak report from the child's stderr, when one was found. */
     public ?LeakReport $leak = null;
 
+    /** Fatal allocation diagnostic from either output log. */
+    public ?MemoryReport $memory = null;
+
     /** True once the run has been judged a failure, regardless of capture. */
     public bool $failure = false;
 

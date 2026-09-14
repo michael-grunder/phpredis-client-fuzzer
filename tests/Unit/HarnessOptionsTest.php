@@ -163,6 +163,17 @@ final class HarnessOptionsTest extends TestCase
         self::assertFalse($options->capturesCrashes());
     }
 
+    public function testMemoryCaptureIsExplicitAndIndependentOfFailures(): void
+    {
+        self::assertFalse(HarnessOptions::parse(['--', 'x'])->capturesMemory());
+        $options = HarnessOptions::parse(['--capture', 'memory,memory', '--', 'x']);
+        self::assertSame(['memory'], $options->capture);
+        self::assertTrue($options->capturesMemory());
+        self::assertFalse($options->capturesFailures());
+        self::assertFalse($options->capturesLeaks());
+        self::assertFalse($options->capturesCrashes());
+    }
+
     public function testRunTimeoutDefaultsToOffAndParsesSeconds(): void
     {
         self::assertSame(0.0, HarnessOptions::parse(['--', 'x'])->runTimeout);

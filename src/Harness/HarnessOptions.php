@@ -39,7 +39,7 @@ final class HarnessOptions
     private const APPEND = ['php-args'];
 
     /** Categories accepted by --capture. */
-    public const CAPTURE_KINDS = ['crashes', 'leaks', 'timeouts', 'failures'];
+    public const CAPTURE_KINDS = ['crashes', 'leaks', 'memory', 'timeouts', 'failures'];
 
     /** @var list<string> */
     private const MULTI = ['port'];
@@ -47,7 +47,7 @@ final class HarnessOptions
     /**
      * @param list<string> $phpArgs
      * @param list<int> $ports
-     * @param list<'crashes'|'leaks'|'timeouts'|'failures'> $capture
+     * @param list<'crashes'|'leaks'|'memory'|'timeouts'|'failures'> $capture
      * @param list<string> $command
      */
     private function __construct(
@@ -91,6 +91,12 @@ final class HarnessOptions
     public function capturesLeaks(): bool
     {
         return in_array('leaks', $this->capture, true);
+    }
+
+    /** Whether fatal memory exhaustion and allocation overflow are captured. */
+    public function capturesMemory(): bool
+    {
+        return in_array('memory', $this->capture, true);
     }
 
     /** Whether runs the harness killed for exceeding --run-timeout are captured. */
@@ -375,7 +381,7 @@ final class HarnessOptions
     }
 
     /**
-     * @return list<'crashes'|'leaks'|'timeouts'|'failures'>
+     * @return list<'crashes'|'leaks'|'memory'|'timeouts'|'failures'>
      */
     private static function captureList(string $raw): array
     {

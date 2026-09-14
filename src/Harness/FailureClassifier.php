@@ -10,7 +10,8 @@ use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
  * Turns a finished child's raw exit information into a verdict the scheduler
  * can act on: did the run fail, and what kind of failure was it — a hard
  * process crash, a run the harness killed for exceeding --run-timeout, a Zend
- * MM memory leak reported by a debug PHP build, the fuzzer exiting non-zero
+ * MM memory leak reported by a debug PHP build, a fatal allocation error,
+ * the fuzzer exiting non-zero
  * after catching a diagnostic, or a startup failure where the fuzzer rejected
  * the command line and never ran a single command.
  */
@@ -41,6 +42,7 @@ final class FailureClassifier
         public readonly ?int $signal,
         public readonly ?int $exitCode,
         public readonly bool $startupError = false,
+        public readonly bool $memory = false,
     ) {
     }
 
@@ -50,6 +52,7 @@ final class FailureClassifier
      * @param int|null $exitCode proc_get_status()['exitcode'] otherwise
      * @param bool $timedOut the harness killed the run for exceeding --run-timeout
      * @param bool $leaked a debug PHP build printed a Zend MM leak report
+     * @param bool $memory the child printed a fatal allocation diagnostic
      */
     public static function fromExit(
         bool $signaled,
@@ -57,6 +60,7 @@ final class FailureClassifier
         ?int $exitCode,
         bool $timedOut = false,
         bool $leaked = false,
+        bool $memory = false,
     ): self {
         $signal = null;
         if ($signaled && $termSignal !== null && $termSignal > 0) {
@@ -68,25 +72,26 @@ final class FailureClassifier
 
         $crashed = $signal !== null && in_array($signal, self::CRASH_SIGNALS, true);
         $nonZeroExit = $exitCode !== null && $exitCode !== 0;
-        $failed = $crashed || $timedOut || $leaked || $nonZeroExit || $signal !== null;
+        $failed = $crashed || $timedOut || $memory || $leaked || $nonZeroExit || $signal !== null;
 
         // The fuzzer binaries reserve ExitCode::STARTUP for "the command line
         // was rejected"; a run that never started cannot have died of anything
-        // else, so a signal or a timeout outranks the code.
+        // else, so a signal, timeout, or allocation diagnostic outranks the code.
         $startupError = $signal === null
             && !$timedOut
+            && !$memory
             && $exitCode === ExitCode::STARTUP;
 
-        return new self($failed, $crashed, $timedOut, $leaked, $signal, $exitCode, $startupError);
+        return new self($failed, $crashed, $timedOut, $leaked, $signal, $exitCode, $startupError, $memory);
     }
 
     /**
      * The single most significant category of this outcome, used to pick the
      * reproducer label and to gate capture against `--capture`. Precedence:
-     * crash, then timeout, then leak, then a rejected command line, then a
-     * plain non-zero exit.
+     * crash, then timeout, then memory, then leak, then a rejected command
+     * line, then a plain non-zero exit.
      *
-     * @return 'pass'|'crash'|'timeout'|'leak'|'startup'|'failure'
+     * @return 'pass'|'crash'|'timeout'|'memory'|'leak'|'startup'|'failure'
      */
     public function kind(): string
     {
@@ -95,6 +100,9 @@ final class FailureClassifier
         }
         if ($this->timedOut) {
             return 'timeout';
+        }
+        if ($this->memory) {
+            return 'memory';
         }
         if ($this->leaked) {
             return 'leak';
@@ -144,7 +152,10 @@ final class FailureClassifier
             return $other->crashed && $other->signal === $this->signal;
         }
         if ($this->timedOut || $other->timedOut) {
-            return $other->timedOut;
+            return $this->timedOut && $other->timedOut;
+        }
+        if ($this->memory || $other->memory) {
+            return $this->memory && $other->memory;
         }
         if ($this->leaked || $other->leaked) {
             return $this->leaked && $other->leaked;

@@ -494,7 +494,8 @@ Harness options:
   --capture LIST        Comma list of what to save as reproducers (default:
                         crashes). Kinds: crashes (crashing signals), leaks
                         (leak reports from a debug PHP build or Relay's shared
-                        allocator), timeouts (runs killed for exceeding
+                        allocator), memory (fatal allocation exhaustion or
+                        integer overflow), timeouts (runs killed for exceeding
                         --run-timeout), failures (any other non-zero exit).
                         e.g. --capture crashes,leaks,timeouts
   --run-timeout N       Kill a run once it has run for N seconds (0: off);
