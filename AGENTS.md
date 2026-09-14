@@ -49,6 +49,9 @@ required compatibility API; Relay is optional for package consumers.
 - Use PSR-4 namespace `Mgrunder\PhpredisCommandFuzzer` and four-space
   indentation.
 - Keep public configuration explicit, typed, validated, and documented.
+- After each change, add an entry to `CHANGELOG.md` under `Unreleased` in the
+  appropriate Keep a Changelog category. Do not backfill changes from before the
+  changelog was introduced.
 - Route command calls through `Command::exec()`, `execRaw()`, or `cmd()` so
   diagnostics, warnings, and reproduction logging remain intact.
 - Preserve cluster hash tags for related keys that must share a slot.
