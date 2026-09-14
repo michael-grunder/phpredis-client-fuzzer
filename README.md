@@ -241,6 +241,39 @@ Embedded callers can construct a `HookRegistry` directly and pass it to
 `new Fuzzer($hooks)`. Hook files execute arbitrary PHP and are never discovered
 or loaded automatically; only load files you trust.
 
+### Relay adaptive cache hook
+
+Load `hooks/adaptive.php` to enable Relay's adaptive count-min-sketch cache:
+
+```bash
+bin/phpredis-fuzz --client=relay --hook=hooks/adaptive.php \
+    --hook-arg adaptive.width=12288 --hook-arg adaptive.depth=6
+```
+
+The hook calls `setOption(Relay\Relay::OPT_ADAPTIVE_CACHE, $options)` in
+`postConstructor`, after `ClientFactory` connects, for each `Relay\Relay` or
+`Relay\Cluster` client. It skips PhpRedis clients and fails clearly if Relay
+lacks the option or rejects the settings. Embedded callers must supply connected
+clients. Arguments are validated when the hook loads, before connection:
+
+| Argument | Accepted values | Default |
+| --- | --- | --- |
+| `adaptive.width` | Integer, 512–2147483647; Relay rounds up to a power of two | 12288 (effective width 16384) |
+| `adaptive.depth` | Integer, 1–8 | 6 |
+| `adaptive.enabled` | `true`, `false`, `1`, `0` | `true` |
+| `adaptive.minEvents` | Integer, -2147483648–2147483647 | Relay's `relay.adaptive_cache.min_events` setting (normally 10) |
+| `adaptive.minRatio` | Finite number ≥ 0, passed as a PHP float | Relay's `relay.adaptive_cache.min_ratio` setting (normally 5) |
+| `adaptive.formula` | `pure` or `scaled` (case insensitive) | Relay's default, `scaled` |
+
+Both dimensions are always supplied, so either can be overridden independently.
+These names and bounds follow Relay's `relaySetAdaptiveCacheOptions()` in
+`src/relay.c` and `src/cms.h`. The sketch is shared with later clients for the
+same endpoint (or cluster); its dimensions cannot be changed once allocated
+until the PHP process restarts. The hook applies the requested policy to every
+client it sees. Relay's warnings remain visible, including dimension conflicts.
+The setup calls are included in `--script-log`; replay with the same Relay INI
+settings when leaving thresholds at their defaults.
+
 ### Lifecycle events
 
 Lifecycle hooks observe the run. They cannot reject or rewrite anything, so
