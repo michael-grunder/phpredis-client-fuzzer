@@ -246,7 +246,7 @@ final class HarnessOptions
             reduce: $reduce,
             steps: $steps,
             seed: isset($values['seed']) ? self::intValue($values, 'seed', 0) : null,
-            output: $values['output'] ?? 'phpredis-fuzz-repros',
+            output: $values['output'] ?? 'reproducers',
             runLog: $runLog,
             maxRuns: self::intValue($values, 'runs', 0),
             maxSeconds: self::floatValue($values, 'seconds', 0.0),

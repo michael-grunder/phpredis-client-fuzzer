@@ -954,6 +954,9 @@ concurrency is capped at the number of ports.
 - `failures` — any other non-zero exit (the fuzzer's own "caught a diagnostic"
   exit).
 
+Reproducers are written to `./reproducers` by default; use `--output DIR` to
+choose another directory.
+
 `--capture crashes,leaks,memory,timeouts,failures` captures everything. Each capture
 becomes `<output>/<harness-pid>.<nnnnn>/` — for example `48213.00001` — holding
 `command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump,

@@ -509,7 +509,7 @@ Harness options:
                         accord is not a finding at all: it is discarded and
                         logged in <output>/rr-aborts.log
   --reduce-timeout N    Time budget for one reduction (default: 120)
-  --output DIR          Where reproducers are written (default: ./phpredis-fuzz-repros)
+  --output DIR          Where reproducers are written (default: ./reproducers)
   --run-log FILE        Append every finished run's stdout to FILE, so the
                         output of the runs that pass — which is otherwise
                         deleted with their work directory — can be tailed,
