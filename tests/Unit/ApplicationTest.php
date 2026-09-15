@@ -32,6 +32,7 @@ final class ApplicationTest extends TestCase
         self::assertStringContainsString('--key-skew=N', self::contents($output));
         self::assertStringContainsString('--key-read-group=W:A', self::contents($output));
         self::assertStringContainsString('--raw-chaos', self::contents($output));
+        self::assertStringContainsString('--pick-client', self::contents($output));
         self::assertStringContainsString('--max-value-bytes=N', self::contents($output));
         self::assertStringContainsString('--allow-deserialization-mutations', self::contents($output));
         self::assertStringContainsString('--include=CATEGORY,...', self::contents($output));
@@ -62,6 +63,19 @@ final class ApplicationTest extends TestCase
         self::assertSame(0, $status);
         self::assertStringContainsString('(default: coercive)', self::contents($output));
         self::assertSame('', self::contents($error));
+    }
+
+    public function testPickClientValidatesConfigurationBeforeProbing(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+        $status = (new Application($output, $error, InvocationMode::Coercive))->run([
+            '--pick-client', '--client=relay,relay-cluster', '--port=0',
+        ]);
+
+        self::assertSame(ExitCode::STARTUP, $status);
+        self::assertSame('', self::contents($output));
+        self::assertStringContainsString('Port must be between 1 and 65535', self::contents($error));
     }
 
     /** @return iterable<string, array{list<string>, string}> */

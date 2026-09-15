@@ -17,7 +17,7 @@ final class ResultFormatterTest extends TestCase
         $result = $this->fuzzResult();
 
         self::assertSame(
-            json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n",
+            json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) . "\n",
             (new ResultFormatter())->format($result, OutputMode::Json),
         );
         self::assertSame([

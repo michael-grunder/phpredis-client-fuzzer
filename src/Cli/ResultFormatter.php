@@ -12,7 +12,7 @@ final class ResultFormatter
     public function format(FuzzResult $result, OutputMode $mode): string
     {
         if ($mode === OutputMode::Json) {
-            return json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
+            return json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
         }
 
         $output = $this->summary($result);

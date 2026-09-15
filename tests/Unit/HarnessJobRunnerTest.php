@@ -114,7 +114,7 @@ final class HarnessJobRunnerTest extends TestCase
 
         self::assertSame(JobStatus::Failed, $job->status);
         self::assertNotNull($job->reproDir);
-        self::assertSame($root . '/out', dirname($job->reproDir));
+        self::assertSame($root . '/out/failure', dirname($job->reproDir));
         self::assertDirectoryExists($job->reproDir . '/rr-trace');
         self::assertFileDoesNotExist($job->reproDir . '/rr-trace/incomplete');
         self::assertNull($job->traceFailure);

@@ -45,6 +45,33 @@ final class RecoveryScenario extends ScenarioBase
         $run->expect('first-write-is-queued', $client, $run->call('set', [$first, $value]));
         $run->expect('second-write-is-queued', $client, $run->call('set', [$second, $value]));
 
+        /* Relay's getHost()/getPort() throw once the connection is closed, so
+           learn the endpoint, and the timeouts an explicit connect() would
+           otherwise reset to "unlimited", while it is still open. */
+        $endpoint = null;
+        $readTimeout = null;
+        if (!$this->isCluster($client)
+            && method_exists($client, 'connect')
+            && method_exists($client, 'getHost')
+            && method_exists($client, 'getPort')) {
+            $host = $run->attempt('getHost');
+            $port = $run->attempt('getPort');
+            if (is_string($host->reply) && is_int($port->reply)) {
+                $endpoint = [$host->reply, $port->reply];
+                if (method_exists($client, 'getTimeout')) {
+                    $timeout = $run->attempt('getTimeout');
+                    if (is_float($timeout->reply) || is_int($timeout->reply)) {
+                        $endpoint[] = (float) $timeout->reply;
+                    }
+                }
+                if (method_exists($client, 'getReadTimeout')) {
+                    $read = $run->attempt('getReadTimeout');
+                    if (is_float($read->reply) || is_int($read->reply)) {
+                        $readTimeout = (float) $read->reply;
+                    }
+                }
+            }
+        }
         $closed = $run->attempt('close');
         $run->expectThat(
             'close-drops-the-connection-with-replies-outstanding',
@@ -52,23 +79,23 @@ final class RecoveryScenario extends ScenarioBase
             $closed->returned && ($closed->reply === true || $closed->reply === null),
             $closed->describe(),
         );
-        $run->expect('close-restores-atomic-mode', Redis::ATOMIC, $run->mode());
+        /* Observe the mode now but judge it after the client is usable again:
+           Relay throws "Must be connected" here, and failing before the
+           reconnect below would leave a standalone client dead for the rest of
+           the run instead of only failing this scenario. */
+        $modeAfterClose = $run->mode();
 
         $pingArguments = $this->isCluster($client) ? [$first] : [];
         $ping = $run->attempt('ping', $pingArguments);
-        if ($this->unusable($ping)) {
-            /* Reconnect explicitly when the client does not do it lazily. */
-            if (!$this->isCluster($client)
-                && method_exists($client, 'connect')
-                && method_exists($client, 'getHost')
-                && method_exists($client, 'getPort')) {
-                $host = $run->attempt('getHost');
-                $port = $run->attempt('getPort');
-                if (is_string($host->reply) && is_int($port->reply)) {
-                    $run->attempt('connect', [$host->reply, $port->reply]);
-                    $ping = $run->attempt('ping');
-                }
+        if ($this->unusable($ping) && $endpoint !== null) {
+            /* Reconnect explicitly when the client does not do it lazily,
+               restoring the read timeout so a later stalled reply still
+               raises instead of blocking the run forever. */
+            $run->attempt('connect', $endpoint);
+            if ($readTimeout !== null) {
+                $run->attempt('setOption', [Redis::OPT_READ_TIMEOUT, $readTimeout]);
             }
+            $ping = $run->attempt('ping');
         }
         if ($this->unusable($ping)) {
             $this->skip(sprintf(
@@ -78,6 +105,7 @@ final class RecoveryScenario extends ScenarioBase
                     : ($ping->error() ?? 'PING did not answer'),
             ));
         }
+        $run->expect('close-restores-atomic-mode', Redis::ATOMIC, $modeAfterClose);
         $run->expectOneOf('ping-is-answered-by-its-own-reply', [true, 'PONG', '+PONG'], $ping->reply);
 
         $run->expect('abandoned-first-write-was-not-applied', $initial, $run->call('get', [$first]));

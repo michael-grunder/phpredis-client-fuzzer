@@ -9,15 +9,16 @@ namespace Mgrunder\PhpredisCommandFuzzer\Harness;
  * exact command line, and a machine-readable `meta.json`. Nothing here is ever
  * deleted; these directories may be the only evidence of a client defect.
  *
- * Captures are named `<harness pid>.<sequence>`, so several harnesses can share
- * one output directory and each campaign's reproducers stay grouped and ordered
- * by age. Pids are recycled, so the sequence is not assumed to start at one:
+ * Captures are stored under `<kind>/<harness pid>.<sequence>`, so several
+ * harnesses can share one output directory. Within each kind, a campaign's
+ * reproducers stay grouped and ordered by age. Pids are recycled, so the
+ * sequence is not assumed to start at one:
  * {@see allocate()} claims the first free number instead.
  *
  * A failure whose artifacts cannot be replayed — an rr trace that never lost
  * its `incomplete` sentinel — is kept just as carefully, but under the
- * `failed/` subdirectory: everything directly under the output directory is
- * meant to be re-runnable, and a half-recorded trace is not.
+ * `failed/` subdirectory, separate from the replayable captures in the
+ * failure-kind subdirectories.
  */
 final class ReproStore
 {
@@ -65,7 +66,15 @@ final class ReproStore
      */
     public function capture(Job $job, array $meta): string
     {
-        return $this->store($job, $meta, $this->root);
+        $kind = match ($meta['kind'] ?? null) {
+            'crash' => 'crash',
+            'memory' => 'memory',
+            'leak' => 'leak',
+            'timeout' => 'timeout',
+            default => 'failure',
+        };
+
+        return $this->store($job, $meta, $this->root . '/' . $kind);
     }
 
     /**

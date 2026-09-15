@@ -272,9 +272,9 @@ final class TuiView implements View
 
         $note = $job->note;
         if ($note === '' && $job->reproDir !== null) {
-            $note = basename($job->reproDir);
+            $note = basename(dirname($job->reproDir)) . '/' . basename($job->reproDir);
         } elseif ($job->reproDir !== null && !str_contains($note, '/')) {
-            $note .= '  ' . basename($job->reproDir);
+            $note .= '  ' . basename(dirname($job->reproDir)) . '/' . basename($job->reproDir);
         }
 
         return TableRow::fromCells(

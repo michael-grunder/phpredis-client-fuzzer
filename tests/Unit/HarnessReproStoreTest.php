@@ -57,7 +57,7 @@ final class HarnessReproStoreTest extends TestCase
         $good = $store->capture($this->job($root, ['php', 'fuzz']), []);
         $bad = $store->captureFailed($this->job($root, ['php', 'fuzz']), [], 'rr trace never finalised');
 
-        self::assertSame($root . '/out', dirname($good));
+        self::assertSame($root . '/out/failure', dirname($good));
         self::assertSame($root . '/out/' . ReproStore::FAILED, dirname($bad));
 
         // Each directory keeps its own sequence, so a failed capture never
@@ -70,6 +70,31 @@ final class HarnessReproStoreTest extends TestCase
         $meta = json_decode((string) file_get_contents($bad . '/meta.json'), true);
         self::assertIsArray($meta);
         self::assertSame('rr trace never finalised', $meta['capture_failure']);
+    }
+
+    public function testCapturesAreGroupedByKindWithoutOverwritingExistingEvidence(): void
+    {
+        $root = $this->workspace();
+        $store = $this->store($root, null);
+        $legacy = $root . '/out/4242.00001';
+        Fs::ensureDir($legacy);
+        file_put_contents($legacy . '/stdout.log', 'legacy evidence');
+
+        foreach (['crash', 'memory', 'leak', 'timeout', 'failure'] as $kind) {
+            $first = $store->capture($this->job($root, ['php', 'fuzz']), ['kind' => $kind]);
+            self::assertSame($root . '/out/' . $kind . '/4242.00001', $first);
+            file_put_contents($first . '/stdout.log', 'original ' . $kind);
+
+            // A restarted campaign with a recycled pid must skip existing captures.
+            $second = $this->store($root, null)->capture(
+                $this->job($root, ['php', 'fuzz']),
+                ['kind' => $kind],
+            );
+            self::assertSame($root . '/out/' . $kind . '/4242.00002', $second);
+            self::assertSame('original ' . $kind, file_get_contents($first . '/stdout.log'));
+        }
+
+        self::assertSame('legacy evidence', file_get_contents($legacy . '/stdout.log'));
     }
 
     public function testAMinimizedRerunNeverFilesAnUnfinalisedTrace(): void

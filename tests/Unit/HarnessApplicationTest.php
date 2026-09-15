@@ -179,7 +179,7 @@ final class HarnessApplicationTest extends TestCase
             '--', \dirname(__DIR__) . '/Fixtures/memory-child.php', '{steps}',
         ]);
         self::assertSame(1, $status, self::contents($error));
-        $captures = glob($root . '/out/*/minimized/meta.json');
+        $captures = glob($root . '/out/memory/*/minimized/meta.json');
         self::assertIsArray($captures);
         self::assertCount(1, $captures);
         $meta = json_decode((string) file_get_contents($captures[0]), true);

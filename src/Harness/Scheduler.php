@@ -499,7 +499,9 @@ final class Scheduler
             $job->port !== null ? ', port ' . $job->port : '',
             $job->duration(),
         );
-        $repro = $job->reproDir !== null ? ' -> ' . basename($job->reproDir) : '';
+        $repro = $job->reproDir !== null
+            ? ' -> ' . basename(dirname($job->reproDir)) . '/' . basename($job->reproDir)
+            : '';
         $min = $job->reducedSteps !== null ? sprintf(' (min %d steps)', $job->reducedSteps) : '';
 
         return match ($job->status) {

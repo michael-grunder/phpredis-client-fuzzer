@@ -510,6 +510,8 @@ Harness options:
                         logged in <output>/rr-aborts.log
   --reduce-timeout N    Time budget for one reduction (default: 120)
   --output DIR          Where reproducers are written (default: ./reproducers)
+                        Captures go under DIR/<kind>/<pid>.<sequence>, with
+                        kinds crash, memory, leak, timeout, and failure
   --run-log FILE        Append every finished run's stdout to FILE, so the
                         output of the runs that pass — which is otherwise
                         deleted with their work directory — can be tailed,

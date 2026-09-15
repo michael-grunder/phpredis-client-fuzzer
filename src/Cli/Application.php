@@ -60,7 +60,7 @@ final class Application
     ];
 
     private const FLAG_OPTIONS = [
-        'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking',
+        'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking', 'pick-client',
         'no-relay-compatibility', 'differential', 'allow-deserialization-mutations',
     ];
 
@@ -300,6 +300,10 @@ final class Application
             // on a failure is a property of the target or the workload.
             $configured = true;
 
+            if ($options->has('pick-client')) {
+                $clientConfigurations = (new ClientTopologySelector())->select($clientConfigurations);
+            }
+
             $factory = new ClientFactory($hooks);
             $clients = [];
             foreach ($clientConfigurations as $clientConfiguration) {
@@ -511,6 +515,9 @@ Clients and connection:
   --client=TYPE[:COUNT],...  redis, redis-cluster, relay, relay-cluster (default: redis)
                              COUNT creates that many client instances (default: 1;
                              maximum total: 10000)
+  --pick-client              For mixed standalone/cluster lists, probe host/port
+                             and keep matching clients. Single-topology lists
+                             are unchanged, including deliberate mismatches.
   --host=HOST                Standalone host (default: 127.0.0.1)
   --port=PORT                Standalone port (default: 6379)
   --seeds=HOST:PORT,...      Cluster seeds (defaults to host and port)
