@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `--pick-client` to the fuzzer CLI to select matching clients from mixed
+  standalone/cluster lists using the target port's topology, while preserving
+  counts and deliberate single-topology mismatches.
 - Add opt-in `cache-hll` and `cache-collections` scenarios for F01/F02: bounded
   HLL and collection warming/mutation fixtures, server count parity, Relay cache
   counter observations, and server-free regression tests.
@@ -17,7 +20,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Add a local coverage stress-launch script with explicit inferior PHP selection
   and reference settings for the standalone evilresp proxy.
 
+### Changed
+
+- Rework `fuzz-coverage.sh` into a multi-lane campaign: per-job evilresp
+  proxies (`chaos`), a direct high-throughput Relay lane with forks, saturation,
+  the adaptive cache and deserialization callbacks (`direct`), strict
+  differential and full-scenario oracle lanes on both topologies (`oracle`),
+  and subscription callback lanes (`subscribe`), with `preflight` and `summary`
+  subcommands. Every lane now randomizes serializers and compressors, and
+  `fuzz.ini` also draws Relay lock types, `relay.default_pconnect` and
+  `zend.enable_gc` per run.
+
+- Group new harness reproducers under `crash/`, `memory/`, `leak/`, `timeout/`,
+  or `failure/` in the output directory, retaining existing captures and the
+  separate `failed/` directory for incomplete recordings.
+
 ### Fixed
 
+- `hooks/evilresp.php` no longer aborts the whole run with "preCommand hook
+  evilresp failed: Must be connected to get mode" when a Relay client was
+  closed by a `close`/`pclose` step or the `disconnect-recovery` scenario; a
+  client that cannot report its mode is skipped until it reconnects.
+- The `disconnect-recovery` scenario records the standalone endpoint and
+  timeouts before `close()` (Relay's `getHost()`/`getPort()` throw afterwards),
+  reconnects with the same connect timeout and restores `OPT_READ_TIMEOUT`
+  (a bare `connect()` leaves both clients with unlimited timeouts, which hung
+  a run inside Relay's `recv()` through evilresp), and judges the
+  `close-restores-atomic-mode` postcondition only after reconnecting, so a
+  Relay client that fails that postcondition is no longer left disconnected
+  for every later scenario and fuzz step in the run.
+- `--output=json` no longer fails with "Malformed UTF-8 characters" (exit 1)
+  when a generated value or reply contains invalid UTF-8; such bytes are now
+  substituted so differential observations stay readable.
+
+- Correct the local fuzz launcher's `--pick-client` flag and use farm PHP for
+  inferiors without redundantly loading its built-in extensions from `fuzz.ini`.
 - Clarify worker PHP selection for coverage builds and correct the local coverage
   INI's extension paths and eviction-policy choices.

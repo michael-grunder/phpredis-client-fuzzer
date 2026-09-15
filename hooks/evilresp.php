@@ -713,6 +713,15 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
                 if (!$cleanStream && preg_match(self::REJECTION_PATTERN, $error) !== 1) {
                     return;
                 }
+                /* "wrong number of arguments for 'setnx' command" is Redis
+                   answering an earlier, still-queued command: the stream is
+                   out of step after a corrupt reply, not a rejection. Only a
+                   complaint about DEBUG itself is a setup error. */
+                if (!$cleanStream
+                    && preg_match("/for '([^']+)' command/i", $error, $named) === 1
+                    && strcasecmp($named[1], 'debug') !== 0) {
+                    return;
+                }
 
                 throw new UnexpectedValueException(sprintf(
                     'evilresp: %s rejected %s: %s (is it an evilresp listener?)',
@@ -846,7 +855,15 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
 
             private function atomic(Redis|RedisCluster|Relay\Relay|Relay\Cluster $client): bool
             {
-                return $client->getMode() === Redis::ATOMIC;
+                try {
+                    return $client->getMode() === Redis::ATOMIC;
+                } catch (\Throwable) {
+                    /* Relay throws "Must be connected to get mode" after an
+                       explicit close(). Nothing can be armed on a closed
+                       connection; the next call either reconnects (and its
+                       postCommand re-check re-arms) or fails on its own. */
+                    return false;
+                }
             }
 
             /** @param list<string> $command

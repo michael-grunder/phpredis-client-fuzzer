@@ -588,6 +588,25 @@ one eligible instance at random, so `--steps` remains the total number of
 sequential operations rather than a per-client or parallel-operation count. Use
 `--forks=N` to run the workload concurrently in forked child processes.
 
+Add `--pick-client` to a mixed standalone/cluster `--client` list to detect the
+topology at `--host`/`--port` before creating workload clients. For example:
+
+```bash
+bin/phpredis-fuzz-coercive --client=relay,relay-cluster --pick-client \
+    --host=127.0.0.1 --port=7000 --steps=500 --seed=123456
+```
+
+This keeps every matching client in its original order, preserving `:COUNT`.
+A list containing only standalone or only cluster clients is used unchanged,
+without probing, so deliberate topology mismatches remain possible. The flag is
+off by default and works with both `phpredis-fuzz` and `phpredis-fuzz-coercive`.
+The probe uses a separate PhpRedis connection with the supplied credentials and
+timeouts, reads `INFO cluster`, and closes before workload hooks or forks run.
+If detection fails, the invocation fails rather than guessing a topology.
+It probes `--host`/`--port`, even when explicit `--seeds` are supplied; cluster
+clients still use those seeds. When cycling standalone and cluster ports in the
+harness, use `--port={port}` and omit `--seeds` so it defaults to that same target.
+
 ```bash
 # Standalone PhpRedis, fixed seed and focused command set
 vendor/bin/phpredis-fuzz \
@@ -968,7 +987,10 @@ Reproducers are written to `./reproducers` by default; use `--output DIR` to
 choose another directory.
 
 `--capture crashes,leaks,memory,timeouts,failures` captures everything. Each capture
-becomes `<output>/<harness-pid>.<nnnnn>/` — for example `48213.00001` — holding
+becomes `<output>/<kind>/<harness-pid>.<nnnnn>/` — for example
+`reproducers/crash/48213.00001/` — grouped by the classified failure kind:
+`crash`, `memory`, `leak`, `timeout`, or `failure`. Existing captures are left
+in place. Each capture directory holds
 `command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump,
 the `php.ini` copy when `--php-ini` was used,
 and — under `--rr` — the finalised `rr-trace/` (the harness waits for rr's
@@ -1051,12 +1073,13 @@ binary used, if any, is recorded in `<output>/<harness-pid>.run-info.txt` as
 killed outright can leave a run to finish on its own.
 
 Naming captures after the harness pid lets several harnesses share one output
-directory: each campaign's reproducers stay grouped, and the sequence numbers
-order them by age within a campaign. Directories are claimed with a
+directory: each campaign's reproducers stay grouped within each failure kind,
+and the sequence numbers order them by age within that kind and campaign.
+Directories are claimed with a
 non-recursive `mkdir()`, which fails rather than reusing an existing name, so a
 recycled pid simply continues past whatever numbers are already on disk instead
 of writing over them. Per-run work directories are namespaced the same way. The
-settings of each campaign are written alongside its captures as
+settings of each campaign are written at the output root as
 `<output>/<harness-pid>.run-info.txt`, including the `work dir:` it used.
 
 With `--reduce steps` a capture is followed by a binary search for the smallest
