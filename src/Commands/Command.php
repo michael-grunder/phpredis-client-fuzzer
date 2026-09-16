@@ -52,6 +52,7 @@ abstract class Command implements HasWeight {
     public const CROSSSLOT    = (1 << 17);
     public const STATEFUL     = (1 << 18);
     public const CONNECTION   = (1 << 19);
+    public const COMMON       = (1 << 20);
 
     public const STRING = 'string';
     public const INT    = 'int';
@@ -87,6 +88,7 @@ abstract class Command implements HasWeight {
         'crash' => self::CRASH,
         'crossslot' => self::CROSSSLOT,
         'stateful' => self::STATEFUL,
+        'common' => self::COMMON,
     ];
 
     abstract public function type(): string;

@@ -19,7 +19,7 @@ class mget extends Command implements FuzzInterface, FuzzRawInterface {
 
     public function flags(): int {
         /* PhpRedis and Relay split MGET across cluster nodes by slot */
-        return Command::READ | self::CACHED | self::CROSSSLOT;
+        return Command::READ | self::CACHED | self::CROSSSLOT | self::COMMON;
     }
 
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,

@@ -8,6 +8,7 @@ final readonly class RunConfiguration implements \JsonSerializable
 {
     /**
      * @param list<string> $commands Command/glob/flag filters, such as get*, -getex, or @read.
+     * @param list<list<string>> $commandGroups Additional OR groups, ANDed with commands and each other.
      * @param list<string> $scenarios Named stateful scenarios to run before random steps.
      * @param array<string, float> $weights Command or @flag weights.
      * @param list<KeyReadGroup> $keyReadGroups Relative shares of keys with stable read affinities.
@@ -51,6 +52,7 @@ final readonly class RunConfiguration implements \JsonSerializable
         public int $maxValueBytes = 4097,
         public bool $allowDeserializationMutations = false,
         public bool $includeConnection = false,
+        public array $commandGroups = [],
     ) {
         new Values\ValueCorpus($maxValueBytes);
         KeyAccessSampler::validate($keySkew, $keyReadGroups);
@@ -141,6 +143,7 @@ final readonly class RunConfiguration implements \JsonSerializable
             'saturateTarget' => $this->saturateTarget,
             'saturateMode' => $this->saturateMode->value,
             'commands' => $this->commands,
+            'commandGroups' => $this->commandGroups,
             'weights' => $this->weights,
             'raw' => $this->raw,
             'rawChaos' => $this->rawChaos,

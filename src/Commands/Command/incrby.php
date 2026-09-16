@@ -5,7 +5,11 @@ namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\IncrDecrByCommand;
 
 class incrby extends IncrDecrByCommand {
-    private const MIN = -2147483648;
+    public function flags(): int {
+        return parent::flags() | self::COMMON;
+    }
+
+private const MIN = -2147483648;
     private const MAX = 2147483647;
 
     public function type(): string {

@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add the `@common` command flag for 60 curated everyday Redis commands.
+- Add `RunConfiguration::commandGroups` for intersections of OR filter groups,
+  retaining groups in reports and preserving server-controlled HTTP groups.
 - Add opt-in `evilresp.fresh_seed=1` hook argument for a fresh deterministic
   proxy seed on each CHAOS arm attempt, preserving concrete per-node seeds in
   reproduction scripts and keeping the default one-seed-per-run behavior.
@@ -25,6 +28,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Repeated `--commands` arguments now intersect in the strict/coercive fuzzer
+  and command catalog CLI. Comma-separated positives still use OR, exclusions
+  still remove matches, and all safety gates remain in force.
 - Rework `fuzz-coverage.sh` into a multi-lane campaign: per-job evilresp
   proxies (`chaos`), a direct high-throughput Relay lane with forks, saturation,
   the adaptive cache and deserialization callbacks (`direct`), strict
@@ -40,6 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Reject unknown command flags even when an earlier OR pattern matched or a
+  previous filter group selected no commands.
 - `hooks/evilresp.php` no longer aborts the whole run with "preCommand hook
   evilresp failed: Must be connected to get mode" when a Relay client was
   closed by a `close`/`pclose` step or the `disconnect-recovery` scenario; a

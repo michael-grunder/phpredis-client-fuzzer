@@ -10,6 +10,6 @@ class sismember extends KeyMemCommand {
     }
 
     public function flags(): int {
-        return self::READ | self::CACHED;
+        return self::READ | self::CACHED | self::COMMON;
     }
 }

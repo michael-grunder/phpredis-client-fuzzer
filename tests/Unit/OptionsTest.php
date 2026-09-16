@@ -10,6 +10,20 @@ use PHPUnit\Framework\TestCase;
 
 final class OptionsTest extends TestCase
 {
+    public function testRepeatedCsvPreservesGroupsAndBothOptionForms(): void
+    {
+        $options = Options::parse(
+            ['--commands', '@common', '--commands= @invalidating, @cached, ', '--commands=-get'],
+            ['commands'], [], ['commands'],
+        );
+
+        self::assertSame([
+            ['@common'], ['@invalidating', '@cached'], ['-get'],
+        ], $options->csvGroups('commands'));
+        self::assertSame([], Options::parse([], ['commands'], [], ['commands'])->csvGroups('commands'));
+        self::assertSame([[]], Options::parse(['--commands='], ['commands'], [], ['commands'])->csvGroups('commands'));
+    }
+
     /** @return iterable<string, array{string, int}> */
     public static function byteSizes(): iterable
     {

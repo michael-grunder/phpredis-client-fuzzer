@@ -19,7 +19,7 @@ final class CommandCatalogApplicationTest extends TestCase
 
         self::assertSame(0, $status);
         self::assertMatchesRegularExpression('/^COMMAND\s+TYPE\s+CATEGORIES\s+SURFACES$/m', $contents);
-        self::assertMatchesRegularExpression('/^get\s+string\s+read,cached\s+client,raw$/m', $contents);
+        self::assertMatchesRegularExpression('/^get\s+string\s+read,cached,common\s+client,raw$/m', $contents);
         self::assertMatchesRegularExpression(
             '/^flushall\s+none\s+write,flush,invalidating\s+client,raw$/m',
             $contents,
@@ -58,6 +58,21 @@ final class CommandCatalogApplicationTest extends TestCase
         self::assertSame(0, $status);
         self::assertMatchesRegularExpression('/^blpop\s+list\s+[^\n]*blocking[^\n]*$/m', $contents);
         self::assertDoesNotMatchRegularExpression('/^get\s+/m', $contents);
+        self::assertSame('', self::contents($error));
+    }
+
+    public function testRepeatedCommandsIntersectCsvUnions(): void
+    {
+        $output = self::stream();
+        $error = self::stream();
+        $status = (new CommandCatalogApplication($output, $error))->run([
+            '--commands', '@common', '--commands=@invalidating,@cached',
+            '--commands=get,set,ttl,getwithmeta', '--commands=-set',
+        ]);
+
+        self::assertSame(0, $status);
+        self::assertMatchesRegularExpression('/^get\s+/m', self::contents($output));
+        self::assertStringContainsString("\n1 command\n", self::contents($output));
         self::assertSame('', self::contents($error));
     }
 

@@ -11,6 +11,28 @@ use PHPUnit\Framework\TestCase;
 
 final class HttpEndpointTest extends TestCase
 {
+    public function testCommandGroupsRemainServerControlled(): void
+    {
+        $endpoint = new FuzzerEndpoint(
+            static fn (): \Redis => new \Redis(),
+            new RunConfiguration(
+                maxSteps: 1, seed: 42, includeLocal: true,
+                commandGroups: [['isconnected']],
+            ),
+        );
+        $response = $endpoint->handle(['commands' => '*', 'commandGroups' => []]);
+        self::assertTrue($response['ok']);
+        self::assertSame(['isconnected'], $response['result']['selected_commands'] ?? null);
+        $configuration = $response['result']['configuration'] ?? null;
+        self::assertIsArray($configuration);
+        self::assertSame([['isconnected']], $configuration['commandGroups']);
+
+        self::assertSame(
+            ['ok' => false, 'error' => 'No commands remain after filtering'],
+            $endpoint->handle(['commands' => 'get', 'commandGroups' => []]),
+        );
+    }
+
     public function testConnectionPermissionRemainsServerControlled(): void
     {
         foreach ([false, true] as $allowed) {

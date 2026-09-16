@@ -15,7 +15,7 @@ class setnx extends KeyValCommand {
     }
 
     public function flags(): int {
-        return self::WRITE;
+        return self::WRITE | self::COMMON;
     }
 
     protected function getValue(Redis|Relay $server, string $key): mixed {

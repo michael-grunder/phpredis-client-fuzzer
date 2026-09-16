@@ -6,6 +6,10 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 use Mgrunder\PhpredisCommandFuzzer\Commands\HIncrByCommand;
 
 class hincrby extends HIncrByCommand {
+    public function flags(): int {
+        return parent::flags() | self::COMMON;
+    }
+
     protected function getRandomMember(FuzzConfig $config): string {
         return $config->getRandomMember($this->type(), ['int']);
     }

@@ -12,6 +12,9 @@ final class CommandFilter
     public function apply(Registry $registry, RunConfiguration $configuration): Registry
     {
         $this->applyPatterns($registry, $configuration->commands);
+        foreach ($configuration->commandGroups as $group) {
+            $this->applyPatterns($registry, $group);
+        }
 
         $excludedFlags = Command::RAW;
         if ($configuration->raw || $configuration->rawChaos) {
@@ -79,6 +82,10 @@ final class CommandFilter
             if ($pattern === '') {
                 throw new \InvalidArgumentException("Invalid empty command pattern: {$input}");
             }
+            // Validate even if earlier patterns matched or groups emptied the registry.
+            if (str_starts_with($pattern, '@') && Command::stringToFlag(substr($pattern, 1)) === 0) {
+                throw new \InvalidArgumentException("Unknown command flag: {$pattern}");
+            }
 
             if ($exclude) {
                 $excludes[] = $pattern;
@@ -101,9 +108,6 @@ final class CommandFilter
         foreach ($patterns as $pattern) {
             if (str_starts_with($pattern, '@')) {
                 $flag = Command::stringToFlag(substr($pattern, 1));
-                if ($flag === 0) {
-                    throw new \InvalidArgumentException("Unknown command flag: {$pattern}");
-                }
                 if (($command->flags() & $flag) !== 0) {
                     return true;
                 }

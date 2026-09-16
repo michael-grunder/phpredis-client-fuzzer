@@ -17,7 +17,7 @@ class exists extends VarKeyCommand {
     }
 
     public function flags(): int {
-        return Command::READ | self::CACHED;
+        return Command::READ | self::CACHED | self::COMMON;
     }
 
     protected function takesArray(): bool {

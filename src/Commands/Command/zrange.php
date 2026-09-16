@@ -19,7 +19,7 @@ class zrange extends Command implements FuzzInterface, FuzzRawInterface {
     }
 
     public function flags(): int {
-        return self::READ | self::CACHED;
+        return self::READ | self::CACHED | self::COMMON;
     }
 
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,

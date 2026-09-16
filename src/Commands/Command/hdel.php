@@ -18,7 +18,7 @@ class hdel extends Command implements FuzzInterface, FuzzRawInterface {
     }
 
     public function flags(): int {
-        return self::READ | self::INVALIDATING;
+        return self::READ | self::INVALIDATING | self::COMMON;
     }
 
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client, FuzzConfig $config): mixed {

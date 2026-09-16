@@ -5,6 +5,10 @@ namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 use Mgrunder\PhpredisCommandFuzzer\Commands\IncrDecrByCommand;
 
 class decrby extends IncrDecrByCommand {
+    public function flags(): int {
+        return parent::flags() | self::COMMON;
+    }
+
     public function type(): string {
         return self::INT;
     }

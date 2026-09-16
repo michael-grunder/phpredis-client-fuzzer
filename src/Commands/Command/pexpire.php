@@ -10,6 +10,10 @@ use Redis;
 use RedisCluster;
 
 class pexpire extends ExpireCommand {
+    public function flags(): int {
+        return parent::flags() | self::COMMON;
+    }
+
     public function getInt(Redis|RedisCluster|Relay|Cluster $client): int {
         return rand(1, 60000);
     }

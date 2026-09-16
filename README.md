@@ -1878,6 +1878,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `saturateMode` | `SaturationMode::Natural` | `Natural` reads existing values; `Seeded` writes generated values before reading them; `Fast` grows one `SETBIT` bitmap per step and reads it back, and requires `saturateTarget` and `saturateSteps` |
 | `invocationMode` | `InvocationMode::Strict` | Typing mode used at the client method-call boundary |
 | `commands` | `[]` | Command name, glob, and flag filters |
+| `commandGroups` | `[]` | Additional lists of command filters, ANDed with `commands` and each other; positives within each list use OR |
 | `weights` | `[]` | Command or flag weights |
 | `raw` | `false` | Enable raw-protocol paths and raw commands |
 | `rawChaos` | `false` | Enable raw-protocol calls with a real command name and arbitrary scalar arguments |
@@ -1988,12 +1989,50 @@ Command filters are case-insensitive:
 - `get` matches one command.
 - `get*` uses shell-style glob matching.
 - `@read` selects commands with the read flag.
+- `@common` selects a curated set of everyday Redis commands.
 - `-getex` or `-@scan` excludes a name or flag.
-- Positive filters are ORed, then negative filters are removed.
+- Within each group, positive filters are ORed, then negative filters are removed.
+- Repeated `--commands` arguments are ANDed in `phpredis-fuzz`,
+  `phpredis-fuzz-coercive`, and `phpredis-commands`. Previously, only the last
+  occurrence was used. A single occurrence keeps its existing behavior.
+- Exclusion-only groups narrow the selection; empty groups impose no restriction.
+  An empty final selection reports an error.
+
+For example, select common commands that either invalidate or read the cache:
+
+```bash
+bin/phpredis-fuzz-coercive --commands='@common' --commands='@invalidating,@cached'
+
+# Preview the same intersection without connecting to Redis:
+bin/phpredis-commands --commands='@common' --commands='@invalidating,@cached'
+```
+
+`@common` is a judgment-based workload category, not a
+measured popularity ranking. It covers routine string reads/writes and counters,
+key deletion/existence/expiry, basic hash and set operations, list queues and
+ranges, basic sorted-set operations, scans, and ping. It includes `get`, `set`,
+`mget`, `mset`, `hgetall`, `hmset`, `sadd`, `smembers`, and `sismember`; use
+`bin/phpredis-commands --commands=@common` for the full list. Membership does
+not enable safety categories: `blpop` and `brpop` still require blocking opt-in.
+
+Embedded callers keep the existing OR semantics of `commands` and can supply
+additional AND groups with `commandGroups`:
+
+```php
+$configuration = new RunConfiguration(
+    commands: ['@common'],
+    commandGroups: [['@invalidating', '@cached'], ['-set']],
+);
+```
+
+Run reports retain these groups in `configuration.commandGroups`. HTTP endpoint
+groups are server-controlled and remain in force when a request supplies a
+`commands` filter.
 
 Supported flags are `read`, `write`, `delete`, `flush`, `blocking`, `cached`,
 `invalidating`, `expire`, `raw`, `select`, `admin`, `scan`, `local`, `crash`,
-`crossslot`, and `stateful`. Safety category switches are applied after name filters, so
+`crossslot`, `stateful`, `connection`, and `common`.
+Safety category switches are applied after name filters, so
 explicitly naming `flushall` still requires `includeFlush: true`.
 
 Weights use command names or flags:

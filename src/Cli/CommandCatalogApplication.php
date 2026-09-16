@@ -34,14 +34,16 @@ final class CommandCatalogApplication
     public function run(array $arguments): int
     {
         try {
-            $options = Options::parse($arguments, ['commands'], ['help']);
+            $options = Options::parse($arguments, ['commands'], ['help'], ['commands']);
             if ($options->has('help')) {
                 $this->write(self::HELP . "\n");
                 return 0;
             }
 
+            $commandGroups = $options->csvGroups('commands');
             $configuration = new RunConfiguration(
-                commands: $options->csv('commands'),
+                commands: $commandGroups[0] ?? [],
+                commandGroups: array_slice($commandGroups, 1),
                 raw: true,
                 includeBlocking: true,
                 includeLocal: true,
@@ -147,6 +149,8 @@ Usage:
 
 Options:
   --commands=PATTERN,...  Include/exclude command names, globs, or @categories
+                         CSV positives use OR; repeat --commands for AND
+                         E.g. --commands=@common --commands=@invalidating,@cached
   --help                  Show this help
 
 Filters are case-insensitive. Positive filters are ORed before negative filters

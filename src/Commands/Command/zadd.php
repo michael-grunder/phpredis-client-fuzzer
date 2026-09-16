@@ -27,7 +27,7 @@ class zadd extends Command implements ProxyInterface, FuzzInterface,
     }
 
     public function flags(): int {
-        return self::WRITE | self::INVALIDATING;
+        return self::WRITE | self::INVALIDATING | self::COMMON;
     }
 
     public function proxy(Redis|Relay $server, Redis|Relay $client,

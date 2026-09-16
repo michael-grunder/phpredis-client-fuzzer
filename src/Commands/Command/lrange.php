@@ -23,6 +23,6 @@ class lrange extends KeyRangeCommand {
     }
 
     public function flags(): int {
-        return self::READ | self::CACHED;
+        return self::READ | self::CACHED | self::COMMON;
     }
 }

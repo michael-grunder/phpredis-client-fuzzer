@@ -25,7 +25,7 @@ class hget extends Command implements ProxyInterface, FuzzInterface,
     }
 
     public function flags(): int {
-        return self::READ | self::CACHED;
+        return self::READ | self::CACHED | self::COMMON;
     }
 
     public function proxy(Redis|Relay $server, Redis|Relay $client,

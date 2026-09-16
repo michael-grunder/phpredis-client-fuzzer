@@ -64,7 +64,7 @@ final class Application
         'no-relay-compatibility', 'differential', 'allow-deserialization-mutations',
     ];
 
-    private const REPEATABLE_OPTIONS = ['weight', 'hook', 'hook-arg', 'key-read-group'];
+    private const REPEATABLE_OPTIONS = ['commands', 'weight', 'hook', 'hook-arg', 'key-read-group'];
 
     private const RELAY_CLUSTER_OPTIONS = [
         'relay-failover',
@@ -245,6 +245,7 @@ final class Application
             // its own seed and its own reproduction script; everything else is
             // shared, and validation still happens here, before the fork.
             $scriptLog = $options->nullableString('script-log');
+            $commandGroups = $options->csvGroups('commands');
             $configure = fn (int $runSeed, ?string $runScriptLog): RunConfiguration => new RunConfiguration(
                 maxSteps: $options->integer('steps', 100),
                 maxSeconds: $options->number('seconds', 0.0),
@@ -264,7 +265,8 @@ final class Application
                 saturateSteps: $options->optionalInteger('saturate-steps'),
                 saturateTarget: $saturationTarget?->resolve(),
                 saturateMode: $saturationMode,
-                commands: $options->csv('commands'),
+                commands: $commandGroups[0] ?? [],
+                commandGroups: array_slice($commandGroups, 1),
                 weights: $this->weights($options->repeated('weight')),
                 raw: $options->has('raw'),
                 includeBlocking: $options->has('include-blocking'),
@@ -570,6 +572,8 @@ Run configuration:
                              them, and exits with the most severe child status.
                              --script-log gets a per-child suffix.
   --commands=PATTERN,...     Include/exclude names, globs, or @flags
+                            CSV positives use OR; repeat --commands for AND
+                            E.g. --commands=@common --commands=@invalidating,@cached
   --weight=TARGET:N          Set command or @flag weight; repeatable
   --keys=N                   Generated key space (default: 100)
   --key-skew=N               Zipf popularity exponent, finite >= 0 (default: 0, uniform)

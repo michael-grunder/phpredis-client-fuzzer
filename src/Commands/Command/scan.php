@@ -6,6 +6,10 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\ScanCommand;
 use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
 
 class scan extends ScanCommand {
+    public function flags(): int {
+        return parent::flags() | self::COMMON;
+    }
+
     public function type(): string {
         return self::ANY;
     }

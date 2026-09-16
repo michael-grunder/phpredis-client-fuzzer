@@ -18,7 +18,7 @@ class set extends Command implements ProxyInterface, FuzzInterface,
                                      FuzzRawInterface
 {
     public function flags(): int {
-        return self::WRITE | self::INVALIDATING;
+        return self::WRITE | self::INVALIDATING | self::COMMON;
     }
 
     public function type(): string {

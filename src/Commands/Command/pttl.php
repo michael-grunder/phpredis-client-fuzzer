@@ -6,7 +6,7 @@ use Mgrunder\PhpredisCommandFuzzer\Commands\KeyCommand;
 
 class pttl extends KeyCommand {
     public function flags(): int {
-        return self::READ;
+        return self::READ | self::COMMON;
     }
 
     public function type(): string {

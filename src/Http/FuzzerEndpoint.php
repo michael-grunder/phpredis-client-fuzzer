@@ -80,6 +80,7 @@ final class FuzzerEndpoint
             wrongTypeChance: $this->configuration->wrongTypeChance,
             crossSlotChance: $this->configuration->crossSlotChance,
             commands: $commands,
+            commandGroups: $this->configuration->commandGroups,
             weights: $this->configuration->weights,
             raw: $this->configuration->raw,
             includeBlocking: $this->configuration->includeBlocking,

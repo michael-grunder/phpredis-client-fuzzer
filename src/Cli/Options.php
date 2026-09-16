@@ -172,6 +172,12 @@ final class Options
         return self::split($this->string($name, $default));
     }
 
+    /** @return list<list<string>> CSV groups preserving each option occurrence. */
+    public function csvGroups(string $name): array
+    {
+        return array_map(self::split(...), $this->repeated($name, splitCommas: false));
+    }
+
     /**
      * Every value given for a repeatable option, optionally split on commas.
      *
