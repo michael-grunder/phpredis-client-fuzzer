@@ -659,6 +659,7 @@ Hooks:
   parameter; direct object files can read the local $arguments array.
   Example: --hook=hooks/evilresp.php --hook-arg=evilresp.mode=chaos
            --hook-arg=evilresp.chaos_min=5 --hook-arg=evilresp.chaos_max=75
+  Add --hook-arg=evilresp.fresh_seed=1 for a new seed on each chaos arm attempt.
   Invocation hooks run after generated ScriptArg values are resolved and before
   reproduction logging or client dispatch, and may allow, reject, or replace
   the call. See hooks/no-msgpack.php.

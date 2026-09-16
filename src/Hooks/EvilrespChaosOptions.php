@@ -11,12 +11,13 @@ final readonly class EvilrespChaosOptions
     public int $minimum;
     public int $maximum;
     public string $hash;
+    public bool $freshSeed;
 
     /** @param array<string, string> $arguments */
     public function __construct(array $arguments = [])
     {
         foreach ($arguments as $key => $value) {
-            if (!in_array($key, ['mode', 'chaos_min', 'chaos_max', 'hash'], true)) {
+            if (!in_array($key, ['mode', 'chaos_min', 'chaos_max', 'hash', 'fresh_seed'], true)) {
                 throw new \InvalidArgumentException("Unknown evilresp hook argument: {$key}");
             }
         }
@@ -26,8 +27,13 @@ final readonly class EvilrespChaosOptions
         }
         $this->enabled = $mode === 'chaos';
         if (!$this->enabled && array_diff(array_keys($arguments), ['mode']) !== []) {
-            throw new \InvalidArgumentException('evilresp chaos_min, chaos_max and hash require mode=chaos');
+            throw new \InvalidArgumentException('evilresp chaos_min, chaos_max, hash and fresh_seed require mode=chaos');
         }
+        $freshSeed = strtolower($arguments['fresh_seed'] ?? '0');
+        if (!in_array($freshSeed, ['0', '1', 'false', 'true'], true)) {
+            throw new \InvalidArgumentException('evilresp.fresh_seed must be 0, 1, false or true');
+        }
+        $this->freshSeed = in_array($freshSeed, ['1', 'true'], true);
         $this->minimum = self::temperature($arguments['chaos_min'] ?? '5', 'chaos_min');
         $this->maximum = self::temperature($arguments['chaos_max'] ?? '75', 'chaos_max');
         if ($this->minimum > $this->maximum) {

@@ -866,6 +866,96 @@ final class EvilrespHookTest extends TestCase
         self::assertNotSame($sequences[0][2], $sequences[2][2]);
     }
 
+    public function testFreshChaosSeedsVaryOnArmingAndReplayFromTheRunSeed(): void
+    {
+        $sequences = [];
+        foreach ([123, 123, 456] as $seed) {
+            $hooks = $this->load(['mode' => 'chaos', 'fresh_seed' => '1']);
+            $hooks->setSeed($seed);
+            $client = $this->standalone();
+            $hooks->dispatchPostConstructor($client, 0);
+            $first = $client->sent[2];
+            self::assertIsString($first[4]);
+            $draws = [$first[4]];
+            if ($sequences === []) {
+                $hooks->recordScriptSetup();
+            }
+            // The CLI seeds before construction, then Fuzzer::run seeds again.
+            $hooks->setSeed($seed);
+            for ($i = 0; $i < 20; $i++) {
+                $client->sent = [];
+                $hooks->dispatchPostCommand($this->completed($client, new \RedisException('protocol error')));
+                $hooks->dispatchPreCommand($this->pending($client));
+                self::assertSame([['DEBUG', 'EVIL', 'STATUS']], $client->sent);
+
+                $client->close();
+                $client->sent = [];
+                $hooks->dispatchPostCommand($this->completed($client, method: 'close'));
+                $hooks->dispatchPreCommand($this->pending($client));
+                $command = $this->sent($client)[1];
+                self::assertSame($first[2], $command[2]);
+                self::assertIsString($command[4]);
+                $draws[] = $command[4];
+            }
+            self::assertCount(21, array_unique($draws));
+            $sequences[] = $draws;
+        }
+        self::assertSame($sequences[0], $sequences[1]);
+        self::assertNotSame($sequences[0], $sequences[2]);
+    }
+
+    public function testFreshChaosScriptSetupRetainsEachNodesSeedWithoutDrawingAgain(): void
+    {
+        $hooks = $this->load(['mode' => 'chaos', 'fresh_seed' => 'true']);
+        $hooks->setSeed(123);
+        $cluster = $this->cluster([['127.0.0.1', 7200], ['127.0.0.1', 7201]]);
+        $hooks->dispatchPostConstructor($cluster, 0);
+        $commands = array_values(array_filter($cluster->sent, static fn (array $command): bool => $command[2] === 'CHAOS'));
+        self::assertCount(2, $commands);
+        self::assertNotSame($commands[0][5], $commands[1][5]);
+        $path = tempnam(sys_get_temp_dir(), 'evilresp-fresh-seed-script-');
+        self::assertIsString($path);
+        try {
+            ScriptLogger::init($path, clients: [$cluster]);
+            $hooks->recordScriptSetup();
+            // A changed node gets a new seed; the other node's snapshot stays valid.
+            $cluster->rawCommand(['127.0.0.1', 7200], 'DEBUG', 'EVIL', 'MODE', 'OFF');
+            $cluster->sent = [];
+            $hooks->dispatchPostCommand($this->completed($cluster, new \RedisClusterException('protocol error')));
+            $hooks->dispatchPreCommand($this->pending($cluster));
+            $rearmed = $this->sent($cluster);
+            self::assertCount(4, $rearmed);
+            self::assertNotSame($commands[0][5], $rearmed[1][5]);
+            self::assertNotSame($commands[1][5], $rearmed[1][5]);
+            $commands[] = $rearmed[1];
+            ScriptLogger::finish();
+            $script = file_get_contents($path);
+            self::assertIsString($script);
+            foreach ($commands as $command) {
+                self::assertIsString($command[5]);
+                self::assertStringContainsString("'SEED', '" . $command[5] . "'", $script);
+            }
+        } finally {
+            ScriptLogger::finish();
+            unlink($path);
+        }
+    }
+
+    public function testFreshChaosSeedOverrideIsTheSequenceBase(): void
+    {
+        putenv('EVILRESP_SEED=99');
+        $seeds = [];
+        foreach ([123, 456] as $seed) {
+            $hooks = $this->load(['mode' => 'chaos', 'fresh_seed' => '1']);
+            $hooks->setSeed($seed);
+            $client = $this->standalone();
+            $hooks->dispatchPostConstructor($client, 0);
+            $seeds[] = $client->sent[2][4];
+        }
+        self::assertSame($seeds[0], $seeds[1]);
+        self::assertNotSame('99', $seeds[0]);
+    }
+
     public function testZeroChaosAcceptsTlsHNullAndLogsConcreteArming(): void
     {
         $hooks = $this->load(['mode' => 'chaos', 'chaos_min' => '0', 'chaos_max' => '0', 'hash' => 'tlsh']);
@@ -890,13 +980,22 @@ final class EvilrespHookTest extends TestCase
         }
     }
 
-    public function testChaosDoesNotAcceptOkInPlaceOfAFingerprint(): void
+    /** @return iterable<string, array{string}> */
+    public static function freshSeedOptions(): iterable
     {
-        $hooks = $this->load(['mode' => 'chaos']);
+        yield 'fixed' => ['0'];
+        yield 'fresh' => ['1'];
+    }
+
+    #[DataProvider('freshSeedOptions')]
+    public function testChaosDoesNotAcceptOkInPlaceOfAFingerprint(string $freshSeed): void
+    {
+        $hooks = $this->load(['mode' => 'chaos', 'fresh_seed' => $freshSeed]);
         $hooks->setSeed(123);
         $client = $this->standalone();
         $client->proxy->chaosReply = 'OK';
         $hooks->dispatchPostConstructor($client, 0);
+        $firstSeed = $client->sent[2][4];
         // Failed arming is cooled down and retried, never recorded as armed.
         for ($i = 0; $i < 25; $i++) {
             $hooks->dispatchPostCommand($this->completed($client));
@@ -905,6 +1004,12 @@ final class EvilrespHookTest extends TestCase
         $client->sent = [];
         $hooks->dispatchPreCommand($this->pending($client));
         self::assertSame('CHAOS', $this->sent($client)[1][1]);
+        $nextSeed = $this->sent($client)[1][4];
+        if ($freshSeed === '1') {
+            self::assertNotSame($firstSeed, $nextSeed);
+        } else {
+            self::assertSame($firstSeed, $nextSeed);
+        }
     }
 
     /** @return iterable<string, array{array<string, string>}> */
@@ -918,6 +1023,8 @@ final class EvilrespHookTest extends TestCase
         yield 'typo' => [['mode' => 'chaos', 'choas_min' => '5']];
         yield 'hash' => [['mode' => 'chaos', 'hash' => 'SHA256']];
         yield 'manual' => [['chaos_min' => '5']];
+        yield 'fresh seed without chaos' => [['fresh_seed' => '1']];
+        yield 'invalid fresh seed' => [['mode' => 'chaos', 'fresh_seed' => 'random']];
     }
 
     /** @param array<string, string> $arguments */
@@ -943,12 +1050,12 @@ final class EvilrespHookTest extends TestCase
         return HookLoader::load([dirname(__DIR__, 2) . '/hooks/evilresp.php'], ['evilresp' => $arguments]);
     }
 
-    private function pending(\Redis $client, string $method = 'ping'): PendingInvocation
+    private function pending(\Redis|\RedisCluster $client, string $method = 'ping'): PendingInvocation
     {
         return new PendingInvocation($method, $client, $method, []);
     }
 
-    private function completed(\Redis $client, ?\Throwable $throwable = null, string $method = 'ping'): CompletedInvocation
+    private function completed(\Redis|\RedisCluster $client, ?\Throwable $throwable = null, string $method = 'ping'): CompletedInvocation
     {
         return new CompletedInvocation($method, $client, $method, [], $throwable === null ? true : null, $throwable, 0.0);
     }
@@ -959,7 +1066,7 @@ final class EvilrespHookTest extends TestCase
     }
 
     /** @return list<list<mixed>> */
-    private function sent(FakeEvilrespRedis $client): array
+    private function sent(FakeEvilrespRedis|FakeEvilrespCluster $client): array
     {
         return $client->sent;
     }

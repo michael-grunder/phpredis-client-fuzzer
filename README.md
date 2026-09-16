@@ -435,6 +435,17 @@ probability, topology and generator/framing/transport environment controls are
 ignored in chaos mode so they cannot override the preset. `MODE RESET` still
 runs once per run unless `EVILRESP_RESET=0` is set.
 
+To use a fresh proxy seed on every arm attempt (including reconnects and each
+cluster node), add `--hook-arg=evilresp.fresh_seed=1`. This chaos-only option
+defaults to `0`; it also accepts `true` and `false`. Seeds come from a separate
+deterministic random stream based on the run seed, or `EVILRESP_SEED` when set.
+The same base seed and sequence of arming attempts reproduce the same seeds;
+timing-dependent reconnects can change which commands see each seed. The
+temperature stays fixed for the run, and an unchanged STATUS check does not
+draw a seed or re-arm. Concrete seeds, including initial per-node seeds, are
+preserved in `--script-log`; with this option the summary's `seed` names the
+sequence base.
+
 Point the fuzzer at the proxy, not at the upstream server; the hook fails at
 arming if the target answers `DEBUG EVIL` like a plain Redis or Valkey. The
 mode and probabilities are drawn once per run from

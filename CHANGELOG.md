@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add opt-in `evilresp.fresh_seed=1` hook argument for a fresh deterministic
+  proxy seed on each CHAOS arm attempt, preserving concrete per-node seeds in
+  reproduction scripts and keeping the default one-seed-per-run behavior.
 - Add `--pick-client` to the fuzzer CLI to select matching clients from mixed
   standalone/cluster lists using the target port's topology, while preserving
   counts and deliberate single-topology mismatches.

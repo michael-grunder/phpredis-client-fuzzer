@@ -25,6 +25,10 @@ declare(strict_types=1);
  * mutation controls below, retaining seed/reset/probing, canonicalization
  * and include/exclude settings. Reconnects reuse the same temperature and
  * verify the server's expanded STATUS. The default mode remains manual.
+ * Add --hook-arg evilresp.fresh_seed=1 to draw a new proxy seed for each arm
+ * attempt, including each cluster node and reconnect. The deterministic seed
+ * stream uses EVILRESP_SEED or the run seed as its base; status-only checks do
+ * not draw. Concrete seeds are retained in reproduction scripts.
  *
  * Point the fuzzer at the proxy, never at the upstream server. Both the RESP
  * mutations and the client's misbehavior on them are the point, so expect
@@ -149,6 +153,7 @@ use Mgrunder\PhpredisCommandFuzzer\Hooks\ScriptSetupHook;
 use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
 use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
 use Random\Randomizer;
+use Random\Engine\Xoshiro256StarStar;
 
 return static function (HookRegistry $hooks, array $arguments = []): void {
     /** @var array<string, string> $arguments Supplied by HookLoader. */
@@ -289,6 +294,17 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
 
             private int $serial = 0;
 
+            /** Retained across the CLI's same-seed registry reset before Fuzzer::run(). */
+            private ?Randomizer $seedRandom = null;
+
+            private ?int $lastSeed = null;
+
+            /**
+             * Seeds actually sent, including arming attempts whose replies failed.
+             * @var WeakMap<object, array<string, array{serial: int, seed: int}>>
+             */
+            private WeakMap $armingSeeds;
+
             /** Plan serial whose MODE RESET has been sent, so it is sent once per run. */
             private int $resetSerial = 0;
 
@@ -334,6 +350,7 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
                 $clients = new WeakMap();
                 $this->clients = $clients;
                 $this->chaosStatuses = new WeakMap();
+                $this->armingSeeds = new WeakMap();
             }
 
             public function postConstructor(ClientEvent $event): void
@@ -502,6 +519,12 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
                     'summary' => '',
                     'settings' => $this->options?->draw($this->hooks->randomizer('evilresp-options')) ?? [],
                 ];
+                if ($this->chaos->freshSeed) {
+                    $this->seedRandom = new Randomizer(new Xoshiro256StarStar(
+                        hash('sha256', $plan['evilSeed'] . "\0evilresp-seeds", true),
+                    ));
+                    $this->lastSeed = $plan['evilSeed'];
+                }
                 $plan['summary'] = sprintf(
                     'seed=%d mode=%s probability=%s topology=%s canonicalize=%s include=[%s] exclude=[%s] reset=%s',
                     $plan['evilSeed'],
@@ -523,6 +546,9 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
                         $this->canonicalize ?? 'default', implode(',', $this->include),
                         implode(',', $this->exclude), $this->reset ? 'yes' : 'no',
                     );
+                }
+                if ($this->chaos->freshSeed) {
+                    $plan['summary'] .= ' fresh_seed=1 (seed is the sequence base)';
                 }
                 fwrite(STDERR, "evilresp: {$plan['summary']}\n");
 
@@ -553,10 +579,15 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
                     assert($client instanceof Redis || $client instanceof RedisCluster
                         || $client instanceof Relay\Relay || $client instanceof Relay\Cluster);
                     foreach ($this->nodes($client) as $node) {
+                        $nodePlan = $plan;
+                        $arming = ($this->armingSeeds[$client] ?? [])[$this->nodeKey($node)] ?? null;
+                        if ($arming !== null && $arming['serial'] === $plan['serial']) {
+                            $nodePlan['evilSeed'] = $arming['seed'];
+                        }
                         if (!$first && $node === null) {
                             ScriptLogger::log($client, 'close', []);
                         }
-                        foreach ($this->commands($client, $plan, $first && $this->reset) as $command) {
+                        foreach ($this->commands($client, $nodePlan, $first && $this->reset) as $command) {
                             $arguments = $this->wireArguments($command);
                             ScriptLogger::log($client, 'rawCommand', $node === null ? $arguments : [$node, ...$arguments]);
                         }
@@ -737,6 +768,15 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
              */
             private function arm(Redis|RedisCluster|Relay\Relay|Relay\Cluster $client, ?array $node, array $plan): void
             {
+                if ($this->seedRandom !== null) {
+                    do {
+                        $plan['evilSeed'] = $this->seedRandom->getInt(0, PHP_INT_MAX);
+                    } while ($plan['evilSeed'] === $this->lastSeed);
+                    $this->lastSeed = $plan['evilSeed'];
+                    $seeds = $this->armingSeeds[$client] ?? [];
+                    $seeds[$this->nodeKey($node)] = ['serial' => $plan['serial'], 'seed' => $plan['evilSeed']];
+                    $this->armingSeeds[$client] = $seeds;
+                }
                 foreach ($this->commands($client, $plan, $this->resetPending($plan)) as $command) {
                     $reply = $this->send($client, $node, $command);
                     $accepted = $command[0] === 'CHAOS'
