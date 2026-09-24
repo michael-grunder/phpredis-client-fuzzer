@@ -41,6 +41,10 @@ required compatibility API; Relay is optional for package consumers.
 - `src/Coverage/` and `bin/phpredis-coverage` report which server commands the
   catalog does not yet exercise; `data/coverage-ignore.txt` holds the default
   ignore patterns.
+- `src/Differential/`, `src/Cli/DiffApplication.php`, and
+  `bin/phpredis-fuzz-diff` implement the PhpRedis-vs-Relay differential fuzzer.
+  `DiffRuntime` is embedded verbatim in generated `reproduce.php` files, so it
+  must stay self-contained (no imports, no other package classes).
 - `src/Data/` and `data/` contain geo and stream workload fixtures.
 - `tests/` contains server-free PHPUnit unit tests.
 

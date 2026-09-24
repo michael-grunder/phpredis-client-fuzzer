@@ -590,7 +590,8 @@ PhpRedis runs replay exactly.
 
 Composer installs `vendor/bin/phpredis-fuzz`,
 `vendor/bin/phpredis-fuzz-coercive`, `vendor/bin/phpredis-fuzz-killer`,
-`vendor/bin/phpredis-fuzz-harness`, `vendor/bin/phpredis-commands`,
+`vendor/bin/phpredis-fuzz-harness`, `vendor/bin/phpredis-fuzz-diff`,
+`vendor/bin/phpredis-commands`,
 `vendor/bin/phpredis-coverage`, and `vendor/bin/phpredis-commandstats`.
 The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
@@ -1223,6 +1224,139 @@ captured Redis error, PHP warning, or exception contains `STRING`, using a
 case-insensitive search. The selected output mode is still written, including
 the matching diagnostic in `caught_diagnostic` for JSON output, and the process
 exits with a nonzero status.
+
+### Differential stateful fuzzing: PhpRedis vs Relay
+
+`phpredis-fuzz-diff` hunts for behavioral differences rather than crashes. Its
+invariant: given identical Redis state and an identical ordered sequence of
+client operations, PhpRedis and Relay should expose equivalent client-visible
+behavior and leave Redis in equivalent state. Both extensions must be loaded.
+
+Generation is separate from execution. Each case is explicit data derived from
+the run seed and case index: raw `setup` commands, a `test` sequence of client
+calls (`[method, args, comparison mode]`), the client options (serializer,
+compression, Relay `OPT_USE_CACHE`), and the client order. The case then runs as
+
+```text
+reset -> seed -> first client  -> record replies, errors, warnings, state
+reset -> seed -> second client -> record replies, errors, warnings, state
+compare
+```
+
+Every reset, seed, and state inspection goes through a separate raw RESP
+connection, never through a client under test, and each execution gets a
+freshly connected client. The generator keeps a lightweight model of each key's
+type and members so most operations are meaningful, and it aims a controlled
+share at missing keys, wrong types, empty and binary values, integer and float
+boundaries, out-of-range indexes, TTLs, and `MULTI`/`PIPELINE` blocks
+(`--wrongtype-chance`, `--missing-chance`, `--edge-chance`, `--txn-chance`,
+`--ttl-chance`). TTLs are either long or already expired, so expiration stays
+deterministic. `SPOP` only pops whole sets, because a partial pop is random.
+
+The clients start in random order per case (`--order`). Replies are
+canonicalized only where Redis permits a difference: `set` mode for unordered
+replies (`SMEMBERS`, `HKEYS`, `SUNION`, ...), `map` for `HGETALL`, `shape`
+(count only) for random replies (`SRANDMEMBER`, `HRANDFIELD`, `ZRANDMEMBER`),
+TTL tolerance (`--ttl-tolerance-ms`, default 2000) for `TTL`/`PTTL`, and
+`exec:` for per-command modes inside a transaction or pipeline. Floats are
+compared exactly, including `NAN`, `INF`, and `-0.0`. Exceptions compare by
+class and PHP warnings by count, since the clients word their own diagnostics
+differently. `getLastError()` compares exactly because that text comes from the
+server. `--strict-messages` compares all diagnostic text exactly. The final
+state of the case's prefix (type, contents in canonical order, PTTL) is
+compared after every case, so a command that silently mutates Redis
+incorrectly is caught even when its reply matches.
+
+A divergence is re-run once to confirm it. Each client is then run twice on
+its own to check self-consistency, because a client that cannot reproduce its
+own behavior makes the differential verdict meaningless. Every Nth passing
+case is self-checked as well (`--self-check-every`). A confirmed divergence is
+re-run with a state snapshot after every operation, which identifies the first
+operation that made state diverge rather than a later one that merely observed
+it. It is then minimized and saved:
+
+```text
+reproducers/differential/<id>/
+    case.json        the exact generated testcase
+    metadata.json    seeds, prefix, order, client options, PHP/PhpRedis/Relay
+                     versions, relay.* INI, server version and *max-* config,
+                     first reply and first state divergence
+    reproduce.php    standalone reproducer (the minimized case when possible)
+    minimized.json   minimized testcase, and original.php for the full one
+    report.txt       the reproducer's output at the time of the finding
+```
+
+`reproduce.php` needs nothing from this package: it hard-codes the setup and
+test sequences and embeds the execution core. `php reproduce.php` cleans its
+prefix, seeds, runs PhpRedis and Relay, prints `MATCH` or `DIFFERENCE` for
+every command and the first state divergence, and exits `1` while the
+divergence still reproduces:
+
+```text
+Command 0: hGet("fuzz:diff:3035091:7:394:k5", "821a55d2")
+  MATCH
+Command 1: get("fuzz:diff:3035091:7:394:k5")
+  DIFFERENCE (getLastError() differs, first)
+  Relay:
+    false
+    getLastError(): WRONGTYPE Operation against a key holding the wrong kind of value
+  PhpRedis:
+    false
+
+Final state: MATCH
+
+RESULT: DIVERGENCE reply@1
+```
+
+Override its target with `REDIS_HOST`/`REDIS_PORT` and its order with
+`DIFF_ORDER=relay,phpredis`. `--replay=case.json` prints the same report from
+the fuzzer, and `--minimize-case=case.json` minimizes a saved case.
+
+The minimizer only accepts a smaller candidate while it still diverges with the
+same signature (divergence kind, operation, and what differed), so it cannot
+drift to a different bug. It truncates after the first divergence, removes
+ranges of test operations and then setup commands with halving range sizes,
+drops elements from setup collections, shortens string and list arguments, and
+resets the serializer, compression, and Relay cache knobs to their defaults. The
+result must reproduce three more times to be kept (`--minimize-seconds`,
+default 60; `--no-minimize`).
+
+Signatures are recorded in `<output>/signatures.txt`. A divergence whose
+signature is already there, from this run or any other worker sharing the
+directory, counts as a duplicate: it is not saved and does not fail the run.
+`--no-dedupe` saves everything. A divergence that does not repeat on
+confirmation is saved under `flaky/`, and one involving a self-inconsistent
+client under `unstable/`. Neither fails the run unless `--fail-on-unstable` is
+given. A client fatal error, which no handler can catch, is saved under
+`fatal/` before the process exits.
+
+Isolation: every key lives under `<prefix-root>:<worker>:<seed>:<case>:`
+(default root `fuzz:diff`, worker defaults to the pid). Cleanup only `SCAN`s
+and `UNLINK`s that prefix, so any number of workers can share one Redis.
+`FLUSHDB`/`FLUSHALL` are never generated unless `--allow-flush` is given, and
+that mode must not run alongside any other worker. Standalone Redis only; this
+first version does not support cluster targets.
+
+```bash
+# One worker, direct
+vendor/bin/phpredis-fuzz-diff --port 6379 --cases 1000 --keep-going \
+    --serializer random --compression random --relay-cache random
+
+# Many workers under the harness. The harness appends --seed, and {steps} is
+# the number of test operations per case. A smaller value yields a prefix of
+# the same case, so --reduce steps works. Either use the harness reducer
+# (with --no-dedupe, or its re-runs are skipped as duplicates) or the fuzzer's
+# own minimizer.
+vendor/bin/phpredis-fuzz-harness --jobs 8 --capture failures --steps 30 \
+    --port 6379 -- vendor/bin/phpredis-fuzz-diff --port={port} \
+    --steps={steps} --cases 200
+
+php reproducers/differential/1a2b3c4d/reproduce.php
+```
+
+It exits `0` when no new divergence was found, `1` for a divergence or a
+failed run (including an unreachable target), and `78` for a rejected command
+line or a missing extension. Point it only at a disposable Redis target.
 
 ### Differential cache oracle
 

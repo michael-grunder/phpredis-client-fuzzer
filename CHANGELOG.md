@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `bin/phpredis-fuzz-diff`, a stateful differential fuzzer that runs
+  identical, seeded, explicitly represented testcases through PhpRedis and
+  Relay from identical Redis state (seeded and inspected through a separate
+  raw RESP connection), compares replies with Redis-semantics-aware
+  canonicalization, and compares the resulting per-prefix state. Confirmed
+  divergences are self-checked, analysed per operation, minimized, deduplicated
+  by signature, and saved as `case.json`, `metadata.json`, and a standalone
+  `reproduce.php`. Keys stay under a per-run prefix, flush commands require
+  `--allow-flush`, and the binary follows the `phpredis-fuzz-harness` seed,
+  `{steps}`, and exit-code conventions.
 - Add the `@common` command flag for 60 curated everyday Redis commands.
 - Add `RunConfiguration::commandGroups` for intersections of OR filter groups,
   retaining groups in reports and preserving server-controlled HTTP groups.
