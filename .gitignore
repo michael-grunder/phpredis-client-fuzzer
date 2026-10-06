@@ -4,3 +4,4 @@ vendor/
 *.stub.php
 stubs/
 phpredis-fuzz-repros
+profiles/
