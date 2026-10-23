@@ -45,6 +45,8 @@ required compatibility API; Relay is optional for package consumers.
   `bin/phpredis-fuzz-diff` implement the PhpRedis-vs-Relay differential fuzzer.
   `DiffRuntime` is embedded verbatim in generated `reproduce.php` files, so it
   must stay self-contained (no imports, no other package classes).
+- `src/Viewer/`, `src/Cli/ReproViewerApplication.php`, and `bin/phpredis-repros`
+  browse harness reproducer directories read-only.
 - `src/Data/` and `data/` contain geo and stream workload fixtures.
 - `tests/` contains server-free PHPUnit unit tests.
 

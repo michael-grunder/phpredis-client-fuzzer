@@ -1246,6 +1246,33 @@ case-insensitive search. The selected output mode is still written, including
 the matching diagnostic in `caught_diagnostic` for JSON output, and the process
 exits with a nonzero status.
 
+### Browsing reproducers
+
+`bin/phpredis-repros [DIR]` (default `reproducers`) is a read-only TUI over a
+harness `--output` directory, one kind directory, or a single capture. Each row
+shows the capture's kind, minimized and original step counts (`897←5000`), and a
+one-line headline of the defect, chosen by how the run was captured:
+
+- sanitizer: the parsed ASAN/LSan/UBSan report, as the defect type, the access,
+  the first frame outside the sanitizer runtime and libc with its caller, and
+  where the memory was freed, for example
+  `heap-use-after-free READ of size 8 in relayTryGetLong (commands.c:2936) ← relayRawHRandFieldRCmd | freed in execute_ex (php8.5)`.
+- crash: a glibc assertion message from stderr, or the top frames of a gdb
+  backtrace of the collected core (`--php` from `meta.json` is the binary). gdb
+  runs when a capture is opened, or for every core up front with `--backtraces`.
+- memory, leak, timeout, failure: the harness' diagnostics from `meta.json`, or
+  the last stderr line.
+
+Enter opens the full analysis: summary, replay command (with the minimized step
+count, `rr replay` and `gdb` commands where a trace or core exists), the parsed
+stacks, the sanitizer report or stderr tail, the stdout tail, and the files. `g`
+groups captures by signature (defect type plus the top three frames, without
+addresses, pids, or seeds), most frequent first, so a campaign that hit one bug
+35 times shows one row per distinct path to it. `--list`, `--group`, and
+`--show N|ID` print the same information without the TUI, which is also the
+default when stdout is not a terminal. Nothing in the reproducer directory is
+written; gdb output is kept in memory.
+
 ### Differential stateful fuzzing: PhpRedis vs Relay
 
 `phpredis-fuzz-diff` hunts for behavioral differences rather than crashes. Its

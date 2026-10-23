@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `bin/phpredis-repros`, a read-only TUI (and `--list`/`--show` text mode)
+  for browsing harness reproducers, with a per-capture defect headline from the
+  parsed sanitizer report, a glibc assertion, or a gdb backtrace of the core,
+  and grouping of captures by address-free defect signature.
 - Add `--asan` and `--asan-runtime FILE` to `phpredis-fuzz-harness`, a
   `sanitizers` capture kind (`reproducers/sanitizer/`), and `bin/phpredis-asan`
   for single ASAN runs. Sanitizer reports in stderr are classified regardless of
