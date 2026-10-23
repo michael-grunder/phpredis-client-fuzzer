@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `--asan` and `--asan-runtime FILE` to `phpredis-fuzz-harness`, a
+  `sanitizers` capture kind (`reproducers/sanitizer/`), and `bin/phpredis-asan`
+  for single ASAN runs. Sanitizer reports in stderr are classified regardless of
+  exit status, recorded as `sanitizer_message` and `asan_environment` in
+  `meta.json`, and required again during step reduction.
 - Add `bin/phpredis-fuzz-diff`, a stateful differential fuzzer that runs
   identical, seeded, explicitly represented testcases through PhpRedis and
   Relay from identical Redis state (seeded and inspected through a separate

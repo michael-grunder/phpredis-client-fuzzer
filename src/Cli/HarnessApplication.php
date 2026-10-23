@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Cli;
 
+use Mgrunder\PhpredisCommandFuzzer\AsanRuntime;
 use Mgrunder\PhpredisCommandFuzzer\Harness\CommandTemplate;
 use Mgrunder\PhpredisCommandFuzzer\Harness\CorePattern;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
@@ -29,6 +30,8 @@ use Mgrunder\PhpredisCommandFuzzer\Harness\View;
  */
 final class HarnessApplication
 {
+    private ?AsanRuntime $asan = null;
+
     /** @var resource */
     private $output;
 
@@ -65,6 +68,7 @@ final class HarnessApplication
 
     private function execute(HarnessOptions $options): int
     {
+        $this->asan = $options->asan ? AsanRuntime::create($options->asanRuntime) : null;
         $template = new CommandTemplate($options->command);
         $template->validate();
         $this->assertScriptExists($template);
@@ -140,7 +144,7 @@ final class HarnessApplication
         Fs::ensureDir($probeDir);
         try {
             $probe = $startup->render($options->seed ?? 0, $probeDir);
-            if ($options->capturesLeaks() && !$this->phpIsDebug($php, $probe['args'])) {
+            if ($options->capturesLeaks() && !$options->asan && !$this->phpIsDebug($php, $probe['args'])) {
                 $this->write(
                     "warning: --capture leaks needs a debug PHP build; this php will not emit Zend MM leak reports\n",
                     true,
@@ -167,6 +171,7 @@ final class HarnessApplication
             $setsid,
             $runLog,
             $startup,
+            $this->asan,
         );
         $reducer = new Reducer($runner, $options->reduceTimeout);
         $ports = new PortPool($options->ports, $options->portSelect, $options->isolatePorts);
@@ -237,7 +242,7 @@ final class HarnessApplication
     {
         $core = CorePattern::fromSystem();
 
-        if ($options->noCoreCheck) {
+        if ($options->noCoreCheck || $options->asan) {
             return $core ?? new CorePattern('core', false);
         }
 
@@ -309,6 +314,7 @@ final class HarnessApplication
             'steps: ' . $options->steps,
             'ports: ' . ($options->ports === [] ? '(none)' : implode(', ', $options->ports)),
             'port select: ' . $options->portSelect . ($options->isolatePorts ? ' (isolated)' : ' (shared)'),
+            'asan: ' . ($this->asan === null ? 'disabled' : json_encode($this->asan->environment, JSON_UNESCAPED_SLASHES)),
             'rr: ' . ($rrBinary ?? 'disabled') . ($options->rrChaos ? ' --chaos' : ''),
             'detach: ' . ($setsid ?? 'no (runs share the harness process group)'),
             'capture: ' . implode(', ', $options->capture),
@@ -348,7 +354,7 @@ final class HarnessApplication
         $code = 0;
         $output = [];
         @exec(
-            escapeshellarg($setsid) . ' ' . escapeshellarg($php)
+            escapeshellarg($setsid) . ' ' . $this->shellCommand($php, ['-n'])
             . ' -r ' . escapeshellarg('exit(42);') . ' 2>/dev/null',
             $output,
             $code,
@@ -360,7 +366,16 @@ final class HarnessApplication
     /** @param list<string> $phpArgs */
     private function probePhp(string $php, array $phpArgs): string
     {
-        $binary = self::shellCommand($php, $phpArgs);
+        $binary = $this->shellCommand($php, $phpArgs);
+        if ($this->asan !== null) {
+            $output = [];
+            $status = 0;
+            exec($binary . ' -r ' . escapeshellarg('echo "asan-startup-ok";') . ' 2>&1', $output, $status);
+            $diagnostic = implode("\n", $output);
+            if ($status !== 0 || $diagnostic !== 'asan-startup-ok') {
+                throw new \RuntimeException('ASAN PHP startup failed (exit ' . $status . '): ' . $diagnostic);
+            }
+        }
         $version = @shell_exec($binary . ' -v 2>/dev/null');
         $first = is_string($version) ? strtok($version, "\n") : false;
         $line = $first === false ? 'unknown php' : trim($first);
@@ -387,7 +402,7 @@ final class HarnessApplication
     private function phpIsDebug(string $php, array $phpArgs): bool
     {
         $out = @shell_exec(
-            self::shellCommand($php, $phpArgs)
+            $this->shellCommand($php, $phpArgs)
             . ' -r ' . escapeshellarg('echo PHP_DEBUG ? "1" : "0";') . ' 2>/dev/null',
         );
 
@@ -400,9 +415,10 @@ final class HarnessApplication
      *
      * @param list<string> $phpArgs
      */
-    private static function shellCommand(string $php, array $phpArgs): string
+    private function shellCommand(string $php, array $phpArgs): string
     {
-        return implode(' ', array_map(escapeshellarg(...), [$php, ...$phpArgs]));
+        $argv = [$php, ...$phpArgs];
+        return implode(' ', array_map(escapeshellarg(...), $this->asan?->command($argv) ?? $argv));
     }
 
     private function locate(string $name): ?string
@@ -467,6 +483,11 @@ substituted per run:
 
 Harness options:
   --jobs N              Concurrent runs (default: 1)
+  --asan                Set up ASAN for inferior PHP only (Linux). Defaults to
+                        --capture crashes,sanitizers; skips the core-pattern
+                        requirement. Run separately from --rr and Valgrind.
+  --asan-runtime FILE   ASAN shared runtime; implies --asan. Default: GCC's
+                        libasan.so. Match the compiler used for the extensions.
   --php PATH            PHP binary to run the fuzzer with (default: this PHP)
   --php-args ARGS       Extra PHP startup arguments placed before the fuzzer
                         script, e.g. --php-args -drelay.maxmemory=1g. May be
@@ -492,7 +513,8 @@ Harness options:
   --seconds N           Stop after N seconds (default: unlimited)
   --reproducers N       Stop after N reproducers captured (default: unlimited)
   --capture LIST        Comma list of what to save as reproducers (default:
-                        crashes). Kinds: crashes (crashing signals), leaks
+                        crashes; crashes,sanitizers with --asan). Kinds: crashes
+                        (crashing signals), sanitizers (ASAN/LSan/UBSan), leaks
                         (leak reports from a debug PHP build or Relay's shared
                         allocator), memory (fatal allocation exhaustion or
                         integer overflow), timeouts (runs killed for exceeding

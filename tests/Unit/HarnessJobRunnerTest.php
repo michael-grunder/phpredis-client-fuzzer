@@ -12,6 +12,7 @@ use Mgrunder\PhpredisCommandFuzzer\Harness\Job;
 use Mgrunder\PhpredisCommandFuzzer\Harness\JobRunner;
 use Mgrunder\PhpredisCommandFuzzer\Harness\JobStatus;
 use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
+use Mgrunder\PhpredisCommandFuzzer\Harness\Reducer;
 use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -29,6 +30,37 @@ final class HarnessJobRunnerTest extends TestCase
         if ($this->root !== '') {
             Fs::removeTree($this->root);
         }
+    }
+
+    public function testSanitizerCaptureAndReductionKeepReportsEvenWithExitZero(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, ['--capture=sanitizers'], [
+            'php', \dirname(__DIR__) . '/Fixtures/sanitizer-child.php', '{steps}', '0',
+        ], steps: 8);
+        $job = $this->await($runner, $runner->spawn(0, null, 42));
+        self::assertSame(JobStatus::SanitizerFailed, $job->status);
+        self::assertNotNull($job->reproDir);
+        self::assertSame($root . '/out/sanitizer', dirname($job->reproDir));
+        self::assertSame('sanitizer', $this->meta($job->reproDir)['kind']);
+        self::assertStringContainsString('heap-use-after-free', (string) file_get_contents($job->reproDir . '/stderr.log'));
+        $reduced = (new Reducer($runner, 10.0))->reduce($job);
+        self::assertNotNull($reduced);
+        self::assertSame(3, $reduced['steps']);
+        self::assertSame('sanitizer', $reduced['outcome']->verdict->kind());
+        self::assertNotNull($reduced['outcome']->sanitizer);
+    }
+
+    public function testSanitizerReportsRespectExplicitCaptureSelection(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, ['--capture=crashes'], [
+            'php', \dirname(__DIR__) . '/Fixtures/sanitizer-child.php', '3', '1',
+        ]);
+        $job = $this->await($runner, $runner->spawn(0, null, 42));
+        self::assertSame(JobStatus::Skipped, $job->status);
+        self::assertTrue($job->failure);
+        self::assertNull($job->reproDir);
     }
 
     public function testAnUnfinalisedTraceIsParkedUnderFailedInsteadOfBecomingAReproducer(): void
@@ -408,8 +440,9 @@ final class HarnessJobRunnerTest extends TestCase
         array $command,
         ?string $rr = null,
         ?RunLog $runLog = null,
+        int $steps = 1,
     ): JobRunner {
-        $options = HarnessOptions::parse([...$harnessArgs, '--steps', '1', '--', ...$command]);
+        $options = HarnessOptions::parse([...$harnessArgs, '--steps', (string) $steps, '--', ...$command]);
         $store = new ReproStore($root . '/out', new CorePattern('core.%e.%p', false), $root, null, 4242);
 
         return new JobRunner(

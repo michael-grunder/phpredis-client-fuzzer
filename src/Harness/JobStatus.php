@@ -30,6 +30,9 @@ enum JobStatus: string
     /** Fatal allocation error, captured as a reproducer. */
     case MemoryFailed = 'memory';
 
+    /** ASAN, LSan, or UBSan report, captured regardless of exit status. */
+    case SanitizerFailed = 'sanitizer';
+
     /**
      * The fuzzer rejected its command line (ExitCode::STARTUP) and never ran a
      * command, so every run of this campaign would fail the same way.

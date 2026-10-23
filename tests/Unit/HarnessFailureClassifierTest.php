@@ -150,6 +150,22 @@ final class HarnessFailureClassifierTest extends TestCase
         self::assertFalse($exitThree->matches(FailureClassifier::fromExit(false, null, 4)));
     }
 
+    public function testSanitizersAreCapturedRegardlessOfExitCodeOrAbort(): void
+    {
+        $sanitizer = FailureClassifier::fromExit(false, null, 1, sanitizer: true);
+        foreach ([0, 1, 23, 78, 134] as $code) {
+            $verdict = FailureClassifier::fromExit(false, null, $code, sanitizer: true);
+            self::assertSame('sanitizer', $verdict->kind());
+            self::assertTrue($verdict->failed);
+            self::assertFalse($verdict->startupError);
+            self::assertTrue($sanitizer->matches($verdict));
+        }
+        $ordinary = FailureClassifier::fromExit(false, null, 1);
+        self::assertFalse($sanitizer->matches($ordinary));
+        self::assertFalse($ordinary->matches($sanitizer));
+        self::assertSame('timeout', FailureClassifier::fromExit(false, null, 1, timedOut: true, sanitizer: true)->kind());
+    }
+
     public function testMemoryIsDistinctFromAnOrdinaryFatalExitAndLeak(): void
     {
         $memory = FailureClassifier::fromExit(false, null, 255, memory: true);

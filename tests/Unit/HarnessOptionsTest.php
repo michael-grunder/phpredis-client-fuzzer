@@ -29,6 +29,22 @@ final class HarnessOptionsTest extends TestCase
         );
     }
 
+    public function testAsanDefaultsAndExplicitCapture(): void
+    {
+        $options = HarnessOptions::parse(['--asan-runtime=/tmp/libasan.so', '--', 'x']);
+        self::assertTrue($options->asan);
+        self::assertSame('/tmp/libasan.so', $options->asanRuntime);
+        self::assertSame(['crashes', 'sanitizers'], $options->capture);
+        self::assertSame(['failures'], HarnessOptions::parse(['--asan', '--capture=failures', '--', 'x'])->capture);
+    }
+
+    public function testAsanRejectsRrChaos(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('separate campaigns');
+        HarnessOptions::parse(['--asan', '--rr-chaos', '--', 'x']);
+    }
+
     public function testPortAcceptsCommaSeparatedAndDeduplicates(): void
     {
         $options = HarnessOptions::parse(['--port=7000,7001,7000', '--', 'x']);

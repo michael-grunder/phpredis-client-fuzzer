@@ -38,7 +38,7 @@ final class PlainView implements View
         $this->lastSummary = $now;
 
         $this->line(sprintf(
-            '[%s] runs=%d active=%d/%d exec/s=%.1f failures=%d crashes=%d timeouts=%d leaks=%d memory=%d repros=%d'
+            '[%s] runs=%d active=%d/%d exec/s=%.1f failures=%d crashes=%d timeouts=%d leaks=%d memory=%d sanitizers=%d repros=%d'
             . ($stats->failedReproducers > 0 ? ' failed-repros=' . $stats->failedReproducers : '')
             . ($stats->rrAborts > 0 ? ' rr-aborts=' . $stats->rrAborts : ''),
             $stats->formatElapsed(),
@@ -51,6 +51,7 @@ final class PlainView implements View
             $stats->timeouts,
             $stats->leaks,
             $stats->memory,
+            $stats->sanitizers,
             $stats->reproducers,
         ));
     }
@@ -66,7 +67,7 @@ final class PlainView implements View
     {
         if ($this->quiet && !str_contains($message, 'CRASH') && !str_contains($message, 'FAIL')
             && !str_contains($message, 'TIMEOUT') && !str_contains($message, 'LEAK')
-            && !str_contains($message, 'MEMORY')
+            && !str_contains($message, 'MEMORY') && !str_contains($message, 'SANITIZER')
             && !str_contains($message, 'trace capture failed')
             && !str_contains($message, 'rr aborted')) {
             return;

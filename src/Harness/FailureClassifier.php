@@ -43,6 +43,7 @@ final class FailureClassifier
         public readonly ?int $exitCode,
         public readonly bool $startupError = false,
         public readonly bool $memory = false,
+        public readonly bool $sanitizer = false,
     ) {
     }
 
@@ -53,6 +54,7 @@ final class FailureClassifier
      * @param bool $timedOut the harness killed the run for exceeding --run-timeout
      * @param bool $leaked a debug PHP build printed a Zend MM leak report
      * @param bool $memory the child printed a fatal allocation diagnostic
+     * @param bool $sanitizer the child printed an ASAN, LSan, or UBSan report
      */
     public static function fromExit(
         bool $signaled,
@@ -61,6 +63,7 @@ final class FailureClassifier
         bool $timedOut = false,
         bool $leaked = false,
         bool $memory = false,
+        bool $sanitizer = false,
     ): self {
         $signal = null;
         if ($signaled && $termSignal !== null && $termSignal > 0) {
@@ -72,7 +75,7 @@ final class FailureClassifier
 
         $crashed = $signal !== null && in_array($signal, self::CRASH_SIGNALS, true);
         $nonZeroExit = $exitCode !== null && $exitCode !== 0;
-        $failed = $crashed || $timedOut || $memory || $leaked || $nonZeroExit || $signal !== null;
+        $failed = $sanitizer || $crashed || $timedOut || $memory || $leaked || $nonZeroExit || $signal !== null;
 
         // The fuzzer binaries reserve ExitCode::STARTUP for "the command line
         // was rejected"; a run that never started cannot have died of anything
@@ -80,21 +83,26 @@ final class FailureClassifier
         $startupError = $signal === null
             && !$timedOut
             && !$memory
+            && !$sanitizer
             && $exitCode === ExitCode::STARTUP;
 
-        return new self($failed, $crashed, $timedOut, $leaked, $signal, $exitCode, $startupError, $memory);
+        return new self($failed, $crashed, $timedOut, $leaked, $signal, $exitCode, $startupError, $memory, $sanitizer);
     }
 
     /**
      * The single most significant category of this outcome, used to pick the
      * reproducer label and to gate capture against `--capture`. Precedence:
-     * crash, then timeout, then memory, then leak, then a rejected command
-     * line, then a plain non-zero exit.
+     * A sanitizer report identifies even an aborting sanitizer. Otherwise:
+     * crash, timeout, memory, leak, rejected command line, non-zero exit.
+     * A killed, timed-out run retains its crash/timeout classification.
      *
-     * @return 'pass'|'crash'|'timeout'|'memory'|'leak'|'startup'|'failure'
+     * @return 'pass'|'sanitizer'|'crash'|'timeout'|'memory'|'leak'|'startup'|'failure'
      */
     public function kind(): string
     {
+        if ($this->sanitizer && !$this->timedOut) {
+            return 'sanitizer';
+        }
         if ($this->crashed) {
             return 'crash';
         }
@@ -148,6 +156,9 @@ final class FailureClassifier
      */
     public function matches(self $other): bool
     {
+        if ($this->sanitizer || $other->sanitizer) {
+            return $this->kind() === $other->kind();
+        }
         if ($this->crashed || $other->crashed) {
             return $other->crashed && $other->signal === $this->signal;
         }

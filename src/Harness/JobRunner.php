@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\PhpredisCommandFuzzer\Harness;
 
 use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
+use Mgrunder\PhpredisCommandFuzzer\AsanRuntime;
 
 /**
  * Launches fuzzer child processes, polls them without blocking, classifies how
@@ -39,6 +40,7 @@ final class JobRunner
         private readonly ?string $setsidBinary = null,
         private readonly ?RunLog $runLog = null,
         ?PhpStartupTemplate $startup = null,
+        private readonly ?AsanRuntime $asan = null,
     ) {
         $this->startup = $startup ?? new PhpStartupTemplate($phpArgs, $options->phpIni);
         Fs::ensureDir($this->workRoot);
@@ -133,6 +135,7 @@ final class JobRunner
             $job->leak = LeakReport::scan($job->workDir . '/stderr.log');
         }
 
+        $job->sanitizer = SanitizerReport::scan($job->workDir . '/stderr.log');
         $job->memory = MemoryReport::scan($job->workDir . '/stderr.log', $job->workDir . '/stdout.log');
 
         $verdict = FailureClassifier::fromExit(
@@ -142,6 +145,7 @@ final class JobRunner
             $job->timedOut,
             $job->leak !== null,
             $job->memory !== null,
+            $job->sanitizer !== null,
         );
 
         // Before resolve(), which moves this run's stdout into a reproducer or
@@ -201,16 +205,18 @@ final class JobRunner
             ? LeakReport::scan($workDir . '/stderr.log')
             : null;
 
+        $sanitizer = SanitizerReport::scan($workDir . '/stderr.log');
         $memory = MemoryReport::scan($workDir . '/stderr.log', $workDir . '/stdout.log');
 
         return new JobOutcome(
-            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false, $leak !== null, $memory !== null),
+            FailureClassifier::fromExit($status['signaled'], $signal, $exitCode, false, $leak !== null, $memory !== null, $sanitizer !== null),
             $workDir,
             $traceDir,
             microtime(true) - $started,
             $status['pid'],
             $leak,
             $memory,
+            $sanitizer,
         );
     }
 
@@ -325,6 +331,7 @@ final class JobRunner
 
         $capture = match ($kind) {
             'crash' => $this->options->capturesCrashes(),
+            'sanitizer' => in_array('sanitizers', $this->options->capture, true),
             'leak' => $this->options->capturesLeaks(),
             'memory' => $this->options->capturesMemory(),
             'timeout' => $this->options->capturesTimeouts(),
@@ -380,6 +387,7 @@ final class JobRunner
 
         $job->reproDir = $this->store->capture($job, $this->meta($job, $verdict));
         $job->status = match ($kind) {
+            'sanitizer' => JobStatus::SanitizerFailed,
             'crash' => JobStatus::Crashed,
             'timeout' => JobStatus::TimedOut,
             'leak' => JobStatus::Leaked,
@@ -454,6 +462,7 @@ final class JobRunner
     private function describeVerdict(Job $job, FailureClassifier $verdict): string
     {
         return match ($verdict->kind()) {
+            'sanitizer' => 'sanitizer: ' . ($job->sanitizer->message ?? ''),
             'crash' => $verdict->signalName(),
             'memory' => 'memory',
             'timeout' => $job->killSignal === 9 ? 'timeout (SIGKILL)' : 'timeout',
@@ -485,6 +494,8 @@ final class JobRunner
                 ? FailureClassifier::signalLabel($job->killSignal)
                 : null,
             'kind' => $verdict->kind(),
+            'sanitizer_message' => $job->sanitizer?->message,
+            'asan_environment' => $this->asan?->environment,
             'memory' => $verdict->memory,
             'memory_message' => $job->memory?->message,
             'leaked' => $verdict->leaked,
@@ -533,6 +544,10 @@ final class JobRunner
         // Pin the seed so a captured failure can be reproduced and reduced.
         if (!$this->template->uses('seed') && !$this->template->hasOption('seed')) {
             $child[] = '--seed=' . $seed;
+        }
+
+        if ($this->asan !== null) {
+            $child = $this->asan->command($child);
         }
 
         if ($this->rrBinary !== null && $traceDir !== null) {

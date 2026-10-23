@@ -27,6 +27,8 @@ final class Stats
 
     public int $memory = 0;
 
+    public int $sanitizers = 0;
+
     public int $reproducers = 0;
 
     /**

@@ -963,11 +963,18 @@ to one running job at a time, so runs are isolated in Redis and effective
 concurrency is capped at the number of ports.
 
 `--capture` is a comma list of what to save as a reproducer; the default is
-`crashes`. The kinds are:
+`crashes` (`crashes,sanitizers` under `--asan`). The kinds are:
 
 - `crashes` — the run dies from a crashing signal
   (`SIGSEGV`/`SIGABRT`/`SIGBUS`/`SIGILL`/`SIGFPE`/`SIGSYS`/`SIGTRAP`, or a
   `128 + signal` exit).
+- `sanitizers` — stderr holds an AddressSanitizer, LeakSanitizer, or
+  UndefinedBehaviorSanitizer report (`ERROR: AddressSanitizer:`, a `SUMMARY:`
+  line, `AddressSanitizer:DEADLYSIGNAL`, or a UBSan `file:line: runtime error:`).
+  A report outranks every other kind except a timeout, since ASAN turns a
+  `SIGSEGV` into a report and `exit 1`. `meta.json` records `sanitizer_message`
+  (the first matching line) and `asan_environment`; the full report stays in
+  `stderr.log`. Reduction requires another sanitizer report.
 - `leaks` — a leak report was printed to stderr, from either allocator: a
   **debug** PHP build's Zend memory manager
   (`=== Total N memory leaks detected ===`), or Relay's own shared allocator
@@ -1001,7 +1008,7 @@ choose another directory.
 `--capture crashes,leaks,memory,timeouts,failures` captures everything. Each capture
 becomes `<output>/<kind>/<harness-pid>.<nnnnn>/` — for example
 `reproducers/crash/48213.00001/` — grouped by the classified failure kind:
-`crash`, `memory`, `leak`, `timeout`, or `failure`. Existing captures are left
+`crash`, `sanitizer`, `memory`, `leak`, `timeout`, or `failure`. Existing captures are left
 in place. Each capture directory holds
 `command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump,
 the `php.ini` copy when `--php-ini` was used,
@@ -1106,6 +1113,20 @@ run can be matched to it by PID; the harness aborts at startup otherwise. Pass
 piped `core_pattern` (systemd-coredump and similar) is allowed but cores are not
 collected automatically. `--rr` requires the `rr` binary on `PATH`;
 `--rr-chaos` implies `--rr` and adds `rr record --chaos`.
+
+`--asan` (Linux) runs every child through `/usr/bin/env` with `LD_PRELOAD` set to
+GCC's `libasan.so` (or `--asan-runtime FILE`, which implies `--asan`; match the
+compiler that built the extensions), `USE_ZEND_ALLOC=0` so emalloc goes through
+the instrumented allocator, `ZEND_DONT_UNLOAD_MODULES=1` for symbolized stacks,
+and `ASAN_OPTIONS`/`UBSAN_OPTIONS` forced to `halt_on_error=1:log_path=stderr`
+(caller options are kept; `detect_leaks=0` unless overridden). Only the inferior
+PHP is instrumented, so `--php` can be an ordinary build loading ASAN-built
+extensions. At startup the harness checks that PHP starts cleanly under the
+preload, and skips the `core_pattern` check. `--asan` cannot be combined with
+`--rr`, and refuses a Valgrind `LD_PRELOAD`. `USE_TRACKED_ALLOC=1` keeps
+`memory_limit` enforced without Zend MM, so `memory` captures still work. `command.txt` holds the full `env` prefix, so it replays as-is.
+`bin/phpredis-asan [--php PATH] [--asan-runtime FILE] -- <PHP args>` applies the
+same environment to a single direct run.
 
 A run that exits `78` is treated as a startup failure rather than a finding: the
 fuzzer rejected its command line and never executed a command, so every later run

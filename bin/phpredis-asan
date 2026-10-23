@@ -1,0 +1,46 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Mgrunder\PhpredisCommandFuzzer\AsanRuntime;
+use Mgrunder\PhpredisCommandFuzzer\Cli\Options;
+
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (!is_file($autoload)) {
+    $autoload = dirname(__DIR__, 3) . '/autoload.php';
+}
+require $autoload;
+
+try {
+    $arguments = array_slice($argv, 1);
+    $separator = array_search('--', $arguments, true);
+    $options = Options::parse(
+        $separator === false ? $arguments : array_slice($arguments, 0, $separator),
+        ['php', 'asan-runtime'],
+        ['help'],
+    );
+    if ($options->has('help')) {
+        echo "Usage: phpredis-asan [--php PATH] [--asan-runtime FILE] -- <PHP arguments...>\n"
+            . "Run PHP with ASAN (Linux; GCC runtime by default). Example:\n"
+            . "  phpredis-asan -- -n -dextension=/path/redis.so bin/phpredis-fuzz --help\n"
+            . "ASAN_OPTIONS may override detect_leaks=0; reports always go to stderr.\n";
+        exit(0);
+    }
+    if ($separator === false || count($arguments) === $separator + 1) {
+        throw new InvalidArgumentException('expected -- followed by PHP arguments; see --help');
+    }
+    if (!function_exists('pcntl_exec')) {
+        throw new RuntimeException('phpredis-asan requires ext-pcntl in the launcher PHP');
+    }
+    $runtime = AsanRuntime::create($options->has('asan-runtime') ? $options->string('asan-runtime', '') : null);
+    $command = $runtime->command([
+        $options->string('php', PHP_BINARY),
+        ...array_slice($arguments, $separator + 1),
+    ]);
+    pcntl_exec($command[0], array_slice($command, 1));
+    throw new RuntimeException('could not execute the ASAN PHP process');
+} catch (Throwable $error) {
+    fwrite(STDERR, 'phpredis-asan: ' . $error->getMessage() . "\n");
+    exit(78);
+}

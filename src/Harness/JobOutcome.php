@@ -17,6 +17,7 @@ final class JobOutcome
         public readonly ?int $pid,
         public readonly ?LeakReport $leak = null,
         public readonly ?MemoryReport $memory = null,
+        public readonly ?SanitizerReport $sanitizer = null,
     ) {
     }
 }

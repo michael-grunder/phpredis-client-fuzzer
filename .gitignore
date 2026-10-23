@@ -5,3 +5,4 @@ vendor/
 stubs/
 phpredis-fuzz-repros
 profiles/
+conf.d/

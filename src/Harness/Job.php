@@ -33,6 +33,8 @@ final class Job
     /** Fatal allocation diagnostic from either output log. */
     public ?MemoryReport $memory = null;
 
+    public ?SanitizerReport $sanitizer = null;
+
     /** True once the run has been judged a failure, regardless of capture. */
     public bool $failure = false;
 

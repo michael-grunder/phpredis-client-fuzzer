@@ -68,6 +68,7 @@ final class ReproStore
     {
         $kind = match ($meta['kind'] ?? null) {
             'crash' => 'crash',
+            'sanitizer' => 'sanitizer',
             'memory' => 'memory',
             'leak' => 'leak',
             'timeout' => 'timeout',
@@ -164,6 +165,7 @@ final class ReproStore
             'crashed' => $outcome->verdict->crashed,
             'timed_out' => $outcome->verdict->timedOut,
             'kind' => $outcome->verdict->kind(),
+            'sanitizer_message' => $outcome->sanitizer?->message,
             'memory' => $outcome->verdict->memory,
             'memory_message' => $outcome->memory?->message,
             'leaked' => $outcome->verdict->leaked,

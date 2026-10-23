@@ -18,6 +18,7 @@
         "bin/phpredis-fuzz-coercive",
         "bin/phpredis-fuzz-killer",
         "bin/phpredis-fuzz-harness",
+        "bin/phpredis-asan",
         "bin/phpredis-fuzz-diff",
         "bin/phpredis-commands",
         "bin/phpredis-coverage",

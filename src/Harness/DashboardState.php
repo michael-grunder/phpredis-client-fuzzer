@@ -11,7 +11,7 @@ final class DashboardState
 {
     /**
      * @param list<int> $ports
-     * @param list<'crashes'|'leaks'|'memory'|'timeouts'|'failures'> $capture
+     * @param list<'crashes'|'sanitizers'|'leaks'|'memory'|'timeouts'|'failures'> $capture
      * @param list<Job> $active Currently running jobs.
      * @param list<Job> $recent Finished jobs, newest first.
      */

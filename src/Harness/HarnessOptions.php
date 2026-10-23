@@ -18,7 +18,7 @@ final class HarnessOptions
 {
     /** @var list<string> */
     private const FLAGS = [
-        'help', 'rr', 'rr-chaos', 'isolate-ports',
+        'help', 'asan', 'rr', 'rr-chaos', 'isolate-ports',
         'keep-work', 'no-tui', 'no-core-check', 'quiet',
     ];
 
@@ -26,7 +26,7 @@ final class HarnessOptions
     private const SINGLE = [
         'jobs', 'php', 'php-ini', 'reduce', 'steps', 'seed', 'output', 'run-log', 'runs',
         'seconds', 'reproducers', 'trace-timeout', 'reduce-timeout', 'run-timeout',
-        'port-select', 'capture',
+        'port-select', 'capture', 'asan-runtime',
     ];
 
     /**
@@ -39,7 +39,7 @@ final class HarnessOptions
     private const APPEND = ['php-args'];
 
     /** Categories accepted by --capture. */
-    public const CAPTURE_KINDS = ['crashes', 'leaks', 'memory', 'timeouts', 'failures'];
+    public const CAPTURE_KINDS = ['crashes', 'sanitizers', 'leaks', 'memory', 'timeouts', 'failures'];
 
     /** @var list<string> */
     private const MULTI = ['port'];
@@ -47,7 +47,7 @@ final class HarnessOptions
     /**
      * @param list<string> $phpArgs
      * @param list<int> $ports
-     * @param list<'crashes'|'leaks'|'memory'|'timeouts'|'failures'> $capture
+     * @param list<'crashes'|'sanitizers'|'leaks'|'memory'|'timeouts'|'failures'> $capture
      * @param list<string> $command
      */
     private function __construct(
@@ -70,6 +70,8 @@ final class HarnessOptions
         public readonly string $portSelect,
         public readonly array $ports,
         public readonly bool $isolatePorts,
+        public readonly bool $asan,
+        public readonly ?string $asanRuntime,
         public readonly bool $rr,
         public readonly bool $rrChaos,
         public readonly array $capture,
@@ -214,7 +216,11 @@ final class HarnessOptions
             throw new \InvalidArgumentException('--port-select must be cycle or random');
         }
 
-        $capture = self::captureList($values['capture'] ?? 'crashes');
+        $asan = isset($flags['asan']) || isset($values['asan-runtime']);
+        if ($asan && (isset($flags['rr']) || $rrChaos)) {
+            throw new \InvalidArgumentException('--asan and --rr/--rr-chaos must run in separate campaigns');
+        }
+        $capture = self::captureList($values['capture'] ?? ($asan ? 'crashes,sanitizers' : 'crashes'));
 
         $runLog = $values['run-log'] ?? null;
         if ($runLog !== null && trim($runLog) === '') {
@@ -257,6 +263,8 @@ final class HarnessOptions
             portSelect: $portSelect,
             ports: self::portList($lists['port'] ?? []),
             isolatePorts: isset($flags['isolate-ports']),
+            asan: $asan,
+            asanRuntime: $values['asan-runtime'] ?? null,
             rr: isset($flags['rr']) || $rrChaos,
             rrChaos: $rrChaos,
             capture: $capture,
@@ -381,7 +389,7 @@ final class HarnessOptions
     }
 
     /**
-     * @return list<'crashes'|'leaks'|'memory'|'timeouts'|'failures'>
+     * @return list<'crashes'|'sanitizers'|'leaks'|'memory'|'timeouts'|'failures'>
      */
     private static function captureList(string $raw): array
     {
