@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add local `conf.d/build-redis.sh` and `conf.d/build-relay.sh` helpers to build
+  ASAN-instrumented extensions from working source copies, retain build logs and
+  previous modules, and copy successful builds into `conf.d`. PhpRedis enables
+  zstd, lz4, msgpack, and igbinary support.
 - Add `bin/phpredis-repros`, a read-only TUI (and `--list`/`--show` text mode)
   for browsing harness reproducers, with a per-capture defect headline from the
   parsed sanitizer report, a glibc assertion, or a gdb backtrace of the core,
