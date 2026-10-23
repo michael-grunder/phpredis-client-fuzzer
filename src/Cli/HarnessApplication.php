@@ -18,6 +18,7 @@ use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
 use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Scheduler;
 use Mgrunder\PhpredisCommandFuzzer\Harness\Stats;
+use Mgrunder\PhpredisCommandFuzzer\Harness\TargetCheck;
 use Mgrunder\PhpredisCommandFuzzer\Harness\TuiView;
 use Mgrunder\PhpredisCommandFuzzer\Harness\View;
 
@@ -110,6 +111,8 @@ final class HarnessApplication
         if ($options->ports !== [] && !$template->uses('port')) {
             $this->write("warning: --port is set but the command has no {port} placeholder\n", true);
         }
+
+        (new TargetCheck())->check($template, $options->ports);
 
         $baseDir = getcwd();
         if ($baseDir === false) {
@@ -503,6 +506,8 @@ Harness options:
                         The same choices work inside FILE; a generated INI
                         is written in each run's work directory and captured.
   --port P [P ...]      One or more Redis ports; also accepts --port=P,P
+                        With {port}, all ports must pass a startup PING using
+                        the worker's --host/--username/--password (1s timeout).
   --port-select MODE    cycle (round-robin, default) or random
   --isolate-ports       Never hand one port to two running jobs at once
   --steps N             Step budget substituted for {steps} (default: 5000)

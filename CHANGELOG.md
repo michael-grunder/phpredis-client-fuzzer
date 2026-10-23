@@ -69,6 +69,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Fail harness startup before spawning jobs when a `{port}` pool endpoint
+  cannot connect or answer PING, listing each failed host/port and its error.
 - Reject unknown command flags even when an earlier OR pattern matched or a
   previous filter group selected no commands.
 - `hooks/evilresp.php` no longer aborts the whole run with "preCommand hook

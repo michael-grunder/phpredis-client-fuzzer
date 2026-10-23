@@ -1137,6 +1137,15 @@ endless column of failures. Nothing is captured as a reproducer for it. The
 harness also refuses to start when the template's fuzzer script does not exist,
 so a mistyped path is caught before any run is spawned.
 
+When the template uses `{port}`, the harness first connects to every port in
+its `--port` pool and sends a read-only `PING`, using the worker's `--host`
+(default `127.0.0.1`), `--username`, and `--password`. Connect and read timeouts
+are one second each. Any failure aborts startup with exit code `1`, listing
+each failing endpoint and its error before jobs or campaign artifacts are
+created. This checks endpoint availability for both standalone and cluster
+ports; it does not validate cluster health or discover additional `--seeds`.
+Templates without `{port}` are unchanged.
+
 Stop conditions are `--runs N`, `--seconds N`, and `--reproducers N` (any that
 are set; unlimited otherwise), or pressing `q`/`Esc`/`Ctrl-C` in the dashboard.
 The first stop request drains in-flight runs and then exits; a run that finishes

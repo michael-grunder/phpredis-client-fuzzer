@@ -104,6 +104,25 @@ final class HarnessApplicationTest extends TestCase
         self::assertStringContainsString('--run-log FILE', self::contents($output));
     }
 
+    public function testUnavailableTargetAbortsBeforeCreatingCampaignArtifacts(): void
+    {
+        $root = $this->workspace();
+        $error = self::stream();
+        $status = (new HarnessApplication(self::stream(), $error))->run([
+            '--no-core-check', '--port', '6379', '7000',
+            '--output', $root . '/out', '--run-log', $root . '/runs.log',
+            '--', 'bin/phpredis-fuzz', '--port={port}', '--host=' . $root . '/missing.sock',
+        ]);
+
+        self::assertSame(1, $status);
+        $diagnostic = self::contents($error);
+        self::assertStringContainsString('Redis/Valkey startup check failed', $diagnostic);
+        self::assertStringContainsString($root . '/missing.sock:6379:', $diagnostic);
+        self::assertStringContainsString($root . '/missing.sock:7000:', $diagnostic);
+        self::assertStringContainsString('No fuzzing jobs were started.', $diagnostic);
+        self::assertDirectoryDoesNotExist($root);
+    }
+
     public function testHelpDocumentsThePhpStartupOptions(): void
     {
         $output = self::stream();
