@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add the `phpser` serializer choice (when PhpRedis defines
+  `Redis::SERIALIZER_PHPSER`), random `OPT_PACK_IGNORE_NUMBERS` and backoff
+  option changes, and `AGGREGATE COUNT` for zset union/intersection commands.
+- Add `FAILOVER=N` to `asan.sh` to promote a random cluster replica every N
+  seconds during a campaign; `asan.sh` now also selects `phpser`.
+
+- Add an inline tuning reference to `asan.sh` covering inferior workload options,
+  campaign limits, command filters, cache pressure, and proxy prerequisites.
 - Add local `conf.d/build-redis.sh` and `conf.d/build-relay.sh` helpers to build
   ASAN-instrumented extensions from working source copies, retain build logs and
   previous modules, and copy successful builds into `conf.d`. PhpRedis enables
@@ -69,6 +77,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Reconnect standalone `Relay\Relay` clients after `close`/`pclose`; previously
+  every later step of the run threw "Not connected".
+- Never send local client helpers through raw chaos, which only produced
+  "unknown command" errors.
+- Accept Relay 0.60's nullable `connect()` context in the test fixture.
 - Fail harness startup before spawning jobs when a `{port}` pool endpoint
   cannot connect or answer PING, listing each failed host/port and its error.
 - Reject unknown command flags even when an earlier OR pattern matched or a

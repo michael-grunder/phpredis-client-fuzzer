@@ -76,7 +76,11 @@ execute that command through its structured raw-protocol implementation, or
 has `rawCommand()` when raw chaos is enabled. `rawChaos` adds a third operation
 which keeps the selected command name (and cluster routing argument)
 deterministic while filling the remaining argument positions with seeded,
-arbitrary scalar values.
+arbitrary scalar values. Local client helpers (`@local`, such as `_compress` or
+`getOption`) have no server command and never take the raw-chaos operation.
+`close` and `pclose` explicitly reconnect a standalone `Relay\Relay` with its
+original endpoint, timeouts, and credentials, because Relay, unlike PhpRedis,
+does not reconnect lazily after `close()`.
 `FuzzResult::$outcomes` contains one `InvocationOutcome` for every scheduled
 step. Each outcome attributes the command, client index/class, normal, raw, or
 raw-chaos operation, reply, Redis errors, PHP warnings, exception, duration,
@@ -1172,7 +1176,7 @@ the values that the loaded extensions actually support:
 
 | Option | Values |
 | --- | --- |
-| `--serializer` | `none`, `php`, `igbinary`, `msgpack`, `json` |
+| `--serializer` | `none`, `php`, `igbinary`, `msgpack`, `json`, `phpser` |
 | `--compression` | `none`, `lzf`, `zstd`, `lz4` |
 | `--slave-failover` | `none`, `error`, `distribute`, `distribute_slaves` |
 | `--relay-failover` | `none`, `primary`, `random_replica`, `replicas`, `all` |

@@ -206,7 +206,7 @@ final class Fuzzer
                 if ($configuration->raw && $command instanceof FuzzRawInterface) {
                     $operations[] = 'raw';
                 }
-                if ($configuration->rawChaos) {
+                if ($configuration->rawChaos && !self::isLocal($command)) {
                     $operations[] = 'raw-chaos';
                 }
                 if ($operations === []) {
@@ -619,8 +619,15 @@ final class Fuzzer
             static fn (Redis|RedisCluster|Relay|Cluster $client): bool =>
                 ($command instanceof FuzzInterface && method_exists($client, $command->name()))
                 || ($raw && $command instanceof FuzzRawInterface)
-                || $rawChaos,
+                || ($rawChaos && !self::isLocal($command)),
         ));
+    }
+
+    /* Client-side helpers (_compress, getOption, ...) have no server command,
+       so raw chaos for them only ever produced "unknown command" errors. */
+    private static function isLocal(Command $command): bool
+    {
+        return ($command->flags() & Command::LOCAL) !== 0;
     }
 
     private function replyType(mixed $reply): string

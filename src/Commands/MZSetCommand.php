@@ -10,7 +10,7 @@ use RedisCluster;
 abstract class MZSetCommand extends Command implements FuzzInterface,
                                                        FuzzRawInterface
 {
-    protected const AGGREGATE = ['MIN' => 1, 'SUM' => 1, 'MAX' => 1];
+    protected const AGGREGATE = ['MIN' => 1, 'SUM' => 1, 'MAX' => 1, 'COUNT' => 1];
 
     /**
      * @param string[] $keys

@@ -24,6 +24,7 @@ class OptionName extends ScriptArg {
         'Redis::OPT_BACKOFF_CAP',
         'Redis::OPT_NULL_MULTIBULK_AS_NULL',
         'Redis::OPT_REPLY_LITERAL',
+        'Redis::OPT_PACK_IGNORE_NUMBERS',
         'RedisCluster::OPT_SLAVE_FAILOVER',
         'Relay\\Relay::OPT_NULL_MULTIBULK_AS_NULL',
         'Relay\\Relay::OPT_REPLY_LITERAL',

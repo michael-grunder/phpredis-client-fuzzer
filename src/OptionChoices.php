@@ -40,6 +40,7 @@ final class OptionChoices
         'igbinary' => 'Redis::SERIALIZER_IGBINARY',
         'msgpack' => 'Redis::SERIALIZER_MSGPACK',
         'json' => 'Redis::SERIALIZER_JSON',
+        'phpser' => 'Redis::SERIALIZER_PHPSER',
     ];
 
     /** @var array<string, string> Compression name to PhpRedis constant. */

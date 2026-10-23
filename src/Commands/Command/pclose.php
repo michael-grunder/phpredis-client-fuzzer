@@ -2,10 +2,6 @@
 
 namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\EmptyLocalCommand;
+use Mgrunder\PhpredisCommandFuzzer\Commands\CloseCommand;
 
-class pclose extends EmptyLocalCommand {
-    public function flags(): int {
-        return self::CONNECTION;
-    }
-}
+class pclose extends CloseCommand { }

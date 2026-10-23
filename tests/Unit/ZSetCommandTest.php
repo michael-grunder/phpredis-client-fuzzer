@@ -284,7 +284,7 @@ final class ZSetCommandTest extends TestCase
                     } elseif ($token === 'COUNT') {
                         self::assertIsInt(array_shift($args));
                     } elseif ($token === 'AGGREGATE') {
-                        self::assertContains(array_shift($args), ['MIN', 'MAX', 'SUM']);
+                        self::assertContains(array_shift($args), ['MIN', 'MAX', 'SUM', 'COUNT']);
                     } elseif ($token === 'WEIGHTS') {
                         $weights = array_splice($args, 0, count($keys) - (str_ends_with($name, 'store') ? 1 : 0));
                         self::assertNotEmpty($weights);

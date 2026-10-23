@@ -20,6 +20,10 @@ abstract class OptionCommand extends Command {
         'Redis::OPT_SCAN',
         'Redis::OPT_TCP_KEEPALIVE',
         'Redis::OPT_MAX_RETRIES',
+        'Redis::OPT_BACKOFF_ALGORITHM',
+        'Redis::OPT_BACKOFF_BASE',
+        'Redis::OPT_BACKOFF_CAP',
+        'Redis::OPT_PACK_IGNORE_NUMBERS',
         'RedisCluster::OPT_SLAVE_FAILOVER',
     ];
 
@@ -74,6 +78,7 @@ abstract class OptionCommand extends Command {
         'Redis::SERIALIZER_IGBINARY',
 //        'Redis::SERIALIZER_MSGPACK',
         'Redis::SERIALIZER_JSON',
+        'Redis::SERIALIZER_PHPSER',
     ];
 
     private const COMPRESSIONS = [

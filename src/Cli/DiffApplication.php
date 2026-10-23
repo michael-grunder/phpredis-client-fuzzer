@@ -133,7 +133,7 @@ final class DiffApplication
             'strict_messages' => $options->has('strict-messages'),
         ];
 
-        $serializers = $this->choices($options->csv('serializer', 'none'), 'SERIALIZER', ['none', 'php', 'igbinary', 'msgpack', 'json']);
+        $serializers = $this->choices($options->csv('serializer', 'none'), 'SERIALIZER', ['none', 'php', 'igbinary', 'msgpack', 'json', 'phpser']);
         $compressions = $this->choices($options->csv('compression', 'none'), 'COMPRESSION', ['none', 'lzf', 'zstd', 'lz4']);
         $relayCache = match ($options->string('relay-cache', 'on')) {
             'on' => [true],

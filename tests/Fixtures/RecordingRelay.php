@@ -57,6 +57,6 @@ final class RecordingRelay extends \Relay\Relay
     public function connect(
         string $host, int $port = 6379, float $timeout = 0.0,
         ?string $persistent_id = null, int $retry_interval = 0,
-        float $read_timeout = 0.0, array $context = [], int $database = 0,
+        float $read_timeout = 0.0, ?array $context = null, int $database = 0,
     ): bool { return true; }
 }

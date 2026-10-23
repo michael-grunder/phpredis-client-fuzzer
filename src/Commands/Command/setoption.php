@@ -68,6 +68,7 @@ class setoption extends OptionCommand implements FuzzInterface {
         $constants = [
             'Redis::OPT_NULL_MULTIBULK_AS_NULL' => static fn (): int => rand() & 2,
             'Redis::OPT_REPLY_LITERAL' => static fn (): int => rand() & 1,
+            'Redis::OPT_PACK_IGNORE_NUMBERS' => static fn (): bool => (bool)(rand() & 1),
         ];
         if ($this->isRelay($client)) {
             $constants += [
