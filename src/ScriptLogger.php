@@ -145,7 +145,7 @@ class ScriptLogger {
 
         $port = $details['port'] ?? 6379;
 
-        fprintf($this->fp, "\$opt = getopt('dw', ['host:', 'port:', 'debug', 'warnings']);\n");
+        fprintf($this->fp, "\$opt = PHP_SAPI === 'cli' ? getopt('dw', ['host:', 'port:', 'debug', 'warnings']) : [];\n");
         fprintf($this->fp, "\$host = \$opt['host'] ?? 'localhost';\n");
         fprintf($this->fp, "\$port = \$opt['port'] ?? %d;\n", $port);
         fprintf($this->fp, "\$debug = isset(\$opt['d']) || isset(\$opt['debug']);\n");
@@ -209,7 +209,8 @@ class ScriptLogger {
             }
             $port = $configuration === null ? '$port' : sprintf('(int)($opt[\'port\'] ?? %d)', $configuration->port);
             fprintf($this->fp, "%s = new %s;\n", $name, $class);
-            fprintf($this->fp, "%s->connect(%s, %s, %f, null, 0, %f, %s);\n", $name,
+            fprintf($this->fp, "%s->%s(%s, %s, %f, null, 0, %f, %s);\n", $name,
+                    $configuration?->persistent ? 'pconnect' : 'connect',
                     $this->varExport($host), $port, $timeout,
                     $read_timeout, $this->varExport($context));
         } else {
@@ -239,12 +240,13 @@ class ScriptLogger {
 
             fprintf(
                 $this->fp,
-                "%s = new %s(null, %s, %f, %f, false, %s, %s);\n",
+                "%s = new %s(null, %s, %f, %f, %s, %s, %s);\n",
                 $name,
                 get_class($client),
                 $this->varExport($seeds),
                 $timeout,
                 $read_timeout,
+                $configuration?->persistent ? 'true' : 'false',
                 $this->varExport($auth),
                 $this->varExport($context),
             );

@@ -26,7 +26,7 @@ methods and raw-protocol variants where an implementation provides both.
 - PHP 8.4 or newer
 - PhpRedis (`ext-redis`)
 - Relay (`ext-relay`) only when fuzzing Relay clients
-- `ext-pcntl` only for forked concurrent runs (`redis-client-tester --forks`)
+- `ext-pcntl` for forked concurrent runs (`redis-client-tester --forks`) and SAPI server supervision
 
 ```bash
 composer require mgrunder/redis-client-tester
@@ -614,7 +614,8 @@ PhpRedis runs replay exactly.
 
 Composer installs `vendor/bin/redis-client-tester`,
 `vendor/bin/redis-client-tester-coercive`, `vendor/bin/redis-client-tester-killer`,
-`vendor/bin/redis-client-tester-harness`, `vendor/bin/redis-client-tester-diff`,
+`vendor/bin/redis-client-tester-harness`, `vendor/bin/redis-client-tester-sapi`,
+`vendor/bin/redis-client-tester-diff`,
 `vendor/bin/redis-client-tester-asan`, `vendor/bin/redis-client-tester-repros`,
 `vendor/bin/redis-client-tester-subscribe`,
 `vendor/bin/redis-client-tester-commands`,
@@ -875,6 +876,105 @@ unsubscribes and returns a nonzero exit status. `pcntl` is required for forked
 runs only. `Cli\SubscribeApplication` accepts an optional `clientFactory`
 closure taking a `ClientConfiguration`, plus `output` and `error` streams, for
 callers supplying their own client construction and output destinations.
+
+### PHP server workers and idle invalidations
+
+`redis-client-tester-sapi` runs workloads in real HTTP requests against a private
+`PHP_CLI_SERVER_WORKERS=N php -S` server. Workers stay alive between requests,
+allowing Relay's RSHUTDOWN idle invalidation handler to run while other workers
+mutate the same Redis keys. This runner requires Linux, `/proc`, `/usr/bin/setsid`,
+`ext-pcntl`, and `ext-posix`; no HTTP client extension is required.
+
+```bash
+# Use only a disposable Redis target you have selected.
+bin/redis-client-tester-sapi --workers=4 --concurrency=2 --requests=30 \
+    --idle-ms=100 --php-arg=-drelay.maxmemory=128m -- \
+    --client=relay --port=6390 --commands=get,set,del --weight=get:3 \
+    --steps=100 --keys=20 --seed=42
+```
+
+Options before `--` control the server. Options after it are the usual fuzzer
+options, including filters, weights, serializers, compressors, hooks, cluster
+settings, safety gates, and invocation mode. `--steps` is the budget **per
+request**. The first request uses the supplied seed; later seeds come from a
+private seeded generator. Each request has a deterministic filename and fixed
+options; commands and their concrete arguments are generated inside the request
+using the existing workload engine and recorded in a separate `.calls.php` file.
+There is no preliminary CLI execution against Redis.
+
+Persistent connections are enabled for all four supported clients. The ordinary
+CLI exposes the same behavior as opt-in `--persistent`, and library callers can
+use `ClientConfiguration(persistent: true)` (default `false`). Standalone clients
+use `pconnect()` and cluster clients receive the persistent constructor flag.
+Connection logs and standalone Relay reconnects preserve this choice.
+
+Defaults are four forked workers, two concurrent requests per batch, twenty
+requests, and 100 ms idle time between batches and after the final batch. PHP's
+server parent can also handle requests, so the serving pool can contain N+1
+processes. Keep concurrency below the pool size to leave workers idle while
+others execute commands. Worker assignment and interleaving are not deterministic;
+this exercises idle invalidations but does not guarantee every worker is warmed
+or provide an idle-cache correctness oracle by itself. Seeded choices can still
+depend on Redis state; concrete call logs retain what actually ran.
+
+The server binds only `127.0.0.1` on an automatically selected free port. A
+run-specific request header and a router allow only readiness and the generated
+request paths, ignoring request-controlled configuration. A readiness check
+verifies server identity before dispatching workloads; a port allocation race
+fails the run. Do not expose this server or the generated directory publicly.
+`--forks` and `--script-log` are unavailable here because the runner owns process
+concurrency and per-request call logs. The existing `Http\TesterEndpoint` remains
+an independent embedding API.
+
+`--request-timeout` (default 30 seconds) bounds readiness, each batch, and normal
+server shutdown. The runner monitors worker deaths during requests and idle
+periods, retains partial HTTP responses, and stops the server process group on
+completion, failure, or interruption. Timeouts exit 124, observed signal deaths
+exit 128+signal, invalid workloads exit 78, and PHP fatals or incomplete HTTP
+responses fail the run. A worker's sanitizer or nonzero Valgrind error summary
+also fails the run even if the server parent exits successfully.
+
+Standalone runs retain everything in a fresh private temporary directory printed
+on stderr; `--directory=PATH` selects another fresh directory and refuses to
+reuse an existing one. It contains `workload.json`, request scripts, concrete
+call logs, raw `.http` responses (including worker PID headers), server stdout
+and stderr, the exact server command, and recorded process IDs. Interrupted
+requests may have partial call logs or responses. Startup options for the server
+must be supplied with repeated `--php-arg=TOKEN` and/or `--php-ini=FILE` when
+running standalone; arbitrary `php -d` options on the supervisor are not copied
+automatically.
+
+The existing harness can supervise whole server lifetimes:
+
+```bash
+bin/redis-client-tester-harness --jobs=2 --runs=10 --steps=100 \
+    --php-args=-drelay.maxmemory=128m --port=6390 --run-timeout=120 \
+    --capture=crashes,sanitizers,memory,timeouts,failures -- \
+    bin/redis-client-tester-sapi --workers=4 --requests=20 -- \
+        --client=relay --port={port} --commands=get,set,del \
+        --steps={steps} --seed={seed}
+```
+
+Each harness job owns one server and an isolated `sapi/` artifact directory.
+The harness forwards its chosen PHP binary, concrete startup arguments and ini,
+including seeded startup substitutions. Captures and minimized captures retain
+`sapi/`, collect cores for server descendants using the configured core pattern,
+and preserve the startup arguments in `command.txt`. Run that command to create
+a fresh server run; do not execute captured scripts in place because their call
+logs would be overwritten. The harness also cleans up the server group if its
+supervisor dies. `--directory` is reserved for standalone use. Successful runs
+follow the harness's usual `--keep-work` policy.
+
+Add `--rr` to the harness to record the supervisor and server process tree, or
+use `--asan` in a separate campaign. For Valgrind, pass wrapper tokens before the
+SAPI separator, for example `--server-prefix=valgrind
+--server-prefix=--trace-children=yes --server-prefix=--error-exitcode=99`, and
+include `failures` in the harness capture list. Set `USE_ZEND_ALLOC=0` when
+appropriate for your Valgrind build. Valgrind output defaults to the preserved
+server stderr log. Tools and extensions must be installed for the selected PHP;
+these switches do not build or install them. Step reduction replays the entire
+request schedule with fewer steps per request; timing-sensitive failures may
+not reproduce, so retain the original capture and rr trace.
 
 ### Parallel fuzzing harness
 

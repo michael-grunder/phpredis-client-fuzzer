@@ -6,6 +6,7 @@ namespace Mgrunder\RedisClientTester\Harness;
 
 use Mgrunder\RedisClientTester\Cli\ExitCode;
 use Mgrunder\RedisClientTester\AsanRuntime;
+use Mgrunder\RedisClientTester\Sapi\Server;
 
 /**
  * Launches fuzzer child processes, polls them without blocking, classifies how
@@ -63,7 +64,7 @@ final class JobRunner
         $startup = $this->startup->render($seed, $workDir);
         $argv = $this->buildArgv($port, $steps, $seed, $slot, $id, $traceDir, $startup['args']);
 
-        $process = $this->open($argv, $workDir);
+        $process = $this->open($argv, $workDir, $startup['args']);
         $status = proc_get_status($process);
 
         $job = new Job(
@@ -116,6 +117,7 @@ final class JobRunner
         $job->signal = $status['signaled'] && $status['termsig'] > 0 ? $status['termsig'] : null;
         $job->exitCode = $status['exitcode'] >= 0 ? $status['exitcode'] : null;
         @proc_close($job->process);
+        Server::stopOrphans($job->workDir . '/sapi');
 
         // Only a run the shutdown actually had to kill is discarded. One that
         // had already finished on its own is a normal result — and it may be a
@@ -170,16 +172,25 @@ final class JobRunner
         $argv = $this->buildArgv($port, $steps, $seed, 0, $id, $traceDir, $startup['args']);
 
         $started = microtime(true);
-        $process = $this->open($argv, $workDir);
+        $process = $this->open($argv, $workDir, $startup['args']);
         $deadline = $started + max(1.0, $timeout);
 
         $status = proc_get_status($process);
         while ($status['running'] === true) {
             if (microtime(true) > $deadline) {
-                proc_terminate($process, 9);
+                proc_terminate($process, 15);
+                $grace = microtime(true) + 1.0;
+                do {
+                    usleep(20_000);
+                    $status = proc_get_status($process);
+                } while ($status['running'] && microtime(true) < $grace);
+                if ($status['running']) {
+                    proc_terminate($process, 9);
+                }
                 usleep(50_000);
                 proc_get_status($process);
                 @proc_close($process);
+                Server::stopOrphans($workDir . '/sapi');
 
                 return new JobOutcome(
                     FailureClassifier::fromExit(false, null, null, true),
@@ -193,6 +204,7 @@ final class JobRunner
             $status = proc_get_status($process);
         }
         @proc_close($process);
+        Server::stopOrphans($workDir . '/sapi');
 
         $signal = $status['signaled'] && $status['termsig'] > 0 ? $status['termsig'] : null;
         $exitCode = $status['exitcode'] >= 0 ? $status['exitcode'] : null;
@@ -578,9 +590,10 @@ final class JobRunner
 
     /**
      * @param list<string> $argv
+     * @param list<string> $phpArgs
      * @return resource
      */
-    private function open(array $argv, string $workDir)
+    private function open(array $argv, string $workDir, array $phpArgs)
     {
         $descriptors = [
             0 => ['file', '/dev/null', 'r'],
@@ -592,7 +605,10 @@ final class JobRunner
         // paths (bin/redis-client-tester-*) and relative core patterns resolve the way
         // the operator expects; per-run isolation of cores comes from the
         // mandated %p in core_pattern, not from a private working directory.
-        $process = proc_open($argv, $descriptors, $pipes, $this->baseDir, $this->childEnv());
+        $env = $this->childEnv();
+        $env['REDIS_CLIENT_TESTER_WORK_DIR'] = $workDir;
+        $env['REDIS_CLIENT_TESTER_PHP_ARGS'] = json_encode($phpArgs, JSON_THROW_ON_ERROR);
+        $process = proc_open($argv, $descriptors, $pipes, $this->baseDir, $env);
         if (!is_resource($process)) {
             throw new \RuntimeException('failed to launch: ' . implode(' ', $argv));
         }

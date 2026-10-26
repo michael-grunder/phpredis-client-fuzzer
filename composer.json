@@ -18,6 +18,7 @@
         "bin/redis-client-tester-coercive",
         "bin/redis-client-tester-killer",
         "bin/redis-client-tester-harness",
+        "bin/redis-client-tester-sapi",
         "bin/redis-client-tester-asan",
         "bin/redis-client-tester-repros",
         "bin/redis-client-tester-diff",
@@ -39,8 +40,8 @@
         "php-tui/php-tui": "^0.2.1"
     },
     "suggest": {
-        "ext-posix": "Required by the redis-client-tester-killer process signal utility",
-        "ext-pcntl": "Required by redis-client-tester --forks; also lets redis-client-tester-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
+        "ext-posix": "Required by redis-client-tester-killer and redis-client-tester-sapi process supervision",
+        "ext-pcntl": "Required by redis-client-tester --forks and redis-client-tester-sapi; also lets redis-client-tester-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
         "ext-relay": "Required to fuzz Relay\\Relay or Relay\\Cluster clients"
     },
     "require-dev": {

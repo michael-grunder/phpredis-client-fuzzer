@@ -1,0 +1,189 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Mgrunder\RedisClientTester\Tests\Unit;
+
+use Mgrunder\RedisClientTester\Harness\FailureClassifier;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Sapi\Server;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+
+final class SapiServerTest extends TestCase
+{
+    private string $directory = '';
+
+    protected function setUp(): void
+    {
+        try {
+            Server::assertSupported();
+        } catch (\RuntimeException $error) {
+            self::markTestSkipped($error->getMessage());
+        }
+        $this->directory = sys_get_temp_dir() . '/sapi-test-' . bin2hex(random_bytes(6));
+        mkdir($this->directory, 0o700);
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->directory !== '') {
+            Fs::removeTree($this->directory);
+        }
+    }
+
+    public function testConcurrentRequestsReuseWorkersAndHonorStartupArguments(): void
+    {
+        self::assertSame(0, $this->runFixture('normal'));
+        $lines = file($this->directory . '/events.jsonl', FILE_IGNORE_NEW_LINES);
+        self::assertIsArray($lines);
+        self::assertCount(16, $lines);
+        $active = 0;
+        $maximum = 0;
+        $pids = [];
+        foreach ($lines as $line) {
+            $event = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($event);
+            self::assertIsInt($event[1]);
+            $active += $event[0] === 'start' ? 1 : -1;
+            $maximum = max($maximum, $active);
+            $pids[$event[1]] = true;
+        }
+        self::assertSame(2, $maximum);
+        self::assertLessThanOrEqual(3, count($pids));
+        self::assertGreaterThan(1, count($pids));
+        for ($index = 0; $index < 8; $index++) {
+            $response = file_get_contents($this->directory . "/request-{$index}.php.http");
+            self::assertIsString($response);
+            self::assertStringContainsString('cli-server:12', $response);
+            self::assertStringContainsString('X-Fuzzer-Pid:', $response);
+        }
+        $this->assertStopped();
+    }
+
+    public function testSeededScriptsAreStableAndStartupErrorsPropagateWithoutRedis(): void
+    {
+        foreach (['first', 'second'] as $name) {
+            $process = proc_open([
+                PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi',
+                '--directory=' . $this->directory . '/' . $name,
+                '--requests=3', '--workers=2', '--idle-ms=0', '--',
+                '--seed=42', '--client=invalid-client', '--commands=get,set', '--weight=get:2',
+            ], [
+                1 => ['file', $this->directory . '/' . $name . '.out', 'w'],
+                2 => ['file', $this->directory . '/' . $name . '.err', 'w'],
+            ], $pipes);
+            self::assertIsResource($process);
+            self::assertSame(78, proc_close($process));
+        }
+        $paths = glob($this->directory . '/first/request-*.php');
+        self::assertIsArray($paths);
+        self::assertCount(3, $paths);
+        foreach ($paths as $path) {
+            $source = file_get_contents($path);
+            self::assertIsString($source);
+            self::assertStringContainsString('--persistent', $source);
+            self::assertSame($source, file_get_contents($this->directory . '/second/' . basename($path)));
+        }
+        self::assertStringContainsString('invalid-client', (string) file_get_contents($this->directory . '/first.err'));
+    }
+
+    /** @return iterable<string, array{string, int, string}> */
+    public static function failures(): iterable
+    {
+        yield 'timeout' => ['timeout', 124, 'timeout'];
+        yield 'worker signal' => ['crash', 139, 'crash'];
+        yield 'PHP fatal' => ['fatal', 1, 'failure'];
+        yield 'configuration error' => ['startup', 78, 'startup'];
+        yield 'Valgrind worker errors' => ['valgrind', 1, 'failure'];
+        yield 'fatal after HTTP success' => ['shutdown-fatal', 1, 'failure'];
+    }
+
+    #[DataProvider('failures')]
+    public function testFailuresAreNotSuccessfulHttpResponses(string $mode, int $exit, string $kind): void
+    {
+        self::assertSame($exit, $this->runFixture($mode));
+        self::assertSame($kind, FailureClassifier::fromExit(false, null, $exit)->kind());
+        self::assertFileExists($this->directory . '/request-0.php.http');
+        self::assertFileExists($this->directory . '/server.stderr.log');
+        $this->assertStopped();
+    }
+
+    private function runFixture(string $mode): int
+    {
+        return proc_close($this->launchFixture($mode));
+    }
+
+    /** @return resource */
+    private function launchFixture(string $mode)
+    {
+        $process = proc_open([PHP_BINARY, dirname(__DIR__) . '/Fixtures/sapi-server.php', $this->directory, $mode], [
+            0 => ['file', '/dev/null', 'r'],
+            1 => ['file', $this->directory . '/stdout.log', 'w'],
+            2 => ['file', $this->directory . '/stderr.log', 'w'],
+        ], $pipes);
+        self::assertIsResource($process);
+        return $process;
+    }
+
+    public function testIdleWorkerDeathIsDetectedWithoutAnotherRequest(): void
+    {
+        $process = $this->launchFixture('idle');
+        try {
+            $this->waitForIdle();
+            $pids = file($this->directory . '/pids.txt', FILE_IGNORE_NEW_LINES);
+            self::assertIsArray($pids);
+            self::assertGreaterThanOrEqual(3, count($pids));
+            self::assertTrue(posix_kill((int) $pids[1], SIGKILL));
+            self::assertSame(137, proc_close($process));
+        } finally {
+            if (is_resource($process)) {
+                proc_terminate($process);
+                proc_close($process);
+            }
+        }
+        $this->assertStopped();
+    }
+
+    public function testHarnessCanCleanUpAfterSupervisorIsKilled(): void
+    {
+        $process = $this->launchFixture('idle');
+        try {
+            $this->waitForIdle();
+            proc_terminate($process, SIGKILL);
+            proc_close($process);
+        } finally {
+            Server::stopOrphans($this->directory);
+            if (is_resource($process)) {
+                proc_terminate($process);
+                proc_close($process);
+            }
+        }
+        $this->assertStopped();
+    }
+
+    private function waitForIdle(): void
+    {
+        $deadline = microtime(true) + 5.0;
+        do {
+            $response = @file_get_contents($this->directory . '/request-0.php.http');
+            if ($response !== false && str_ends_with($response, 'idle')) {
+                return;
+            }
+            usleep(10000);
+        } while (microtime(true) < $deadline);
+        self::fail('fixture did not reach its idle interval');
+    }
+
+    private function assertStopped(): void
+    {
+        $pids = file($this->directory . '/pids.txt', FILE_IGNORE_NEW_LINES);
+        self::assertIsArray($pids);
+        foreach ($pids as $pid) {
+            $stat = @file_get_contents('/proc/' . $pid . '/stat');
+            if ($stat !== false) {
+                self::assertStringContainsString(') Z ', $stat, 'server process still alive: ' . $pid);
+            }
+        }
+    }
+}

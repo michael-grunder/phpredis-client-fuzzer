@@ -45,7 +45,7 @@ final class ClientFactory
                 array_map($configuration->tls->endpoint(...), $configuration->seeds),
                 $configuration->timeout,
                 $configuration->readTimeout,
-                false,
+                $configuration->persistent,
                 $configuration->auth,
                 $configuration->clusterContext(),
             );
@@ -54,7 +54,8 @@ final class ClientFactory
             $client = new $class();
             $context = $configuration->auth === null ? [] : ['auth' => $configuration->auth];
             $context += $configuration->tls->context();
-            $connected = $client->connect(
+            $method = $configuration->persistent ? 'pconnect' : 'connect';
+            $connected = $client->$method(
                 $configuration->tls->endpoint($configuration->host),
                 $configuration->port,
                 $configuration->timeout,

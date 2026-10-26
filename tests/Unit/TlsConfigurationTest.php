@@ -80,7 +80,15 @@ final class TlsConfigurationTest extends TestCase
         ))->clusterContext());
     }
 
-    public function testFactoryAndReproductionUseAllFourClientConnectionApis(): void
+    /** @return iterable<array{bool}> */
+    public static function persistence(): iterable
+    {
+        yield [false];
+        yield [true];
+    }
+
+    #[DataProvider('persistence')]
+    public function testFactoryAndReproductionUseAllFourClientConnectionApis(bool $persistent): void
     {
         // A separate PHP without extensions lets the factory call recording stand-ins for all four classes.
         $source = <<<'PHP'
@@ -91,6 +99,7 @@ namespace {
         public array $arguments;
         public function __construct(...$args) { $this->arguments = $args; }
         public function connect(...$args) { $this->arguments = $args; return true; }
+        public function pconnect(...$args) { $this->arguments = $args; return true; }
         public function setOption(...$args) { return true; }
         public function getOption($option) { return $option === self::OPT_PREFIX ? '' : 0; }
         public function auth(...$args) { return true; }
@@ -135,6 +144,7 @@ namespace {
             type: $type, host: 'localhost', port: 6380, seeds: ['localhost:6380'],
             timeout: 2.0, readTimeout: 3.0, auth: ['user', 'secret'],
             tls: new \Mgrunder\RedisClientTester\TlsConfiguration(true, ['cafile' => '/tmp/test-ca.pem']),
+            persistent: $argv[2] === '1',
         );
         $client = (new \Mgrunder\RedisClientTester\ClientFactory())->create($config);
         $path = tempnam(sys_get_temp_dir(), 'tls-script-');
@@ -161,7 +171,7 @@ namespace {
     echo json_encode($results, JSON_THROW_ON_ERROR);
 }
 PHP;
-        $process = proc_open([PHP_BINARY, '-n', '-r', $source, dirname(__DIR__, 2) . '/vendor/autoload.php'], [
+        $process = proc_open([PHP_BINARY, '-n', '-r', $source, dirname(__DIR__, 2) . '/vendor/autoload.php', $persistent ? '1' : '0'], [
             1 => ['pipe', 'w'], 2 => ['pipe', 'w'],
         ], $pipes);
         self::assertIsResource($process);
@@ -188,10 +198,13 @@ PHP;
             self::assertIsString($script);
             $stream = ['stream' => ['cafile' => '/tmp/test-ca.pem']];
             if ($type->isCluster()) {
+                self::assertSame($persistent, $args[4]);
+                self::assertStringContainsString($persistent ? ', true,' : ', false,', $script);
                 self::assertSame(['tls://localhost:6380'], $args[1]);
                 self::assertSame(['user', 'secret'], $args[5]);
                 self::assertSame($type === ClientType::RedisCluster ? $stream['stream'] : $stream, $args[6]);
             } else {
+                self::assertStringContainsString($persistent ? '->pconnect(' : '->connect(', $script);
                 self::assertSame('tls://localhost', $args[0]);
                 self::assertSame(['auth' => ['user', 'secret']] + $stream, $args[6]);
                 self::assertStringContainsString("(int)(\$opt['port'] ?? 6380)", $script);

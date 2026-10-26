@@ -65,6 +65,7 @@ final class FailureClassifier
         bool $memory = false,
         bool $sanitizer = false,
     ): self {
+        $timedOut = $timedOut || $exitCode === ExitCode::TIMEOUT;
         $signal = null;
         if ($signaled && $termSignal !== null && $termSignal > 0) {
             $signal = $termSignal;

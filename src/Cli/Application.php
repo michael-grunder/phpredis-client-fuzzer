@@ -61,7 +61,7 @@ final class Application
     ];
 
     private const FLAG_OPTIONS = [
-        'tls',
+        'tls', 'persistent',
         'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking', 'pick-client',
         'no-relay-compatibility', 'differential', 'allow-deserialization-mutations',
     ];
@@ -75,6 +75,15 @@ final class Application
         'relay-multikey-reordering',
     ];
 
+    /**
+     * @internal Shared with the SAPI runner; does not create clients.
+     * @param list<string> $arguments
+     */
+    public static function parseOptions(array $arguments): Options
+    {
+        return Options::parse($arguments, self::VALUE_OPTIONS, self::FLAG_OPTIONS, self::REPEATABLE_OPTIONS);
+    }
+
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
@@ -85,12 +94,7 @@ final class Application
         $configured = false;
 
         try {
-            $options = Options::parse(
-                $arguments,
-                self::VALUE_OPTIONS,
-                self::FLAG_OPTIONS,
-                self::REPEATABLE_OPTIONS,
-            );
+            $options = self::parseOptions($arguments);
 
             if ($options->has('help')) {
                 $this->write($this->help());
@@ -228,6 +232,7 @@ final class Application
                 $clientConfigurations[] = new ClientConfiguration(
                     type: $type,
                     tls: $tls,
+                    persistent: $options->has('persistent'),
                     host: $host,
                     port: $port,
                     seeds: $seeds,
@@ -537,6 +542,7 @@ Clients and connection:
   --compression=NAME[,NAME]  none, lzf, zstd, lz4, or random
   --prefix=PREFIX            Client key prefix
   --no-relay-compatibility   Disable Relay PhpRedis compatibility
+  --persistent              Keep client connections across requests (default: off)
 
 Cluster options (redis-cluster and relay-cluster):
   --slave-failover=MODE[,MODE]

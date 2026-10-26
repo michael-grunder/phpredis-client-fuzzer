@@ -21,6 +21,9 @@ final class ExitCode
     /** The run executed and something failed (a caught diagnostic, a divergence, ...). */
     public const FAILURE = 1;
 
+    /** A supervised HTTP readiness or request deadline expired. */
+    public const TIMEOUT = 124;
+
     /**
      * The command line was rejected or the configuration is unusable; no work
      * was attempted. The value is sysexits.h EX_CONFIG.

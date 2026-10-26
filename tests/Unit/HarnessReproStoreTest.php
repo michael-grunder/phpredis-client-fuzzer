@@ -17,6 +17,24 @@ final class HarnessReproStoreTest extends TestCase
 {
     private string $root = '';
 
+    public function testSapiScriptsResponsesAndWorkerCoresAreRetained(): void
+    {
+        $root = $this->workspace();
+        $job = $this->job($root, ['php', 'bin/redis-client-tester-sapi', '--', '--seed=5']);
+        mkdir($job->workDir . '/sapi');
+        file_put_contents($job->workDir . '/sapi/pids.txt', "12345\n12346\n");
+        file_put_contents($job->workDir . '/sapi/request-1.php', '<?php echo "workload";');
+        file_put_contents($job->workDir . '/sapi/request-1.php.http', 'partial response');
+        file_put_contents($root . '/core.php.12346', 'worker core');
+        file_put_contents($root . '/core.php.98765', 'unrelated core');
+        $dir = $this->store($root, null)->capture($job, ['kind' => 'crash']);
+        self::assertSame('worker core', file_get_contents($dir . '/core.php.12346'));
+        self::assertFileExists($root . '/core.php.98765');
+        self::assertFileExists($dir . '/sapi/request-1.php');
+        self::assertSame('partial response', file_get_contents($dir . '/sapi/request-1.php.http'));
+        self::assertStringContainsString('REDIS_CLIENT_TESTER_PHP_ARGS=', (string) file_get_contents($dir . '/command.txt'));
+    }
+
     protected function tearDown(): void
     {
         if ($this->root !== '') {

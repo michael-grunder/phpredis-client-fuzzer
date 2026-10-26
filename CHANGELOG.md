@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `redis-client-tester-sapi` for seeded workloads in concurrent HTTP requests
+  against persistent PHP built-in server workers, with idle intervals, bounded
+  requests, worker-death detection, process-group cleanup, and per-request scripts
+  and responses. Integrate harness startup settings, descendant cores, retained
+  SAPI artifacts, rr/ASAN recording, and Valgrind server wrappers.
+- Add opt-in `--persistent` / `ClientConfiguration::persistent` for all four
+  clients, enabled by the SAPI runner and preserved in call logs and reconnects.
+
 - Add opt-in TLS transport and JSON SSL context options to the fuzzers, harness
   startup probes, coverage, command statistics, and client killer. Support all
   four clients through `TlsConfiguration`, preserve TLS on reconnects and in

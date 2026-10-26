@@ -29,6 +29,7 @@ final readonly class ClientConfiguration
         public RelayClusterOptions $relayCluster = new RelayClusterOptions(),
         ?string $slaveFailover = null,
         public TlsConfiguration $tls = new TlsConfiguration(),
+        public bool $persistent = false,
     ) {
         $this->slaveFailover = $slaveFailover === null
             ? null

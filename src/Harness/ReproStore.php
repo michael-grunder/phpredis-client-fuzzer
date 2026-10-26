@@ -119,6 +119,7 @@ final class ReproStore
         if ($job->pid !== null) {
             $this->collectCores($job->pid, $dir);
         }
+        $this->collectSapi($job->workDir, $dir);
 
         $ini = $job->phpIni ?? $this->phpIni;
         $this->copyIni($dir, $ini);
@@ -151,6 +152,7 @@ final class ReproStore
         if ($outcome->pid !== null) {
             $this->collectCores($outcome->pid, $sub);
         }
+        $this->collectSapi($outcome->workDir, $sub);
         $generatedIni = $outcome->workDir . '/php.ini';
         $this->copyIni($sub, is_file($generatedIni) ? $generatedIni : $this->phpIni);
 
@@ -243,6 +245,23 @@ final class ReproStore
         return $found;
     }
 
+    private function collectSapi(string $workDir, string $destination): void
+    {
+        $sapi = $workDir . '/sapi';
+        if (!is_dir($sapi)) {
+            return;
+        }
+        $pids = @file($sapi . '/pids.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($pids === false ? [] : $pids as $pid) {
+            if (ctype_digit($pid) && (int) $pid > 0) {
+                $this->collectCores((int) $pid, $destination);
+            }
+        }
+        if (!Fs::move($sapi, $destination . '/sapi')) {
+            throw new \RuntimeException('cannot preserve SAPI artifacts: ' . $sapi);
+        }
+    }
+
     /**
      * A copy-pasteable rendering of a child's argv, quoting only the arguments
      * that need it.
@@ -271,8 +290,13 @@ final class ReproStore
                 }
             }
         }
+        $command = self::formatCommand($argv);
+        if (is_dir($dir . '/sapi')) {
+            $args = array_map(static fn (string $arg): string => $ini !== null && $arg === $ini ? $dir . '/php.ini' : $arg, $job->phpArgs);
+            $command = 'REDIS_CLIENT_TESTER_PHP_ARGS=' . escapeshellarg(json_encode($args, JSON_THROW_ON_ERROR)) . ' ' . $command;
+        }
         $lines = [
-            self::formatCommand($argv),
+            $command,
             '',
             "# cwd:   {$this->coreSearchDir}",
             "# seed:  {$job->seed}",

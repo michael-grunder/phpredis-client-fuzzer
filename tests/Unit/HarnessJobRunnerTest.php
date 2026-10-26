@@ -25,6 +25,27 @@ final class HarnessJobRunnerTest extends TestCase
 {
     private string $root = '';
 
+    public function testServerChildrenReceiveConcreteStartupArgsAndAnIsolatedArtifactDirectory(): void
+    {
+        $root = $this->workspace();
+        $script = $root . '/sapi-child.php';
+        file_put_contents($script, <<<'PHP'
+<?php
+$directory = getenv('REDIS_CLIENT_TESTER_WORK_DIR') . '/sapi';
+mkdir($directory);
+file_put_contents($directory . '/args.json', getenv('REDIS_CLIENT_TESTER_PHP_ARGS'));
+file_put_contents($directory . '/request.php', '<?php echo "preserved";');
+exit(1);
+PHP);
+        $runner = $this->runner($root, ['--capture=failures', '--php-args=-dprecision=12'], ['php', $script]);
+        $job = $this->await($runner, $runner->spawn(0, null, 42));
+        self::assertSame(JobStatus::Failed, $job->status);
+        self::assertNotNull($job->reproDir);
+        self::assertSame(['-dprecision=12'], json_decode((string) file_get_contents($job->reproDir . '/sapi/args.json'), true));
+        self::assertFileExists($job->reproDir . '/sapi/request.php');
+        self::assertStringContainsString('-dprecision=12', (string) file_get_contents($job->reproDir . '/command.txt'));
+    }
+
     protected function tearDown(): void
     {
         if ($this->root !== '') {

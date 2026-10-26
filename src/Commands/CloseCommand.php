@@ -52,7 +52,7 @@ class CloseCommand extends EmptyLocalCommand {
         $result = $this->exec($client);
 
         if ($endpoint !== null)
-            $this->cmd($client, 'connect', ...$endpoint);
+            $this->cmd($client, ClientFactory::configurationFor($client)?->persistent ? 'pconnect' : 'connect', ...$endpoint);
 
         return $result;
     }
