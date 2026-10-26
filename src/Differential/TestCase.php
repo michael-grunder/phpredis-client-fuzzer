@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Differential;
+namespace Mgrunder\RedisClientTester\Differential;
 
 /**
  * One generated differential testcase. Generation produces it and execution

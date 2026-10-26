@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
+namespace Mgrunder\RedisClientTester\Stateful;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\StrictClientInvoker;
 
 final class StatefulScenarioRegistry
 {

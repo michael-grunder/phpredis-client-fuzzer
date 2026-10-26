@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\MSetCommand;
+use Mgrunder\RedisClientTester\Commands\MSetCommand;
 
 class mset extends MSetCommand {
     public function flags(): int {

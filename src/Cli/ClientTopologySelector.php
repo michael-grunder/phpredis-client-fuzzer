@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\info;
-use Mgrunder\PhpredisCommandFuzzer\Log\Log;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\Commands\Command\info;
+use Mgrunder\RedisClientTester\Log\Log;
 
 /** @internal CLI selection before workload clients and hooks are started. */
 final class ClientTopologySelector

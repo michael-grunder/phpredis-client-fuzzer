@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\ClientTypeParser;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
+use Mgrunder\RedisClientTester\Cli\ClientTypeParser;
+use Mgrunder\RedisClientTester\ClientType;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

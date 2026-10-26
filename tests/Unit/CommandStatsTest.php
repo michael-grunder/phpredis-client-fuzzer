@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\ClusterNodesParser;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\CounterTracker;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\Node;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\NodeRole;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\Reading;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\Sample;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\Sampler;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\Tui;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\CommandStats\ClusterNodesParser;
+use Mgrunder\RedisClientTester\CommandStats\CounterTracker;
+use Mgrunder\RedisClientTester\CommandStats\Node;
+use Mgrunder\RedisClientTester\CommandStats\NodeRole;
+use Mgrunder\RedisClientTester\CommandStats\Reading;
+use Mgrunder\RedisClientTester\CommandStats\Sample;
+use Mgrunder\RedisClientTester\CommandStats\Sampler;
+use Mgrunder\RedisClientTester\CommandStats\Tui;
 use PHPUnit\Framework\TestCase;
 
 final class CommandStatsTest extends TestCase

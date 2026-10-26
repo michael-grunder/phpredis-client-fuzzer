@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\RelayStatsCollector;
+use Mgrunder\RedisClientTester\RelayStatsCollector;
 use PHPUnit\Framework\TestCase;
 
 final class RelayStatsCollectorTest extends TestCase

@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Command;
 
 class connect extends Command {
     public function flags(): int {

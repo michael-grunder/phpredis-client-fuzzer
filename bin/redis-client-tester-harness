@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\FuzzKillerApplication;
+use Mgrunder\RedisClientTester\Cli\HarnessApplication;
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
@@ -11,4 +11,4 @@ if (!is_file($autoload)) {
 }
 require $autoload;
 
-exit((new FuzzKillerApplication())->run(array_slice($argv, 1)));
+exit((new HarnessApplication())->run(array_slice($argv, 1)));

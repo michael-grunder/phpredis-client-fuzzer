@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\bitfield;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\blmovem;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\blpop;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\brpop;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\digest;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\georadiusbymember;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\georadiusbymember_ro;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\increx;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\lmovem;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sdiffcard;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sort as SortCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sort_ro as SortRoCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\sunioncard;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Command\bitfield;
+use Mgrunder\RedisClientTester\Commands\Command\blmovem;
+use Mgrunder\RedisClientTester\Commands\Command\blpop;
+use Mgrunder\RedisClientTester\Commands\Command\brpop;
+use Mgrunder\RedisClientTester\Commands\Command\digest;
+use Mgrunder\RedisClientTester\Commands\Command\georadiusbymember;
+use Mgrunder\RedisClientTester\Commands\Command\georadiusbymember_ro;
+use Mgrunder\RedisClientTester\Commands\Command\increx;
+use Mgrunder\RedisClientTester\Commands\Command\lmovem;
+use Mgrunder\RedisClientTester\Commands\Command\sdiffcard;
+use Mgrunder\RedisClientTester\Commands\Command\sort as SortCommand;
+use Mgrunder\RedisClientTester\Commands\Command\sort_ro as SortRoCommand;
+use Mgrunder\RedisClientTester\Commands\Command\sunioncard;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\Registry;
 use PHPUnit\Framework\TestCase;
 use Redis;
 use RedisCluster;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
 /**
  * How generated keys for a single fuzz step are distributed over cluster hash

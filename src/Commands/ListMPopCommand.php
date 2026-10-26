@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
 
 use Redis;
 use RedisCluster;

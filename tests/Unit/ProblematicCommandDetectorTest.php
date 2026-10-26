@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\ProblematicCommandDetector;
+use Mgrunder\RedisClientTester\Coverage\ServerCommands;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\ProblematicCommandDetector;
 use PHPUnit\Framework\TestCase;
 
 final class ProblematicCommandDetectorTest extends TestCase

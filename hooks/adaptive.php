@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PostConstructorHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ScriptSetupHook;
-use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
-use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
+use Mgrunder\RedisClientTester\Hooks\ClientEvent;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\PostConstructorHook;
+use Mgrunder\RedisClientTester\Hooks\ScriptSetupHook;
+use Mgrunder\RedisClientTester\InvocationRecorder;
+use Mgrunder\RedisClientTester\ScriptLogger;
+use Mgrunder\RedisClientTester\StrictClientInvoker;
 use Relay\Cluster;
 use Relay\Relay;
 
@@ -80,7 +80,7 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
 
         public function recordScriptSetup(): void
         {
-            // ClientFactory applies the hook before Fuzzer opens the script log.
+            // ClientFactory applies the hook before Tester opens the script log.
             foreach ($this->clients as $client => $option) {
                 ScriptLogger::log($client, 'setOption', [$option, $this->options]);
             }

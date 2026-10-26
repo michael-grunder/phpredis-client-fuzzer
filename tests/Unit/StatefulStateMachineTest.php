@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\CallableScenarioPeers;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\ScenarioPeers;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulOutcome;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
-use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeStatefulRedis;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeStatefulServer;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Stateful\CallableScenarioPeers;
+use Mgrunder\RedisClientTester\Stateful\ScenarioPeers;
+use Mgrunder\RedisClientTester\Stateful\StatefulOutcome;
+use Mgrunder\RedisClientTester\Stateful\StatefulScenarioRegistry;
+use Mgrunder\RedisClientTester\Stateful\StatefulScenarioRunner;
+use Mgrunder\RedisClientTester\StrictClientInvoker;
+use Mgrunder\RedisClientTester\Tests\Fixtures\FakeStatefulRedis;
+use Mgrunder\RedisClientTester\Tests\Fixtures\FakeStatefulServer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

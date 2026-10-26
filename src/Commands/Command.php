@@ -1,22 +1,22 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Log\Log;
-use Mgrunder\PhpredisCommandFuzzer\DifferentialOracle;
-use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
-use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
-use Mgrunder\PhpredisCommandFuzzer\HasWeight;
-use Mgrunder\PhpredisCommandFuzzer\WarningCollector;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookAction;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\StrictClientInvoker;
+use Mgrunder\RedisClientTester\Log\Log;
+use Mgrunder\RedisClientTester\DifferentialOracle;
+use Mgrunder\RedisClientTester\InvocationRecorder;
+use Mgrunder\RedisClientTester\ScriptArg;
+use Mgrunder\RedisClientTester\HasWeight;
+use Mgrunder\RedisClientTester\WarningCollector;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookAction;
+use Mgrunder\RedisClientTester\Hooks\HookEvent;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\InvocationRejected;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 
 use Relay\Relay;
 use Relay\Cluster;
@@ -478,7 +478,7 @@ abstract class Command implements HasWeight {
     final protected function clusterRawRoutingKey(): string {
         /* Keep direct fuzzRaw() callers functional even if they did not open
            a command scope. The runner always supplies a slot-aware key. */
-        return $this->rawRoutingKey ?? 'phpredis-command-fuzzer:{0}:route';
+        return $this->rawRoutingKey ?? 'redis-client-tester:{0}:route';
     }
 
     final public function cmd(Redis|RedisCluster|Relay|Cluster $client,
@@ -636,13 +636,13 @@ abstract class Command implements HasWeight {
     ): mixed {
         $this->clientInvoker ??= new StrictClientInvoker();
 
-        return \Mgrunder\PhpredisCommandFuzzer\Values\CallbackContext::invoke(
+        return \Mgrunder\RedisClientTester\Values\CallbackContext::invoke(
             fn (): mixed => InvocationRecorder::invoke(
                 $this->clientInvoker, $client, $method, $args,
                 scriptArguments: $scriptArgs, iterable: $iterable,
             ),
             $this->allowDeserializationMutations ? function (string $action) use ($client): void {
-                [$operation, $arguments] = \Mgrunder\PhpredisCommandFuzzer\Values\CallbackContext::operation($action);
+                [$operation, $arguments] = \Mgrunder\RedisClientTester\Values\CallbackContext::operation($action);
                 if (method_exists($client, $operation)) {
                     $this->cmd($client, $operation, ...$arguments);
                 }

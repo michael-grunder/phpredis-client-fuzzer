@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\DiffApplication;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Cli\DiffApplication;
+use Mgrunder\RedisClientTester\Cli\ExitCode;
 use PHPUnit\Framework\TestCase;
 
 final class DiffApplicationTest extends TestCase
@@ -27,7 +27,7 @@ final class DiffApplicationTest extends TestCase
         foreach ([['--bogus'], ['--steps=0'], ['--order=sideways'], ['--commands=@nope'], ['--relay-cache=maybe'], ['--wrongtype-chance=2']] as $arguments) {
             [$status, , $error] = self::invoke($arguments);
             self::assertSame(ExitCode::STARTUP, $status, implode(' ', $arguments) . ': ' . $error);
-            self::assertStringStartsWith('phpredis-fuzz-diff: ', $error);
+            self::assertStringStartsWith('redis-client-tester-diff: ', $error);
         }
     }
 

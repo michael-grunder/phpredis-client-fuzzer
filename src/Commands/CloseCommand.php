@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
+use Mgrunder\RedisClientTester\ClientFactory;
 use Redis;
 use RedisCluster;
 use Relay\Relay;

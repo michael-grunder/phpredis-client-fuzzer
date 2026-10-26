@@ -1,9 +1,9 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZRankCommand;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\ZRankCommand;
 
 class zrank extends ZRankCommand {
     public function flags(): int {

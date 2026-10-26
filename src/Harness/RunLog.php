@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
 /**
  * An append-only transcript of what the fuzzer runs themselves printed.

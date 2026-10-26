@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\LeakReport;
+use Mgrunder\RedisClientTester\Harness\LeakReport;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessLeakReportTest extends TestCase

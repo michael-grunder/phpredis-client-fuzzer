@@ -1,9 +1,9 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
 use Redis; use RedisCluster; use Relay\Relay; use Relay\Cluster;
 
 class RestoreCommand extends Command implements FuzzInterface, FuzzRawInterface {

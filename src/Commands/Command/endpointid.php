@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\EmptyLocalCommand;
+use Mgrunder\RedisClientTester\Commands\EmptyLocalCommand;
 
 class endpointid extends EmptyLocalCommand { }

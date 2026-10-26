@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\Options;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\ping;
+use Mgrunder\RedisClientTester\Cli\Options;
+use Mgrunder\RedisClientTester\Commands\Command\ping;
 
 /** Read-only availability check for the harness's Redis port pool. */
 final class TargetCheck

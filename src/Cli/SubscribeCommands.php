@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\CommandFilter;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\FuzzResult;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\CommandFilter;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\TestResult;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -36,7 +36,7 @@ final class SubscribeCommands
         (new CommandFilter())->apply(new Registry(), new RunConfiguration(commands: $commands));
     }
 
-    public function run(\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster $client): FuzzResult
+    public function run(\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster $client): TestResult
     {
         $seed = $this->random->getInt(0, 0x7fffffff);
         $batch = ++$this->batch;
@@ -51,7 +51,7 @@ final class SubscribeCommands
             fclose($file);
         }
 
-        return (new Fuzzer())->run([$client], new RunConfiguration(
+        return (new Tester())->run([$client], new RunConfiguration(
             maxSteps: $this->steps,
             seed: $seed,
             commands: $this->commands,

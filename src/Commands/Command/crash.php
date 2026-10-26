@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\LocalCommand;
+use Mgrunder\RedisClientTester\Commands\LocalCommand;
 
 class crash extends LocalCommand {
 

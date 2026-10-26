@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Differential;
+namespace Mgrunder\RedisClientTester\Differential;
 
 /**
  * Shrinks a diverging testcase while it keeps diverging the same way.

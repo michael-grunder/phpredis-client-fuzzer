@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Differential;
+namespace Mgrunder\RedisClientTester\Differential;
 
 /**
  * Divergence signatures already saved in an output directory, shared by every

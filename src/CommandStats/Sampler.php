@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\CommandStats;
+namespace Mgrunder\RedisClientTester\CommandStats;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientFactory;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\TlsConfiguration;
 use Redis;
 use Relay\Relay;
 

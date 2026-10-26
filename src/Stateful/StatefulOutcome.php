@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
+namespace Mgrunder\RedisClientTester\Stateful;
 
 final readonly class StatefulOutcome implements \JsonSerializable
 {

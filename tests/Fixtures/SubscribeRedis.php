@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures;
+namespace Mgrunder\RedisClientTester\Tests\Fixtures;
 
 /** Server-free simulation of Relay's queued subscription confirmations and messages. */
 final class SubscribeRedis extends RecordingRedis

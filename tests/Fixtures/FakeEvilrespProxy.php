@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures;
+namespace Mgrunder\RedisClientTester\Tests\Fixtures;
 
 /**
  * The DEBUG EVIL state of one evilresp connection, answering subcommands the

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Cli\ExitCode;
 
 /**
  * The campaign loop: keeps `--jobs` fuzzer runs in flight, reaps and classifies

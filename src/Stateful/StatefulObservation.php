@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
+namespace Mgrunder\RedisClientTester\Stateful;
 
-use Mgrunder\PhpredisCommandFuzzer\ValueSummary;
+use Mgrunder\RedisClientTester\ValueSummary;
 
 final readonly class StatefulObservation implements \JsonSerializable
 {

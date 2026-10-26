@@ -1,10 +1,10 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 use Redis; use RedisCluster; use Relay\Relay; use Relay\Cluster;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
-use Mgrunder\PhpredisCommandFuzzer\Data\Events;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Data\Events;
 
 class StreamDeleteExCommand extends Command implements FuzzInterface, FuzzRawInterface {
     public function type(): string { return self::STREAM; }

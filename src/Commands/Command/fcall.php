@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\FCallCommand;
+use Mgrunder\RedisClientTester\Commands\FCallCommand;
 
 class fcall extends FCallCommand {
     public function flags(): int {

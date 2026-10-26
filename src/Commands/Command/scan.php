@@ -1,9 +1,9 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ScanCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\ScanCommand;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 
 class scan extends ScanCommand {
     public function flags(): int {

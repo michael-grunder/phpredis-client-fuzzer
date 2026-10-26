@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Hooks;
+namespace Mgrunder\RedisClientTester\Hooks;
 
 /**
  * Optional companion to a lifecycle hook that configured an external fault

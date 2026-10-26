@@ -1,10 +1,10 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\Data\Cities;
-use Mgrunder\PhpredisCommandFuzzer\Data\City;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\GeoRadius;
+use Mgrunder\RedisClientTester\Data\Cities;
+use Mgrunder\RedisClientTester\Data\City;
+use Mgrunder\RedisClientTester\Commands\Traits\GeoRadius;
 
 use Redis;
 use RedisCluster;

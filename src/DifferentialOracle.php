@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Command;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;

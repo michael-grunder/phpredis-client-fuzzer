@@ -1,2 +1,2 @@
-<?php namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class vrem extends \Mgrunder\PhpredisCommandFuzzer\Commands\VectorMutationCommand {}
+<?php namespace Mgrunder\RedisClientTester\Commands\Command;
+class vrem extends \Mgrunder\RedisClientTester\Commands\VectorMutationCommand {}

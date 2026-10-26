@@ -1,9 +1,9 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZRemRangeByCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\ZRemRangeByCommand;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 
 class zremrangebyrank extends ZRemRangeByCommand {
     public function getRange(FuzzConfig $config): array {

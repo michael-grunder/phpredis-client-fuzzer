@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
-use Mgrunder\PhpredisCommandFuzzer\Values\CallbackContext;
-use Mgrunder\PhpredisCommandFuzzer\Values\MutatingValue;
-use Mgrunder\PhpredisCommandFuzzer\Values\SerializedValue;
-use Mgrunder\PhpredisCommandFuzzer\Values\StringValue;
-use Mgrunder\PhpredisCommandFuzzer\Values\ValueCode;
-use Mgrunder\PhpredisCommandFuzzer\Values\ValueCorpus;
-use Mgrunder\PhpredisCommandFuzzer\Values\WakeupValue;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\RunConfiguration;
+use Mgrunder\RedisClientTester\ScriptLogger;
+use Mgrunder\RedisClientTester\Values\CallbackContext;
+use Mgrunder\RedisClientTester\Values\MutatingValue;
+use Mgrunder\RedisClientTester\Values\SerializedValue;
+use Mgrunder\RedisClientTester\Values\StringValue;
+use Mgrunder\RedisClientTester\Values\ValueCode;
+use Mgrunder\RedisClientTester\Values\ValueCorpus;
+use Mgrunder\RedisClientTester\Values\WakeupValue;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Redis;
@@ -234,7 +234,7 @@ final class ValueCorpusTest extends TestCase
         $client->setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_PHP);
         foreach (['references', 'sparse', 'nested', 'serialized', 'wakeup'] as $variant) {
             $value = (new ValueCorpus())->value(true, variant: $variant);
-            $encoded = (new \Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker())->invoke($client, '_serialize', [$value]);
+            $encoded = (new \Mgrunder\RedisClientTester\StrictClientInvoker())->invoke($client, '_serialize', [$value]);
             if (!is_string($encoded)) {
                 self::fail('Expected PHP serialized string');
             }

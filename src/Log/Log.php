@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Log;
+namespace Mgrunder\RedisClientTester\Log;
 
 /**
  * Tiny opt-in logger used by commands without imposing a logging dependency.

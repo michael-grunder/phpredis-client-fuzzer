@@ -1,3 +1,3 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class script extends \Mgrunder\PhpredisCommandFuzzer\Commands\ScriptCommand {}
+namespace Mgrunder\RedisClientTester\Commands\Command;
+class script extends \Mgrunder\RedisClientTester\Commands\ScriptCommand {}

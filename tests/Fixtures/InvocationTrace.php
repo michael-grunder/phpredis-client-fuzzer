@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures;
+namespace Mgrunder\RedisClientTester\Tests\Fixtures;
 
-use Mgrunder\PhpredisCommandFuzzer\Values\ValueCode;
+use Mgrunder\RedisClientTester\Values\ValueCode;
 
 final class InvocationTrace
 {

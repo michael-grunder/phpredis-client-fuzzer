@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\SAddRemCommand;
+use Mgrunder\RedisClientTester\Commands\SAddRemCommand;
 
 class srem extends SAddRemCommand {
     public function flags(): int {

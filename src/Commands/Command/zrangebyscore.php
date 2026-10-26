@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZRangeByScoreCommand;
+use Mgrunder\RedisClientTester\Commands\ZRangeByScoreCommand;
 
 class zrangebyscore extends ZRangeByScoreCommand {
     public function flags(): int {

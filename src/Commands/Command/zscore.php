@@ -1,11 +1,11 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyMemCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeySample;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ProxyInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\KeyMemCommand;
+use Mgrunder\RedisClientTester\Commands\KeySample;
+use Mgrunder\RedisClientTester\Commands\ProxyInterface;
 
 use Relay\Relay;
 use Redis;

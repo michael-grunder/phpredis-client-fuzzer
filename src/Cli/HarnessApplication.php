@@ -2,28 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\AsanRuntime;
-use Mgrunder\PhpredisCommandFuzzer\Harness\CommandTemplate;
-use Mgrunder\PhpredisCommandFuzzer\Harness\CorePattern;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
-use Mgrunder\PhpredisCommandFuzzer\Harness\HarnessOptions;
-use Mgrunder\PhpredisCommandFuzzer\Harness\JobRunner;
-use Mgrunder\PhpredisCommandFuzzer\Harness\PhpStartupTemplate;
-use Mgrunder\PhpredisCommandFuzzer\Harness\PlainView;
-use Mgrunder\PhpredisCommandFuzzer\Harness\PortPool;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Reducer;
-use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
-use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Scheduler;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Stats;
-use Mgrunder\PhpredisCommandFuzzer\Harness\TargetCheck;
-use Mgrunder\PhpredisCommandFuzzer\Harness\TuiView;
-use Mgrunder\PhpredisCommandFuzzer\Harness\View;
+use Mgrunder\RedisClientTester\AsanRuntime;
+use Mgrunder\RedisClientTester\Harness\CommandTemplate;
+use Mgrunder\RedisClientTester\Harness\CorePattern;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Harness\HarnessOptions;
+use Mgrunder\RedisClientTester\Harness\JobRunner;
+use Mgrunder\RedisClientTester\Harness\PhpStartupTemplate;
+use Mgrunder\RedisClientTester\Harness\PlainView;
+use Mgrunder\RedisClientTester\Harness\PortPool;
+use Mgrunder\RedisClientTester\Harness\Reducer;
+use Mgrunder\RedisClientTester\Harness\ReproStore;
+use Mgrunder\RedisClientTester\Harness\RunLog;
+use Mgrunder\RedisClientTester\Harness\Scheduler;
+use Mgrunder\RedisClientTester\Harness\Stats;
+use Mgrunder\RedisClientTester\Harness\TargetCheck;
+use Mgrunder\RedisClientTester\Harness\TuiView;
+use Mgrunder\RedisClientTester\Harness\View;
 
 /**
- * Entry point for `bin/phpredis-fuzz-harness`: validates the environment,
+ * Entry point for `bin/redis-client-tester-harness`: validates the environment,
  * wires the campaign components together, and hands control to the
  * {@see Scheduler}.
  *
@@ -62,7 +62,7 @@ final class HarnessApplication
 
             return $this->execute($options);
         } catch (\Throwable $throwable) {
-            $this->write('phpredis-fuzz-harness: ' . $throwable->getMessage() . "\n", true);
+            $this->write('redis-client-tester-harness: ' . $throwable->getMessage() . "\n", true);
             return 1;
         }
     }
@@ -469,14 +469,14 @@ final class HarnessApplication
     }
 
     private const HELP = <<<'HELP'
-phpredis-fuzz-harness - run many phpredis-fuzz workers in parallel with a live
+redis-client-tester-harness - run many redis-client-tester workers in parallel with a live
 dashboard, capturing crashes, timeouts, memory leaks, and non-zero exits as
 reproducers.
 
 Usage:
-  phpredis-fuzz-harness [harness options] -- <fuzzer command template...>
+  redis-client-tester-harness [harness options] -- <fuzzer command template...>
 
-The template is a normal phpredis-fuzz* command line. These placeholders are
+The template is a normal redis-client-tester* command line. These placeholders are
 substituted per run:
   {port}   a port chosen from --port
   {steps}  the current step budget (see --steps / --reduce)
@@ -562,14 +562,14 @@ way, the harness stops the campaign and prints the fuzzer's own error message
 along with the command it was given.
 
 Example:
-  phpredis-fuzz-harness \
+  redis-client-tester-harness \
       --jobs 4 --reduce steps --rr --rr-chaos \
       --capture crashes,leaks,timeouts --run-timeout 120 \
       --php "$(farmroot)/sapi/cli/php" \
       --php-ini "$(farmroot)/php.ini" --php-args -drelay.maxmemory=1g \
       --port 7000 7001 7002 7003 --isolate-ports \
       -- \
-      bin/phpredis-fuzz-coercive \
+      bin/redis-client-tester-coercive \
           --client=relay-cluster --seconds 2 --steps {steps} \
           --host=127.0.0.1 --port={port}
 

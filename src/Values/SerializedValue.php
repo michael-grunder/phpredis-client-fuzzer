@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Values;
+namespace Mgrunder\RedisClientTester\Values;
 
 class SerializedValue
 {
@@ -14,7 +14,7 @@ class SerializedValue
     public function __serialize(): array
     {
         if ($this->behavior === 'throw-serialize') {
-            throw new \RuntimeException('Fuzzer serialization callback');
+            throw new \RuntimeException('Tester serialization callback');
         }
 
         return ['payload' => $this->payload, 'behavior' => $this->behavior];
@@ -29,7 +29,7 @@ class SerializedValue
         $this->payload = $data['payload'];
         $this->behavior = $data['behavior'];
         if ($this->behavior === 'throw-unserialize') {
-            throw new \RuntimeException('Fuzzer deserialization callback');
+            throw new \RuntimeException('Tester deserialization callback');
         }
     }
 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
 /**
  * One fuzzer run: its immutable launch parameters plus the mutable state the

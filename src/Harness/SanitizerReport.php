@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
 /** ASAN, LSan, or UBSan evidence; the complete report remains in stderr.log. */
 final class SanitizerReport

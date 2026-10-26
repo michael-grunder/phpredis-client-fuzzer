@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Hooks;
+namespace Mgrunder\RedisClientTester\Hooks;
 
 /**
  * Observation points hook code can subscribe to.

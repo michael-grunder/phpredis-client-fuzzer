@@ -1,2 +1,2 @@
-<?php namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class vadd extends \Mgrunder\PhpredisCommandFuzzer\Commands\VectorAddCommand {}
+<?php namespace Mgrunder\RedisClientTester\Commands\Command;
+class vadd extends \Mgrunder\RedisClientTester\Commands\VectorAddCommand {}

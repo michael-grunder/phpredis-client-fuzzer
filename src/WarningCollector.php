@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
 /**
  * Collects PHP warnings so we can summarize them at the end of a fuzzing run.

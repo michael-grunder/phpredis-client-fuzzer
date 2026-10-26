@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\MZSetCommand;
+use Mgrunder\RedisClientTester\Commands\MZSetCommand;
 
 class zinter extends MZSetCommand {
     public function flags(): int {

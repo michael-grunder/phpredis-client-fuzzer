@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\SetExCommand;
+use Mgrunder\RedisClientTester\Commands\SetExCommand;
 
 
 class setex extends SetExCommand {

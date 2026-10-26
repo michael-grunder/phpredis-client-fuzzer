@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Values;
+namespace Mgrunder\RedisClientTester\Values;
 
 final class WakeupValue
 {
@@ -13,7 +13,7 @@ final class WakeupValue
     public function __wakeup(): void
     {
         if ($this->throws) {
-            throw new \RuntimeException('Fuzzer wakeup callback');
+            throw new \RuntimeException('Tester wakeup callback');
         }
         $this->payload = (string) $this->payload;
     }

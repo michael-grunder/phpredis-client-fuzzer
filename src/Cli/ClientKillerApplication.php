@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+use Mgrunder\RedisClientTester\TlsConfiguration;
 
 /**
  * Repeatedly disrupts a running fuzzer workload by signalling the fuzzer
@@ -12,7 +12,7 @@ use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
  *
  * @internal This class exists to keep the Composer binary small and testable.
  */
-final class FuzzKillerApplication
+final class ClientKillerApplication
 {
     private const VALUE_OPTIONS = [
         'tls-options',
@@ -145,7 +145,7 @@ final class FuzzKillerApplication
         $this->usesDefaultSignalSender = $signalSender === null;
         $this->usesDefaultRedis = $nodeResolver === null || $clientLister === null || $clientKiller === null;
         $this->pidFinder = $pidFinder === null
-            ? $this->findFuzzerPids(...)
+            ? $this->findTesterPids(...)
             : \Closure::fromCallable($pidFinder);
         $this->signalSender = $signalSender === null
             ? static fn (int $pid, int $signal): bool => posix_kill($pid, $signal)
@@ -246,7 +246,7 @@ final class FuzzKillerApplication
                 }
             }
         } catch (\Throwable $throwable) {
-            $this->write('phpredis-fuzz-killer: ' . $throwable->getMessage() . "\n", true);
+            $this->write('redis-client-tester-killer: ' . $throwable->getMessage() . "\n", true);
             return $configured ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
     }
@@ -258,7 +258,7 @@ final class FuzzKillerApplication
     {
         $pids = ($this->pidFinder)();
         if ($pids === []) {
-            $this->log($started, 'No phpredis-fuzz processes found');
+            $this->log($started, 'No redis-client-tester processes found');
         }
 
         foreach ($pids as $pid) {
@@ -427,7 +427,7 @@ final class FuzzKillerApplication
     }
 
     /** @return list<int> */
-    private function findFuzzerPids(): array
+    private function findTesterPids(): array
     {
         $entries = scandir('/proc');
         if ($entries === false) {
@@ -456,7 +456,7 @@ final class FuzzKillerApplication
                 static fn (string $argument): bool => $argument !== '',
             );
             foreach ($arguments as $argument) {
-                if (basename($argument) === 'phpredis-fuzz') {
+                if (basename($argument) === 'redis-client-tester') {
                     $pids[] = $pid;
                     break;
                 }
@@ -688,7 +688,7 @@ final class FuzzKillerApplication
         $summary = $nodes === []
             ? 'no Redis nodes'
             : count($nodes) . ' Redis node(s): ' . implode(', ', $nodes);
-        $this->write("phpredis-fuzz-killer: targeting {$summary}\n");
+        $this->write("redis-client-tester-killer: targeting {$summary}\n");
     }
 
     private function logSignalFailure(float $started, string $signal, int $pid): void
@@ -719,14 +719,14 @@ final class FuzzKillerApplication
     }
 
     private const HELP = <<<'HELP'
-phpredis-fuzz-killer - randomly disrupt a running phpredis-fuzz workload
+redis-client-tester-killer - randomly disrupt a running redis-client-tester workload
 
 Usage:
-  phpredis-fuzz-killer [options]
+  redis-client-tester-killer [options]
 
 Modes:
   --mode=MODE              What to disrupt each iteration (default: process)
-                             process  send signals to phpredis-fuzz workers
+                             process  send signals to redis-client-tester workers
                              client   run CLIENT KILL against a Redis target
                              both     do both every iteration
 
@@ -756,7 +756,7 @@ Shared options:
   --help                     Show this help
 
 Process discovery finds processes with a command-line argument whose basename is
-exactly "phpredis-fuzz" and requires Linux /proc and PHP's POSIX extension.
+exactly "redis-client-tester" and requires Linux /proc and PHP's POSIX extension.
 Client killing requires PHP's redis extension. Every action, skipped target,
 failure, empty scan, and sleep is logged with elapsed time. The utility runs
 until stopped.

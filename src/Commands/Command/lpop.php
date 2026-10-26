@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ListPopCommand;
+use Mgrunder\RedisClientTester\Commands\ListPopCommand;
 
 class lpop extends ListPopCommand {
     public function flags(): int {

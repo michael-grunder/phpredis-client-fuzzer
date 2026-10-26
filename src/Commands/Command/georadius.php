@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\GeoRadiusCommand;
+namespace Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\GeoRadiusCommand;
 
 class georadius extends GeoRadiusCommand {
     public function flags(): int {

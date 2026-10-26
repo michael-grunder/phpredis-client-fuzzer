@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Coverage;
+namespace Mgrunder\RedisClientTester\Coverage;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
+use Mgrunder\RedisClientTester\ClientType;
 
 /** The result of comparing a server command table against the command catalog. */
 final readonly class CoverageReport implements \JsonSerializable

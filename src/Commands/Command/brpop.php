@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\BlockingListPopCommand;
+use Mgrunder\RedisClientTester\Commands\BlockingListPopCommand;
 
 class brpop extends BlockingListPopCommand {
     public function flags(): int {

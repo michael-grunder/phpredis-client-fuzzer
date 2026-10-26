@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\CorePattern;
+use Mgrunder\RedisClientTester\Harness\CorePattern;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessCorePatternTest extends TestCase

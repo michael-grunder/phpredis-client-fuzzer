@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures;
+namespace Mgrunder\RedisClientTester\Tests\Fixtures;
 
 /**
  * A cluster client whose masters are separate FakeEvilrespProxy connections,

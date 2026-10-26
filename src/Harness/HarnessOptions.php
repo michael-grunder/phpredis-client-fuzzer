@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
 /**
  * Parses the harness command line, which has the shape:
  *
- *   phpredis-fuzz-harness [harness options] -- <fuzzer command template...>
+ *   redis-client-tester-harness [harness options] -- <fuzzer command template...>
  *
  * Everything before the first bare `--` configures the harness; everything
  * after is the child command, with `{port}` / `{steps}` / `{seed}` style
- * placeholders resolved per run. Unlike {@see \Mgrunder\PhpredisCommandFuzzer\Cli\Options}
+ * placeholders resolved per run. Unlike {@see \Mgrunder\RedisClientTester\Cli\Options}
  * this parser supports options that take more than one value (`--port 7000 8000`).
  */
 final class HarnessOptions
@@ -198,7 +198,7 @@ final class HarnessOptions
         $help = isset($flags['help']);
         if (!$help && $separator === false) {
             throw new \InvalidArgumentException(
-                'expected -- followed by the fuzzer command, e.g.  -- bin/phpredis-fuzz --steps {steps}',
+                'expected -- followed by the fuzzer command, e.g.  -- bin/redis-client-tester --steps {steps}',
             );
         }
         if (!$help && $command === []) {

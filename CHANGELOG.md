@@ -32,16 +32,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ASAN-instrumented extensions from working source copies, retain build logs and
   previous modules, and copy successful builds into `conf.d`. PhpRedis enables
   zstd, lz4, msgpack, and igbinary support.
-- Add `bin/phpredis-repros`, a read-only TUI (and `--list`/`--show` text mode)
+- Add `bin/redis-client-tester-repros`, a read-only TUI (and `--list`/`--show` text mode)
   for browsing harness reproducers, with a per-capture defect headline from the
   parsed sanitizer report, a glibc assertion, or a gdb backtrace of the core,
   and grouping of captures by address-free defect signature.
-- Add `--asan` and `--asan-runtime FILE` to `phpredis-fuzz-harness`, a
-  `sanitizers` capture kind (`reproducers/sanitizer/`), and `bin/phpredis-asan`
+- Add `--asan` and `--asan-runtime FILE` to `redis-client-tester-harness`, a
+  `sanitizers` capture kind (`reproducers/sanitizer/`), and `bin/redis-client-tester-asan`
   for single ASAN runs. Sanitizer reports in stderr are classified regardless of
   exit status, recorded as `sanitizer_message` and `asan_environment` in
   `meta.json`, and required again during step reduction.
-- Add `bin/phpredis-fuzz-diff`, a stateful differential fuzzer that runs
+- Add `bin/redis-client-tester-diff`, a stateful differential fuzzer that runs
   identical, seeded, explicitly represented testcases through PhpRedis and
   Relay from identical Redis state (seeded and inspected through a separate
   raw RESP connection), compares replies with Redis-semantics-aware
@@ -49,7 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   divergences are self-checked, analysed per operation, minimized, deduplicated
   by signature, and saved as `case.json`, `metadata.json`, and a standalone
   `reproduce.php`. Keys stay under a per-run prefix, flush commands require
-  `--allow-flush`, and the binary follows the `phpredis-fuzz-harness` seed,
+  `--allow-flush`, and the binary follows the `redis-client-tester-harness` seed,
   `{steps}`, and exit-code conventions.
 - Add the `@common` command flag for 60 curated everyday Redis commands.
 - Add `RunConfiguration::commandGroups` for intersections of OR filter groups,
@@ -70,6 +70,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and reference settings for the standalone evilresp proxy.
 
 ### Changed
+
+- Rename the Composer package to `mgrunder/redis-client-tester`, the namespace
+  to `Mgrunder\RedisClientTester`, and every binary to the `redis-client-tester`
+  prefix. Rename `Fuzzer`, `FuzzResult`, `FuzzerEndpoint`, and
+  `FuzzKillerApplication` to `Tester`, `TestResult`, `TesterEndpoint`, and
+  `ClientKillerApplication`; update hooks, tests, documentation, generated script
+  identifiers, and local shell helpers. This is a breaking rename without aliases;
+  retain existing diagnostic artifacts and the differential generator's seed salt.
 
 - Build Relay and PhpRedis concurrently in `conf.d/build-extensions.sh`, waiting
   for both builds and succeeding only when both succeed.

@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ListMPopCommand;
+use Mgrunder\RedisClientTester\Commands\ListMPopCommand;
 
 class lmpop extends ListMPopCommand {
     protected function hasTimeout(): bool {

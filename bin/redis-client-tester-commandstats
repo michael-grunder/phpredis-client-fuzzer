@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\CommandStatsApplication;
+use Mgrunder\RedisClientTester\Cli\CommandStatsApplication;
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {

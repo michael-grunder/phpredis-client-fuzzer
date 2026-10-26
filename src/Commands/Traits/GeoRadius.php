@@ -1,9 +1,9 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Traits;
+namespace Mgrunder\RedisClientTester\Commands\Traits;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 
 trait GeoRadius {
     private const SIMPLE_OPTIONS = ['WITHCOORD' =>1, 'WITHDIST' => 1, 'WITHHASH'  => 1];

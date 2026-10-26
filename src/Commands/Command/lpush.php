@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ListPushCommand;
+use Mgrunder\RedisClientTester\Commands\ListPushCommand;
 
 class lpush extends ListPushCommand {
     public function flags(): int {

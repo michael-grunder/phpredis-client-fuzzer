@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PostCommandHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PostConstructorHook;
+use Mgrunder\RedisClientTester\Hooks\ClientEvent;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\PostCommandHook;
+use Mgrunder\RedisClientTester\Hooks\PostConstructorHook;
 
 return new class implements PostConstructorHook, PostCommandHook {
     /** @var list<string> */

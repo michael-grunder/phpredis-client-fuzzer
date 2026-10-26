@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures;
+namespace Mgrunder\RedisClientTester\Tests\Fixtures;
 
 final class RecordingScanRedis extends RecordingRedis
 {

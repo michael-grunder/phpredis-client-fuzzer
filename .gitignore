@@ -3,6 +3,6 @@ vendor/
 .agents.md
 *.stub.php
 stubs/
-phpredis-fuzz-repros
+/redis-client-tester-repros/
 profiles/
 conf.d/

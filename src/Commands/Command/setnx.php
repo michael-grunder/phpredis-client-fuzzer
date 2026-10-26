@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyValCommand;
+use Mgrunder\RedisClientTester\Commands\KeyValCommand;
 
 use Redis;
 use RedisCluster;

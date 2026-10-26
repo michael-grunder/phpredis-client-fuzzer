@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures;
+namespace Mgrunder\RedisClientTester\Tests\Fixtures;
 
 /** Loaded only by tests that have Relay installed. No network methods are used. */
 final class RecordingRelay extends \Relay\Relay

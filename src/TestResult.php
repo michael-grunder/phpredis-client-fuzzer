@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
-final readonly class FuzzResult implements \JsonSerializable
+final readonly class TestResult implements \JsonSerializable
 {
     /**
      * @param array<string, array{count: int, replies: array<string, int>, exceptions: array<string, int>}> $commands
@@ -16,7 +16,7 @@ final readonly class FuzzResult implements \JsonSerializable
      * @param array<string, array{executions: int, false_replies: int}> $problematicCommands
      * @param list<InvocationOutcome> $outcomes
      * @param list<DifferentialOutcome> $differentialOutcomes
-     * @param list<\Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulOutcome> $statefulOutcomes
+     * @param list<\Mgrunder\RedisClientTester\Stateful\StatefulOutcome> $statefulOutcomes
      * @param array{samples: int, hits: int, misses: int, oom: int, evictions?: int, memory: array{total: int, limit: int, active: int, used: int, peak_active: int, peak_used: int}}|null $relayStats
      * @param list<InvocationOutcome> $saturationOutcomes
      * @param array<string, array{count: int, reason: string}> $hookRejections

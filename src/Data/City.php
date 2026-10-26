@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Data;
+namespace Mgrunder\RedisClientTester\Data;
 
 
 class City {

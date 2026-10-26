@@ -1,9 +1,9 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 use Redis; use RedisCluster; use Relay\Relay; use Relay\Cluster;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
 
 class ScriptCommand extends Command implements FuzzInterface, FuzzRawInterface {
     public function type(): string { return self::NONE; }

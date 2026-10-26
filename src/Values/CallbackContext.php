@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Values;
+namespace Mgrunder\RedisClientTester\Values;
 
 /** Execution-time permission: persisted fixtures are inert outside an opted-in call. */
 final class CallbackContext

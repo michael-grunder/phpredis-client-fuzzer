@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\CounterTracker;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\Sampler;
-use Mgrunder\PhpredisCommandFuzzer\CommandStats\Tui;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\CommandStats\CounterTracker;
+use Mgrunder\RedisClientTester\CommandStats\Sampler;
+use Mgrunder\RedisClientTester\CommandStats\Tui;
 
 final class CommandStatsApplication
 {
@@ -103,7 +103,7 @@ final class CommandStatsApplication
 
             return 0;
         } catch (\Throwable $throwable) {
-            fwrite($this->error, 'phpredis-commandstats: ' . $throwable->getMessage() . "\n");
+            fwrite($this->error, 'redis-client-tester-commandstats: ' . $throwable->getMessage() . "\n");
             return 1;
         }
     }
@@ -124,10 +124,10 @@ final class CommandStatsApplication
     }
 
     private const HELP = <<<'HELP'
-phpredis-commandstats - live Redis command usage since the monitor started
+redis-client-tester-commandstats - live Redis command usage since the monitor started
 
 Usage:
-  phpredis-commandstats [options]
+  redis-client-tester-commandstats [options]
 
 Connection:
   --client=TYPE           redis, redis-cluster, relay, relay-cluster (default: redis)
@@ -151,8 +151,8 @@ connected data nodes with CLUSTER NODES, samples each node directly, and shows
 separate totals for primary and replica traffic. Press q, Esc, or Ctrl-C to quit.
 
 Examples:
-  phpredis-commandstats --client=redis --port=6379
-  phpredis-commandstats --client=relay-cluster --seeds=127.0.0.1:7000
-  phpredis-commandstats --client=relay --cluster --host=127.0.0.1 --port=7000
+  redis-client-tester-commandstats --client=redis --port=6379
+  redis-client-tester-commandstats --client=relay-cluster --seeds=127.0.0.1:7000
+  redis-client-tester-commandstats --client=relay --cluster --host=127.0.0.1 --port=7000
 HELP;
 }

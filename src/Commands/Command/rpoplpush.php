@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyKeyCommand;
+use Mgrunder\RedisClientTester\Commands\KeyKeyCommand;
 
 class rpoplpush extends KeyKeyCommand {
     public function type(): string {

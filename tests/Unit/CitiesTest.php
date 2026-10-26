@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Data\Cities;
+use Mgrunder\RedisClientTester\Data\Cities;
 use PHPUnit\Framework\TestCase;
 
 final class CitiesTest extends TestCase {

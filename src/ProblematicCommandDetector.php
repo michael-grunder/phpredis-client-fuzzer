@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\Coverage\ServerCommands;
 
 /** @internal */
 final class ProblematicCommandDetector

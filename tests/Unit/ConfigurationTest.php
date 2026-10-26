@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
-use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
-use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\InvocationMode;
+use Mgrunder\RedisClientTester\KeyReadGroup;
+use Mgrunder\RedisClientTester\RelayClusterOptions;
+use Mgrunder\RedisClientTester\RunConfiguration;
+use Mgrunder\RedisClientTester\SaturationMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

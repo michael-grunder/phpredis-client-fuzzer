@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\EvalCommand;
+use Mgrunder\RedisClientTester\Commands\EvalCommand;
 
 class eval_cmd extends EvalCommand {
     public function name(): string {

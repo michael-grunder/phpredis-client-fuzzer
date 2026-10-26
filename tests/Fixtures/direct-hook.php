@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookDecision;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 
 /** @var array<string, string> $arguments */
 return new class($arguments['reason'] ?? 'direct hook fixture') implements InvocationHook {

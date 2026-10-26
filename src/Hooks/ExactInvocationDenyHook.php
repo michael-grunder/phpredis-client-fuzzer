@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Hooks;
+namespace Mgrunder\RedisClientTester\Hooks;
 
 final readonly class ExactInvocationDenyHook implements InvocationHook
 {

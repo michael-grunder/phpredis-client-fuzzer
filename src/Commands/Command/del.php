@@ -1,10 +1,10 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeySample;
-use Mgrunder\PhpredisCommandFuzzer\Commands\VarKeyCommand;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\KeySample;
+use Mgrunder\RedisClientTester\Commands\VarKeyCommand;
 
 use Redis;
 use RedisCluster;

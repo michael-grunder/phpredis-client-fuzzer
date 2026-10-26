@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Hooks;
+namespace Mgrunder\RedisClientTester\Hooks;
 
 use Random\Engine\Xoshiro256StarStar;
 use Random\Randomizer;
@@ -303,7 +303,7 @@ final class HookRegistry implements InvocationHook
 
     /**
      * Derive every hook random stream from a run seed, discarding streams
-     * handed out for an earlier seed. Fuzzer::run() calls this with the run
+     * handed out for an earlier seed. Tester::run() calls this with the run
      * seed before it announces clients; the CLI also calls it before
      * ClientFactory builds clients so postConstructor hooks draw from the
      * same seed.

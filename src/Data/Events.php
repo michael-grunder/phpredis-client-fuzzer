@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Data;
+namespace Mgrunder\RedisClientTester\Data;
 
 
 /** A singleton pattern class to proivde time based data to our fuzzer.

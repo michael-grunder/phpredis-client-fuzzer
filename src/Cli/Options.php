@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+use Mgrunder\RedisClientTester\TlsConfiguration;
 
 /**
  * The long-option parser shared by the package binaries.

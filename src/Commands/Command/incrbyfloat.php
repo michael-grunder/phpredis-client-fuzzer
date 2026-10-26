@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\IncrDecrByCommand;
+use Mgrunder\RedisClientTester\Commands\IncrDecrByCommand;
 
 class incrbyfloat extends IncrDecrByCommand {
     public function type(): string {

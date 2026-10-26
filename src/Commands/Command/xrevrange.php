@@ -1,9 +1,9 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\XRangeCommand;
-use Mgrunder\PhpredisCommandFuzzer\Data\Events;
+use Mgrunder\RedisClientTester\Commands\XRangeCommand;
+use Mgrunder\RedisClientTester\Data\Events;
 
 class xrevrange extends XRangeCommand {
     protected function randomIdRange(): array {

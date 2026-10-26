@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Coverage;
+namespace Mgrunder\RedisClientTester\Coverage;
 
 /**
  * Case-insensitive shell globs naming server commands the catalog is not

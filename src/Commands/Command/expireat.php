@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ExpireCommand;
+use Mgrunder\RedisClientTester\Commands\ExpireCommand;
 
 use Relay\Relay;
 use Relay\Cluster;

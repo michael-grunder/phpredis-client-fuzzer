@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\CorePattern;
-use Mgrunder\PhpredisCommandFuzzer\Harness\FailureClassifier;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Job;
-use Mgrunder\PhpredisCommandFuzzer\Harness\JobOutcome;
-use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
-use Mgrunder\PhpredisCommandFuzzer\Harness\RrTrace;
+use Mgrunder\RedisClientTester\Harness\CorePattern;
+use Mgrunder\RedisClientTester\Harness\FailureClassifier;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Harness\Job;
+use Mgrunder\RedisClientTester\Harness\JobOutcome;
+use Mgrunder\RedisClientTester\Harness\ReproStore;
+use Mgrunder\RedisClientTester\Harness\RrTrace;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessReproStoreTest extends TestCase
@@ -147,7 +147,7 @@ final class HarnessReproStoreTest extends TestCase
 
     private function workspace(): string
     {
-        $this->root = sys_get_temp_dir() . '/phpredis-fuzz-repro-test-' . getmypid() . '-' . mt_rand();
+        $this->root = sys_get_temp_dir() . '/redis-client-tester-repro-test-' . getmypid() . '-' . mt_rand();
         Fs::ensureDir($this->root);
 
         return $this->root;

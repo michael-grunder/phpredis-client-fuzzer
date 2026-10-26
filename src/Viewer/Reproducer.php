@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Viewer;
+namespace Mgrunder\RedisClientTester\Viewer;
 
 /**
  * One harness capture directory (`<output>/<kind>/<pid>.<nnnnn>/`), read-only.

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Job;
-use Mgrunder\PhpredisCommandFuzzer\Harness\RrAbortLog;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Harness\Job;
+use Mgrunder\RedisClientTester\Harness\RrAbortLog;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessRrAbortLogTest extends TestCase
@@ -89,7 +89,7 @@ final class HarnessRrAbortLogTest extends TestCase
 
     private function workspace(): string
     {
-        $this->root = sys_get_temp_dir() . '/phpredis-fuzz-rrabort-' . getmypid() . '-' . mt_rand();
+        $this->root = sys_get_temp_dir() . '/redis-client-tester-rrabort-' . getmypid() . '-' . mt_rand();
         Fs::ensureDir($this->root);
 
         return $this->root;

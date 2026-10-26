@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\OutputMode;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ResultFormatter;
-use Mgrunder\PhpredisCommandFuzzer\FuzzResult;
-use Mgrunder\PhpredisCommandFuzzer\InvocationOutcome;
+use Mgrunder\RedisClientTester\Cli\OutputMode;
+use Mgrunder\RedisClientTester\Cli\ResultFormatter;
+use Mgrunder\RedisClientTester\TestResult;
+use Mgrunder\RedisClientTester\InvocationOutcome;
 use PHPUnit\Framework\TestCase;
 
 final class ResultFormatterTest extends TestCase
@@ -99,9 +99,9 @@ final class ResultFormatterTest extends TestCase
         OutputMode::parse('pretty');
     }
 
-    private function fuzzResult(): FuzzResult
+    private function fuzzResult(): TestResult
     {
-        return new FuzzResult(
+        return new TestResult(
             seed: 42,
             steps: 5,
             elapsedSeconds: 0.25,

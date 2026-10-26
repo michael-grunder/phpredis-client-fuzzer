@@ -1,2 +1,2 @@
-<?php namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class vemb extends \Mgrunder\PhpredisCommandFuzzer\Commands\VectorReadCommand {}
+<?php namespace Mgrunder\RedisClientTester\Commands\Command;
+class vemb extends \Mgrunder\RedisClientTester\Commands\VectorReadCommand {}

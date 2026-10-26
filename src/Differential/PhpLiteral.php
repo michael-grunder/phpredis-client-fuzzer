@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Differential;
+namespace Mgrunder\RedisClientTester\Differential;
 
 /**
  * PHP source literals for generated values, used to hard-code testcases in

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Differential;
+namespace Mgrunder\RedisClientTester\Differential;
 
 /**
  * Runs testcases through both clients from identical starting state:

@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\CommandCatalogApplication;
+use Mgrunder\RedisClientTester\Cli\ClientKillerApplication;
 
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
@@ -11,4 +11,4 @@ if (!is_file($autoload)) {
 }
 require $autoload;
 
-exit((new CommandCatalogApplication())->run(array_slice($argv, 1)));
+exit((new ClientKillerApplication())->run(array_slice($argv, 1)));

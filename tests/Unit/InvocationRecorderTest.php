@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\get;
-use Mgrunder\PhpredisCommandFuzzer\DifferentialOracle;
-use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
-use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\CallableScenarioPeers;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\InvocationTrace;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\RecordingRedis;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\RecordingRelay;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Command\get;
+use Mgrunder\RedisClientTester\DifferentialOracle;
+use Mgrunder\RedisClientTester\InvocationMode;
+use Mgrunder\RedisClientTester\InvocationRecorder;
+use Mgrunder\RedisClientTester\ScriptLogger;
+use Mgrunder\RedisClientTester\Stateful\CallableScenarioPeers;
+use Mgrunder\RedisClientTester\Stateful\StatefulScenarioRunner;
+use Mgrunder\RedisClientTester\Tests\Fixtures\InvocationTrace;
+use Mgrunder\RedisClientTester\Tests\Fixtures\RecordingRedis;
+use Mgrunder\RedisClientTester\Tests\Fixtures\RecordingRelay;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -82,22 +82,22 @@ final class InvocationRecorderTest extends TestCase
         }
     }
 
-    public function testFuzzerWritesSavedFaultSetupBeforeScenarios(): void
+    public function testTesterWritesSavedFaultSetupBeforeScenarios(): void
     {
-        $hooks = new \Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry();
+        $hooks = new \Mgrunder\RedisClientTester\Hooks\HookRegistry();
         $hooks->addLifecycleHook('fault', new class implements
-            \Mgrunder\PhpredisCommandFuzzer\Hooks\PostConstructorHook,
-            \Mgrunder\PhpredisCommandFuzzer\Hooks\ScriptSetupHook
+            \Mgrunder\RedisClientTester\Hooks\PostConstructorHook,
+            \Mgrunder\RedisClientTester\Hooks\ScriptSetupHook
         {
-            public function postConstructor(\Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent $event): void {}
+            public function postConstructor(\Mgrunder\RedisClientTester\Hooks\ClientEvent $event): void {}
             public function recordScriptSetup(): void
             {
                 ScriptLogger::comment('saved fault schedule before scenario');
             }
         });
-        $result = (new \Mgrunder\PhpredisCommandFuzzer\Fuzzer($hooks))->run(
+        $result = (new \Mgrunder\RedisClientTester\Tester($hooks))->run(
             [new RecordingRedis()],
-            new \Mgrunder\PhpredisCommandFuzzer\RunConfiguration(
+            new \Mgrunder\RedisClientTester\RunConfiguration(
                 maxSteps: 1, seed: 42, commands: ['isconnected'], includeLocal: true,
                 scenarios: ['transaction-exec'], scriptLog: $this->path,
             ),

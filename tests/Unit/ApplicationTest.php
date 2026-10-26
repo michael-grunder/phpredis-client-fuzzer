@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\Application;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ForkPool;
-use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
+use Mgrunder\RedisClientTester\Cli\Application;
+use Mgrunder\RedisClientTester\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Cli\ForkPool;
+use Mgrunder\RedisClientTester\InvocationMode;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -161,7 +161,7 @@ final class ApplicationTest extends TestCase
         $error = self::stream();
 
         $status = (new Application($output, $error))->run([
-            '--hook=/definitely/missing/phpredis-fuzzer-hook.php',
+            '--hook=/definitely/missing/redis-client-tester-hook.php',
             '--port=0',
         ]);
 
@@ -242,7 +242,7 @@ final class ApplicationTest extends TestCase
             . "Warning: --relay-distribute only applies to --client=relay-cluster, ignoring\n"
             . "Warning: --relay-node-read-timeout only applies to --client=relay-cluster, ignoring\n"
             . "Warning: --relay-multikey-reordering only applies to --client=relay-cluster, ignoring\n"
-            . "phpredis-fuzz: Port must be between 1 and 65535\n",
+            . "redis-client-tester: Port must be between 1 and 65535\n",
             self::contents($error),
         );
     }
@@ -260,7 +260,7 @@ final class ApplicationTest extends TestCase
         self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertSame(
-            'phpredis-fuzz: Unknown failover mode "unsupported"; expected one of '
+            'redis-client-tester: Unknown failover mode "unsupported"; expected one of '
             . "none, primary, random_replica, replicas, all\n",
             self::contents($error),
         );
@@ -304,7 +304,7 @@ final class ApplicationTest extends TestCase
         self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame(
             "Warning: --slave-failover only applies to cluster clients, ignoring\n"
-            . "phpredis-fuzz: Port must be between 1 and 65535\n",
+            . "redis-client-tester: Port must be between 1 and 65535\n",
             self::contents($error),
         );
     }
@@ -382,7 +382,7 @@ final class ApplicationTest extends TestCase
         ]);
 
         self::assertSame(ExitCode::FAILURE, $status);
-        self::assertStringContainsString('phpredis-fuzz: ', self::contents($error));
+        self::assertStringContainsString('redis-client-tester: ', self::contents($error));
     }
 
     /** @return resource */

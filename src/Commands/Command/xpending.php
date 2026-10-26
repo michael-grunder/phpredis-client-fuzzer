@@ -1,13 +1,13 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
-use Mgrunder\PhpredisCommandFuzzer\Data\Events;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\Traits\FuzzGeneric;
+use Mgrunder\RedisClientTester\Data\Events;
 
 use Redis;
 use RedisCluster;

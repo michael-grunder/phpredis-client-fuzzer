@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\PingCommand;
+use Mgrunder\RedisClientTester\Commands\PingCommand;
 
 class echo_cmd extends PingCommand {
     protected function argOptional(): bool {

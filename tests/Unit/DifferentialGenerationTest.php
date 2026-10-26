@@ -2,23 +2,31 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Differential\CaseGenerator;
-use Mgrunder\PhpredisCommandFuzzer\Differential\GeneratorOptions;
-use Mgrunder\PhpredisCommandFuzzer\Differential\Minimizer;
-use Mgrunder\PhpredisCommandFuzzer\Differential\PhpLiteral;
-use Mgrunder\PhpredisCommandFuzzer\Differential\ReproducerWriter;
-use Mgrunder\PhpredisCommandFuzzer\Differential\Rng;
-use Mgrunder\PhpredisCommandFuzzer\Differential\SignatureIndex;
-use Mgrunder\PhpredisCommandFuzzer\Differential\TestCase as DiffCase;
-use Mgrunder\PhpredisCommandFuzzer\Differential\ValueCodec;
+use Mgrunder\RedisClientTester\Differential\CaseGenerator;
+use Mgrunder\RedisClientTester\Differential\GeneratorOptions;
+use Mgrunder\RedisClientTester\Differential\Minimizer;
+use Mgrunder\RedisClientTester\Differential\PhpLiteral;
+use Mgrunder\RedisClientTester\Differential\ReproducerWriter;
+use Mgrunder\RedisClientTester\Differential\Rng;
+use Mgrunder\RedisClientTester\Differential\SignatureIndex;
+use Mgrunder\RedisClientTester\Differential\TestCase as DiffCase;
+use Mgrunder\RedisClientTester\Differential\ValueCodec;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class DifferentialGenerationTest extends TestCase
 {
     private const OPTIONS = ['serializer' => 'none', 'compression' => 'none', 'relay_cache' => true];
+
+    public function testSeedStreamSurvivesTheProjectRename(): void
+    {
+        self::assertSame(
+            '0fa6e28d78489fa6bf4a0af742fc494236483fe0cf1100a540dc1f352c576935',
+            bin2hex((new Rng(4242))->bytes(32)),
+        );
+    }
 
     public function testGenerationIsDeterministicAndIgnoresGlobalRandomness(): void
     {

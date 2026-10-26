@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
+use Mgrunder\RedisClientTester\ScriptArg;
 
 /** A bounded corpus; names describe inputs, not an assumed client outcome. */
 final class ZAddArgs

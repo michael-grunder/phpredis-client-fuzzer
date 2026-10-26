@@ -2,32 +2,32 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\Log\Log;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\Log\Log;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use PHPUnit\Framework\TestCase;
 
-final class FuzzerTest extends TestCase
+final class TesterTest extends TestCase
 {
     public function testAtLeastOneClientIsRequired(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        (new Fuzzer())->run([]);
+        (new Tester())->run([]);
     }
 
     public function testUnsupportedObjectsAreRejected(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        (new Fuzzer())->run([new \stdClass()]);
+        (new Tester())->run([new \stdClass()]);
     }
 
     public function testRunsAClientLocalCommandWithoutARedisServer(): void
     {
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [new \Redis()],
             new RunConfiguration(
                 maxSteps: 3,
@@ -89,7 +89,7 @@ final class FuzzerTest extends TestCase
             }
         };
 
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$client],
             new RunConfiguration(
                 maxSteps: 1,
@@ -108,7 +108,7 @@ final class FuzzerTest extends TestCase
 
     public function testRelayCacheSaturationRunsAlongsideTheNormalStepBudget(): void
     {
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [new \Relay\Relay()],
             new RunConfiguration(
                 maxSteps: 1,
@@ -133,7 +133,7 @@ final class FuzzerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('requires at least one Relay');
 
-        (new Fuzzer())->run(
+        (new Tester())->run(
             [new \Redis()],
             new RunConfiguration(
                 maxSteps: 1,
@@ -146,7 +146,7 @@ final class FuzzerTest extends TestCase
 
     public function testFalseOnlyUnsupportedCommandIsExecutedButNotProblematic(): void
     {
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$this->falseGetClient(false)],
             new RunConfiguration(maxSteps: 3, seed: 42, commands: ['get']),
         );
@@ -158,7 +158,7 @@ final class FuzzerTest extends TestCase
 
     public function testFalseOnlyServerSupportedCommandIsProblematic(): void
     {
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$this->falseGetClient(true)],
             new RunConfiguration(maxSteps: 3, seed: 42, commands: ['get']),
         );
@@ -177,7 +177,7 @@ final class FuzzerTest extends TestCase
         });
 
         try {
-            $result = (new Fuzzer())->run(
+            $result = (new Tester())->run(
                 [new \Redis()],
                 new RunConfiguration(
                     maxSteps: 10,
@@ -205,7 +205,7 @@ final class FuzzerTest extends TestCase
         });
 
         try {
-            $result = (new Fuzzer())->run(
+            $result = (new Tester())->run(
                 [new \Redis()],
                 new RunConfiguration(
                     maxSteps: 10,
@@ -265,7 +265,7 @@ final class FuzzerTest extends TestCase
             }
         };
 
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$client],
             new RunConfiguration(maxSteps: 1, seed: 42, commands: ['get']),
         );
@@ -329,7 +329,7 @@ final class FuzzerTest extends TestCase
             }
         };
 
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$client],
             new RunConfiguration(
                 maxSteps: 10,
@@ -385,7 +385,7 @@ final class FuzzerTest extends TestCase
             }
         };
 
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$client],
             new RunConfiguration(maxSteps: 1, seed: 42, commands: ['get']),
         );

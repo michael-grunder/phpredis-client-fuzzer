@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\ClientTopologySelector;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ClientTypeParser;
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
+use Mgrunder\RedisClientTester\Cli\ClientTopologySelector;
+use Mgrunder\RedisClientTester\Cli\ClientTypeParser;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientType;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -15,7 +15,7 @@ final class ClientTopologySelectorTest extends TestCase
 {
     public function testTopologyProbeUsesTlsAndCertificateOptions(): void
     {
-        $tls = new \Mgrunder\PhpredisCommandFuzzer\TlsConfiguration(true, ['cafile' => '/tmp/ca.pem']);
+        $tls = new \Mgrunder\RedisClientTester\TlsConfiguration(true, ['cafile' => '/tmp/ca.pem']);
         $probe = $this->createMock(\Redis::class);
         $probe->expects(self::once())->method('connect')->with(
             'tls://localhost', 6380, 1.0, null, 0, 1.0,

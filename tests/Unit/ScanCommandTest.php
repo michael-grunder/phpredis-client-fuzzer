@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ScanCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ScanCursor;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
-use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\InvocationTrace;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\RecordingScanRedis;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\ScanCommand;
+use Mgrunder\RedisClientTester\Commands\ScanCursor;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookDecision;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\InvocationRejected;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\InvocationMode;
+use Mgrunder\RedisClientTester\ScriptLogger;
+use Mgrunder\RedisClientTester\Tests\Fixtures\InvocationTrace;
+use Mgrunder\RedisClientTester\Tests\Fixtures\RecordingScanRedis;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Redis;
@@ -524,7 +524,7 @@ final class ScanCommandTest extends TestCase
         foreach ([1, 2] as $run) {
             mt_srand(42);
             $client = new RecordingScanRedis();
-            $command = new \Mgrunder\PhpredisCommandFuzzer\Commands\Command\scan();
+            $command = new \Mgrunder\RedisClientTester\Commands\Command\scan();
             $invoker = new ScanRecordingInvoker();
             $command->setClientInvoker($invoker);
             $config = (new FuzzConfig())->setMaxKeys(3);

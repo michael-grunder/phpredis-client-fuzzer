@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\TransactionScenario;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\StrictClientInvoker;
+use Mgrunder\RedisClientTester\Stateful\TransactionScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Cli\OutputMode;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ResultFormatter;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Cli\OutputMode;
+use Mgrunder\RedisClientTester\Cli\ResultFormatter;
+use Mgrunder\RedisClientTester\RunConfiguration;
+use Mgrunder\RedisClientTester\Stateful\StatefulScenarioRegistry;
+use Mgrunder\RedisClientTester\Stateful\StatefulScenarioRunner;
 use PHPUnit\Framework\TestCase;
 
 final class StatefulScenarioTest extends TestCase
@@ -55,9 +55,9 @@ final class StatefulScenarioTest extends TestCase
         );
     }
 
-    public function testStatefulOutcomesAreIncludedInFuzzResults(): void
+    public function testStatefulOutcomesAreIncludedInTestResults(): void
     {
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$this->client()],
             new RunConfiguration(
                 maxSteps: 1,

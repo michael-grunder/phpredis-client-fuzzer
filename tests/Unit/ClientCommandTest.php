@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\CommandFilter;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\client as ClientCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\CommandFilter;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Command\client as ClientCommand;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Redis;
@@ -107,7 +107,7 @@ final class ClientCommandTest extends TestCase
             }
             if ($type->isCluster()) {
                 self::assertIsString($route);
-                self::assertMatchesRegularExpression('/^phpredis-command-fuzzer:\{\d+\}:route$/', $route);
+                self::assertMatchesRegularExpression('/^redis-client-tester:\{\d+\}:route$/', $route);
             }
             if ($raw) {
                 self::assertSame('client', array_shift($args));
@@ -154,7 +154,7 @@ final class ClientCommandTest extends TestCase
                 }
             } elseif ($subcommand === 'SETNAME') {
                 self::assertIsString($args[1]);
-                self::assertMatchesRegularExpression('/^phpredis-fuzz-[a-f0-9]+$/', $args[1]);
+                self::assertMatchesRegularExpression('/^redis-client-tester-[a-f0-9]+$/', $args[1]);
             } else {
                 self::assertCount(1, $args);
             }

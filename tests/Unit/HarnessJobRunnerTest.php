@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\CommandTemplate;
-use Mgrunder\PhpredisCommandFuzzer\Harness\CorePattern;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
-use Mgrunder\PhpredisCommandFuzzer\Harness\HarnessOptions;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Job;
-use Mgrunder\PhpredisCommandFuzzer\Harness\JobRunner;
-use Mgrunder\PhpredisCommandFuzzer\Harness\JobStatus;
-use Mgrunder\PhpredisCommandFuzzer\Harness\ReproStore;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Reducer;
-use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
+use Mgrunder\RedisClientTester\Harness\CommandTemplate;
+use Mgrunder\RedisClientTester\Harness\CorePattern;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Harness\HarnessOptions;
+use Mgrunder\RedisClientTester\Harness\Job;
+use Mgrunder\RedisClientTester\Harness\JobRunner;
+use Mgrunder\RedisClientTester\Harness\JobStatus;
+use Mgrunder\RedisClientTester\Harness\ReproStore;
+use Mgrunder\RedisClientTester\Harness\Reducer;
+use Mgrunder\RedisClientTester\Harness\RunLog;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -482,7 +482,7 @@ final class HarnessJobRunnerTest extends TestCase
 
     private function workspace(): string
     {
-        $this->root = sys_get_temp_dir() . '/phpredis-fuzz-runner-' . getmypid() . '-' . mt_rand();
+        $this->root = sys_get_temp_dir() . '/redis-client-tester-runner-' . getmypid() . '-' . mt_rand();
         Fs::ensureDir($this->root);
 
         return $this->root;

@@ -1,30 +1,30 @@
 {
-    "name": "mgrunder/phpredis-command-fuzzer",
-    "description": "A project that can fuzz PhpRedis compatible Redis clients",
+    "name": "mgrunder/redis-client-tester",
+    "description": "Test PhpRedis and Relay clients with randomized workloads, differential checks, and diagnostic tools",
     "type": "library",
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Mgrunder\\PhpredisCommandFuzzer\\": "src/"
+            "Mgrunder\\RedisClientTester\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Mgrunder\\PhpredisCommandFuzzer\\Tests\\": "tests/"
+            "Mgrunder\\RedisClientTester\\Tests\\": "tests/"
         }
     },
     "bin": [
-        "bin/phpredis-fuzz",
-        "bin/phpredis-fuzz-coercive",
-        "bin/phpredis-fuzz-killer",
-        "bin/phpredis-fuzz-harness",
-        "bin/phpredis-asan",
-        "bin/phpredis-repros",
-        "bin/phpredis-fuzz-diff",
-        "bin/phpredis-commands",
-        "bin/phpredis-coverage",
-        "bin/phpredis-fuzz-subscribe",
-        "bin/phpredis-commandstats"
+        "bin/redis-client-tester",
+        "bin/redis-client-tester-coercive",
+        "bin/redis-client-tester-killer",
+        "bin/redis-client-tester-harness",
+        "bin/redis-client-tester-asan",
+        "bin/redis-client-tester-repros",
+        "bin/redis-client-tester-diff",
+        "bin/redis-client-tester-commands",
+        "bin/redis-client-tester-coverage",
+        "bin/redis-client-tester-subscribe",
+        "bin/redis-client-tester-commandstats"
     ],
     "authors": [
         {
@@ -39,8 +39,8 @@
         "php-tui/php-tui": "^0.2.1"
     },
     "suggest": {
-        "ext-posix": "Required by the phpredis-fuzz-killer process signal utility",
-        "ext-pcntl": "Required by phpredis-fuzz --forks; also lets phpredis-fuzz-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
+        "ext-posix": "Required by the redis-client-tester-killer process signal utility",
+        "ext-pcntl": "Required by redis-client-tester --forks; also lets redis-client-tester-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
         "ext-relay": "Required to fuzz Relay\\Relay or Relay\\Cluster clients"
     },
     "require-dev": {

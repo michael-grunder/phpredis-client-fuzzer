@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyCommand;
+use Mgrunder\RedisClientTester\Commands\KeyCommand;
 
 // Additional single key commands
 class dump extends keycommand {

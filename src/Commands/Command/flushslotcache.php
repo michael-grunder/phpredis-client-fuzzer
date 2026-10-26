@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\RelayClusterLocalCommand;
+use Mgrunder\RedisClientTester\Commands\RelayClusterLocalCommand;
 
 class flushslotcache extends RelayClusterLocalCommand {}

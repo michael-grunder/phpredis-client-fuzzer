@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
+use Mgrunder\RedisClientTester\ScriptLogger;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;

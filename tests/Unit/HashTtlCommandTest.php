@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hexpire;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hexpireat;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hexpiretime;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hgetdel;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hgetex;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\himport;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hotkeys;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hpersist;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hpexpire;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hpexpireat;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hpexpiretime;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hpttl;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\hsetex;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\httl;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Command\hexpire;
+use Mgrunder\RedisClientTester\Commands\Command\hexpireat;
+use Mgrunder\RedisClientTester\Commands\Command\hexpiretime;
+use Mgrunder\RedisClientTester\Commands\Command\hgetdel;
+use Mgrunder\RedisClientTester\Commands\Command\hgetex;
+use Mgrunder\RedisClientTester\Commands\Command\himport;
+use Mgrunder\RedisClientTester\Commands\Command\hotkeys;
+use Mgrunder\RedisClientTester\Commands\Command\hpersist;
+use Mgrunder\RedisClientTester\Commands\Command\hpexpire;
+use Mgrunder\RedisClientTester\Commands\Command\hpexpireat;
+use Mgrunder\RedisClientTester\Commands\Command\hpexpiretime;
+use Mgrunder\RedisClientTester\Commands\Command\hpttl;
+use Mgrunder\RedisClientTester\Commands\Command\hsetex;
+use Mgrunder\RedisClientTester\Commands\Command\httl;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\Registry;
 use PHPUnit\Framework\TestCase;
 use Redis;
 use RedisCluster;

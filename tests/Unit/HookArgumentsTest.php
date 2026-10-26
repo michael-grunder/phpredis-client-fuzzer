@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\Application;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
-use Mgrunder\PhpredisCommandFuzzer\Cli\Options;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Cli\Application;
+use Mgrunder\RedisClientTester\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Cli\Options;
+use Mgrunder\RedisClientTester\Hooks\HookLoader;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

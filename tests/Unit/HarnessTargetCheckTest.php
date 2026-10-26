@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\CommandTemplate;
-use Mgrunder\PhpredisCommandFuzzer\Harness\TargetCheck;
+use Mgrunder\RedisClientTester\Harness\CommandTemplate;
+use Mgrunder\RedisClientTester\Harness\TargetCheck;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

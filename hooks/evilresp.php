@@ -15,7 +15,7 @@ declare(strict_types=1);
  * turns that on for every client the fuzzer uses:
  *
  *     evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
- *     bin/phpredis-fuzz --port=6390 --seed=123 --hook=hooks/evilresp.php
+ *     bin/redis-client-tester --port=6390 --seed=123 --hook=hooks/evilresp.php
  *
  * To use the server's simpler CHAOS preset, add:
  *     --hook-arg evilresp.mode=chaos --hook-arg evilresp.chaos_min=5
@@ -137,21 +137,21 @@ declare(strict_types=1);
  *   PhpRedis clients replay exactly.
  */
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespChaosOptions;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespOptions;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PostCommandHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PostConstructorHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PreCommandHook;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ScriptSetupHook;
-use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
-use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
+use Mgrunder\RedisClientTester\Hooks\ClientEvent;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\EvilrespChaosOptions;
+use Mgrunder\RedisClientTester\Hooks\EvilrespOptions;
+use Mgrunder\RedisClientTester\Hooks\HookDecision;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Hooks\PostCommandHook;
+use Mgrunder\RedisClientTester\Hooks\PostConstructorHook;
+use Mgrunder\RedisClientTester\Hooks\PreCommandHook;
+use Mgrunder\RedisClientTester\ScriptLogger;
+use Mgrunder\RedisClientTester\Hooks\ScriptSetupHook;
+use Mgrunder\RedisClientTester\InvocationRecorder;
+use Mgrunder\RedisClientTester\StrictClientInvoker;
 use Random\Randomizer;
 use Random\Engine\Xoshiro256StarStar;
 
@@ -294,7 +294,7 @@ return static function (HookRegistry $hooks, array $arguments = []): void {
 
             private int $serial = 0;
 
-            /** Retained across the CLI's same-seed registry reset before Fuzzer::run(). */
+            /** Retained across the CLI's same-seed registry reset before Tester::run(). */
             private ?Randomizer $seedRandom = null;
 
             private ?int $lastSeed = null;

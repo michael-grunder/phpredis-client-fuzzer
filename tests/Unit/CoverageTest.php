@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\Cli\CoverageApplication;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\CoverageAnalyzer;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\IgnoreList;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\Cli\CoverageApplication;
+use Mgrunder\RedisClientTester\Coverage\CoverageAnalyzer;
+use Mgrunder\RedisClientTester\Coverage\IgnoreList;
+use Mgrunder\RedisClientTester\Coverage\ServerCommands;
 use PHPUnit\Framework\TestCase;
 
 final class CoverageTest extends TestCase
@@ -56,7 +56,7 @@ final class CoverageTest extends TestCase
 
         self::assertSame(['get'], ServerCommands::fromClient($client)->names);
         self::assertSame(
-            ['phpredis-command-fuzzer:command-table', 'command'],
+            ['redis-client-tester:command-table', 'command'],
             $client->arguments,
         );
     }
@@ -220,7 +220,7 @@ final class CoverageTest extends TestCase
         $status = (new CoverageApplication($stream))->run(['--help']);
 
         self::assertSame(0, $status);
-        self::assertStringContainsString('phpredis-coverage', self::contents($stream));
+        self::assertStringContainsString('redis-client-tester-coverage', self::contents($stream));
     }
 
     /** @return resource */

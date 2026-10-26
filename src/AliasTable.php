@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
 /** @template T of HasWeight */
 class AliasTable {

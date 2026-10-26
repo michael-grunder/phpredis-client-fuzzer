@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\BZPopCommand;
+namespace Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\BZPopCommand;
 
 class bzpopmin extends BZPopCommand { }

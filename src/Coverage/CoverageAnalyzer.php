@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Coverage;
+namespace Mgrunder\RedisClientTester\Coverage;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\Registry;
 
 /**
  * Compares a server command table against the concrete catalog in

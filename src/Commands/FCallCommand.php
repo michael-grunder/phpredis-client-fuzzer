@@ -1,10 +1,10 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\FunctionCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FunctionCommand;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 
 use Relay\Relay;
 use Relay\Cluster;

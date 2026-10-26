@@ -6,7 +6,7 @@
 // class is embedded verbatim in every generated reproduce.php, so it must not
 // depend on anything outside itself.
 
-namespace Mgrunder\PhpredisCommandFuzzer\Differential;
+namespace Mgrunder\RedisClientTester\Differential;
 
 /**
  * The execution core shared by the differential fuzzer and its standalone

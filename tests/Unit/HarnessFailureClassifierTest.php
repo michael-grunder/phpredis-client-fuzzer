@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
-use Mgrunder\PhpredisCommandFuzzer\Harness\FailureClassifier;
+use Mgrunder\RedisClientTester\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Harness\FailureClassifier;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessFailureClassifierTest extends TestCase

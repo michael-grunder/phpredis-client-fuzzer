@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
+namespace Mgrunder\RedisClientTester\Commands;
+use Mgrunder\RedisClientTester\Commands\Traits\FuzzGeneric;
 
 use Relay\Relay;
 use Relay\Cluster;

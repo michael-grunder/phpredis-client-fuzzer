@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\SInterUnionDiffStoreCommand;
+namespace Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\SInterUnionDiffStoreCommand;
 
 class sunionstore extends SInterUnionDiffStoreCommand { }

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZAddArgs;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZRangeArgs;
-use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\Commands\ZAddArgs;
+use Mgrunder\RedisClientTester\Commands\ZRangeArgs;
+use Mgrunder\RedisClientTester\ScriptArg;
+use Mgrunder\RedisClientTester\ScriptLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Redis;
@@ -233,7 +233,7 @@ final class ZSetCommandTest extends TestCase
         $registry = new Registry();
         foreach (['zdiff', 'zdiffstore', 'zinter', 'zunion', 'zinterstore', 'zunionstore', 'zintercard', 'zmpop', 'bzmpop', 'zrangestore'] as $name) {
             $command = $registry->get($name);
-            if (!$command instanceof Command || !$command instanceof \Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface) {
+            if (!$command instanceof Command || !$command instanceof \Mgrunder\RedisClientTester\Commands\FuzzRawInterface) {
                 self::fail('Missing raw ZSET command');
             }
             self::assertSame(Command::ZSET, $command->type());

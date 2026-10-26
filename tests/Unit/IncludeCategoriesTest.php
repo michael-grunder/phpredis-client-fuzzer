@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\IncludeCategories;
+use Mgrunder\RedisClientTester\Cli\IncludeCategories;
 use PHPUnit\Framework\TestCase;
 
 final class IncludeCategoriesTest extends TestCase

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\setoption;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\OptionName;
-use Mgrunder\PhpredisCommandFuzzer\Commands\OptionValue;
+use Mgrunder\RedisClientTester\Commands\Command\setoption;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\OptionName;
+use Mgrunder\RedisClientTester\Commands\OptionValue;
 use PHPUnit\Framework\TestCase;
 
 final class OptionCommandTest extends TestCase

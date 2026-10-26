@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyCommand;
+use Mgrunder\RedisClientTester\Commands\KeyCommand;
 
 class zcard extends KeyCommand {
     public function flags(): int {

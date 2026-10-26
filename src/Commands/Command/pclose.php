@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\CloseCommand;
+use Mgrunder\RedisClientTester\Commands\CloseCommand;
 
 class pclose extends CloseCommand { }

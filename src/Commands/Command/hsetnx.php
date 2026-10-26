@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyMemValCommand;
+use Mgrunder\RedisClientTester\Commands\KeyMemValCommand;
 
 class hsetnx extends KeyMemValCommand { }

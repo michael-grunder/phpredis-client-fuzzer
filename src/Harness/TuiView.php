@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
 use PhpTui\Term\Actions;
 use PhpTui\Term\Event\CharKeyEvent;
@@ -179,7 +179,7 @@ final class TuiView implements View
 
         return BlockWidget::default()
             ->borders(Borders::ALL)
-            ->titles(Title::fromString(' phpredis-fuzz-harness '))
+            ->titles(Title::fromString(' redis-client-tester-harness '))
             ->widget(ParagraphWidget::fromLines(
                 ...array_map(static fn (string $line): Line => Line::parse($line), $lines),
             ));

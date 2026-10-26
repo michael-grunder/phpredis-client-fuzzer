@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\HashFieldListCommand;
+use Mgrunder\RedisClientTester\Commands\HashFieldListCommand;
 
 class hpttl extends HashFieldListCommand {
     public function flags(): int {

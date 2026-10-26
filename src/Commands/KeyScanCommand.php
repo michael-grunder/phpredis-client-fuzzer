@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
 abstract class KeyScanCommand extends ScanCommand {
     protected function initArgs(FuzzConfig $config): void {

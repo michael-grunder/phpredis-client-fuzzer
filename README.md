@@ -1,9 +1,9 @@
-# PhpRedis Command Fuzzer
+# Redis Client Tester
 
-`mgrunder/phpredis-command-fuzzer` embeds randomized Redis command workloads in
-PHP applications. It contains the command catalog and argument generators from
-RedisClientFuzzer without its outer process supervisors, Redis flushing loop,
-Valgrind integration, `rr` integration, or CGI server runner.
+`mgrunder/redis-client-tester` tests PhpRedis and Relay clients with randomized
+command workloads, differential checks, and stateful scenarios. Embed it in PHP
+applications or use the CLI tools for stress campaigns, ASAN/Valgrind/`rr`
+diagnostics, reproducer browsing, and command coverage and statistics.
 
 Supported client classes are:
 
@@ -26,19 +26,39 @@ methods and raw-protocol variants where an implementation provides both.
 - PHP 8.4 or newer
 - PhpRedis (`ext-redis`)
 - Relay (`ext-relay`) only when fuzzing Relay clients
-- `ext-pcntl` only for forked concurrent runs (`phpredis-fuzz --forks`)
+- `ext-pcntl` only for forked concurrent runs (`redis-client-tester --forks`)
 
 ```bash
-composer require mgrunder/phpredis-command-fuzzer
+composer require mgrunder/redis-client-tester
 ```
 
 Before the repository is published to Packagist, add it to a neighboring
 project as a Composer path repository:
 
 ```bash
-composer config repositories.phpredis-command-fuzzer path ../phpredis-command-fuzzer
-composer require mgrunder/phpredis-command-fuzzer:@dev
+composer config repositories.redis-client-tester path ../redis-client-tester
+composer require mgrunder/redis-client-tester:@dev
 ```
+
+### Migrating from the previous name
+
+Replace `mgrunder/phpredis-command-fuzzer` with `mgrunder/redis-client-tester`
+and the `Mgrunder\PhpredisCommandFuzzer` namespace with
+`Mgrunder\RedisClientTester`. Rename `Fuzzer` to `Tester`, `FuzzResult` to
+`TestResult`, `Http\FuzzerEndpoint` to `Http\TesterEndpoint`, and
+`Cli\FuzzKillerApplication` to `Cli\ClientKillerApplication` in your code.
+
+The main binary is now `redis-client-tester`. All companion binaries use that
+prefix: `-coercive`, `-killer`, `-harness`, `-asan`, `-repros`, `-diff`,
+`-commands`, `-coverage`, `-subscribe`, and `-commandstats`. Update shell
+scripts and process-manager commands, then run `composer install` to refresh
+autoloading. The old package names, classes, and binary names have no aliases.
+Fuzz-specific command interfaces such as `FuzzInterface` keep their names.
+
+Existing logs and reproducers are not rewritten. Older replay scripts that
+import package classes or serialize package objects need the matching old
+checkout, or a separately migrated copy. The differential generator retains its
+original seed salt so the rename does not change its random sequence.
 
 ## Quickstart: use an application-owned client
 
@@ -51,14 +71,14 @@ topology settings.
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\RunConfiguration;
 
 // Fetch this from your application's container in real projects.
 $redis = new Redis();
 $redis->connect('127.0.0.1', 6379);
 
-$result = (new Fuzzer())->run(
+$result = (new Tester())->run(
     [$redis],
     new RunConfiguration(
         maxSteps: 100,
@@ -81,7 +101,7 @@ arbitrary scalar values. Local client helpers (`@local`, such as `_compress` or
 `close` and `pclose` explicitly reconnect a standalone `Relay\Relay` with its
 original endpoint, timeouts, and credentials, because Relay, unlike PhpRedis,
 does not reconnect lazily after `close()`.
-`FuzzResult::$outcomes` contains one `InvocationOutcome` for every scheduled
+`TestResult::$outcomes` contains one `InvocationOutcome` for every scheduled
 step. Each outcome attributes the command, client index/class, normal, raw, or
 raw-chaos operation, reply, Redis errors, PHP warnings, exception, duration,
 client mode, and slot policy. `variant` is currently `null` until commands
@@ -89,12 +109,12 @@ expose the named cases described in the robustness plan.
 
 Reply values are safe to persist in JSON: strings use a base64 preview plus a
 SHA-256 digest, while arrays are depth- and item-limited. Aggregate command
-counts remain available in `FuzzResult::$commands`, and
-`FuzzResult::$commandWarnings` exposes warning counts keyed by command.
+counts remain available in `TestResult::$commands`, and
+`TestResult::$commandWarnings` exposes warning counts keyed by command.
 
 Runs containing either `Relay\Relay` or `Relay\Cluster` also sample the global
 `Relay\Relay::stats()` counters before the workload, after every 100 commands,
-and at the end. `FuzzResult::$relayStats` reports the latest hit, miss, OOM, and
+and at the end. `TestResult::$relayStats` reports the latest hit, miss, OOM, and
 memory counters together with the highest observed active and used memory. When
 the loaded Relay build exposes an `evictions` counter it is reported as well;
 older builds simply omit it. Human-readable output prints these and the other
@@ -105,7 +125,7 @@ Human-readable summaries normalize known volatile diagnostic fields before
 counting unique messages. For example, generated stream keys in `NOGROUP`
 errors are displayed as `'<key>'`, and changing Lua hashes or source line
 numbers do not split one failure class into many rows. This affects aggregation
-only: `FuzzResult::$outcomes` retains the exact warning, Redis error, and
+only: `TestResult::$outcomes` retains the exact warning, Redis error, and
 exception text for reproduction. Normalization rules are deliberately narrow
 and live in `DiagnosticNormalizer`.
 
@@ -124,7 +144,7 @@ the arguments. Load one or more files explicitly with repeatable `--hook`
 options:
 
 ```bash
-bin/phpredis-fuzz \
+bin/redis-client-tester \
     --include=local \
     --hook=hooks/no-msgpack.php \
     --steps=100000
@@ -163,10 +183,10 @@ had an opportunity to replace them:
 ```php
 <?php
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookDecision;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 
 return static function (HookRegistry $hooks): void {
     if (!defined('Redis::SERIALIZER_MSGPACK')) {
@@ -242,7 +262,7 @@ callers can use `HookLoader::load($paths, ['my-hook' => ['key' => 'value']])`.
 Reproducing a run requires the same hook arguments as well as its seed and files.
 
 Embedded callers can construct a `HookRegistry` directly and pass it to
-`new Fuzzer($hooks)`. Hook files execute arbitrary PHP and are never discovered
+`new Tester($hooks)`. Hook files execute arbitrary PHP and are never discovered
 or loaded automatically; only load files you trust.
 
 ### Relay adaptive cache hook
@@ -250,7 +270,7 @@ or loaded automatically; only load files you trust.
 Load `hooks/adaptive.php` to enable Relay's adaptive count-min-sketch cache:
 
 ```bash
-bin/phpredis-fuzz --client=relay --hook=hooks/adaptive.php \
+bin/redis-client-tester --client=relay --hook=hooks/adaptive.php \
     --hook-arg adaptive.width=12288 --hook-arg adaptive.depth=6
 ```
 
@@ -311,9 +331,9 @@ already failing, which is logged so it cannot mask the original throwable.
 ```php
 <?php
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\ClientEvent;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
 
 return static function (HookRegistry $hooks): void {
     $hooks->onPostConstructor('note-client', static function (ClientEvent $event): void {
@@ -342,9 +362,9 @@ inspecting the server once the run is over. Load it with
 
 `postConstructor` fires once per client object. Clients built by
 `ClientFactory` are announced there, so a CLI run sees a client before its
-options are exercised; clients an embedded caller passes to `Fuzzer::run()` are
+options are exercised; clients an embedded caller passes to `Tester::run()` are
 announced at the start of the run. A client handed to both is still announced
-once. `preDestructor` fires at the end of every `Fuzzer::run()`, after the
+once. `preDestructor` fires at the end of every `Tester::run()`, after the
 run's own accounting is closed, so commands a hook issues are not counted in
 the report.
 
@@ -385,7 +405,7 @@ return static function (HookRegistry $hooks): void {
 };
 ```
 
-`Fuzzer::run()` seeds the registry with the run seed before it announces
+`Tester::run()` seeds the registry with the run seed before it announces
 clients, and the CLI seeds it with the same seed before `ClientFactory` builds
 them, so `postConstructor` hooks draw reproducible values too; a forked child
 reseeds with its own seed before re-creating its clients. Embedded callers that
@@ -407,13 +427,13 @@ fuzzer uses:
 
 ```bash
 evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
-bin/phpredis-fuzz --port=6390 --seed=123 --hook=hooks/evilresp.php
+bin/redis-client-tester --port=6390 --seed=123 --hook=hooks/evilresp.php
 ```
 
 For the simpler server-side `DEBUG CHAOS` preset:
 
 ```bash
-bin/phpredis-fuzz-coercive --port=6390 --seed=123 \
+bin/redis-client-tester-coercive --port=6390 --seed=123 \
     --hook hooks/evilresp.php \
     --hook-arg evilresp.mode=chaos \
     --hook-arg evilresp.chaos_min=5 \
@@ -558,7 +578,7 @@ For example, target only a nested length header through your disposable proxy:
 EVILRESP_MODES=MUTATE EVILRESP_PROBABILITY=0 EVILRESP_TOPOLOGY=0 \
 EVILRESP_MUTATIONS=ONE EVILRESP_FRAMING=LENGTH \
 EVILRESP_FRAMING_TARGET=root.0 EVILRESP_FRAMING_KIND=LONGER \
-bin/phpredis-fuzz --port=6390 --seed=123 --commands=mget --hook=hooks/evilresp.php
+bin/redis-client-tester --port=6390 --seed=123 --commands=mget --hook=hooks/evilresp.php
 ```
 
 To exercise EOF and fragmentation independently of RESP mutation:
@@ -566,7 +586,7 @@ To exercise EOF and fragmentation independently of RESP mutation:
 ```bash
 EVILRESP_MODES=OFF EVILRESP_TOPOLOGY=0 EVILRESP_TRANSPORT_TRUNCATE=RANDOM \
 EVILRESP_TRANSPORT_CHUNKS=1,3,4 EVILRESP_TRANSPORT_PROBABILITY=5-20 \
-bin/phpredis-fuzz --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
+bin/redis-client-tester --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
 ```
 
 To exercise connection failures with valid upstream replies:
@@ -574,7 +594,7 @@ To exercise connection failures with valid upstream replies:
 ```bash
 EVILRESP_MODES=OFF EVILRESP_TOPOLOGY=0 EVILRESP_FRAMING=OFF \
 EVILRESP_TRANSPORT_FAULT=CLOSE,RESET EVILRESP_TRANSPORT_PROBABILITY=1-5 \
-bin/phpredis-fuzz --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
+bin/redis-client-tester --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
 ```
 
 To explicitly test timeouts, use `EVILRESP_TRANSPORT_FAULT=STALL
@@ -592,11 +612,13 @@ PhpRedis runs replay exactly.
 
 ## CLI
 
-Composer installs `vendor/bin/phpredis-fuzz`,
-`vendor/bin/phpredis-fuzz-coercive`, `vendor/bin/phpredis-fuzz-killer`,
-`vendor/bin/phpredis-fuzz-harness`, `vendor/bin/phpredis-fuzz-diff`,
-`vendor/bin/phpredis-commands`,
-`vendor/bin/phpredis-coverage`, and `vendor/bin/phpredis-commandstats`.
+Composer installs `vendor/bin/redis-client-tester`,
+`vendor/bin/redis-client-tester-coercive`, `vendor/bin/redis-client-tester-killer`,
+`vendor/bin/redis-client-tester-harness`, `vendor/bin/redis-client-tester-diff`,
+`vendor/bin/redis-client-tester-asan`, `vendor/bin/redis-client-tester-repros`,
+`vendor/bin/redis-client-tester-subscribe`,
+`vendor/bin/redis-client-tester-commands`,
+`vendor/bin/redis-client-tester-coverage`, and `vendor/bin/redis-client-tester-commandstats`.
 The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
 defaults to one and the total is limited to 10,000 clients. Each step selects
@@ -608,14 +630,14 @@ Add `--pick-client` to a mixed standalone/cluster `--client` list to detect the
 topology at `--host`/`--port` before creating workload clients. For example:
 
 ```bash
-bin/phpredis-fuzz-coercive --client=relay,relay-cluster --pick-client \
+bin/redis-client-tester-coercive --client=relay,relay-cluster --pick-client \
     --host=127.0.0.1 --port=7000 --steps=500 --seed=123456
 ```
 
 This keeps every matching client in its original order, preserving `:COUNT`.
 A list containing only standalone or only cluster clients is used unchanged,
 without probing, so deliberate topology mismatches remain possible. The flag is
-off by default and works with both `phpredis-fuzz` and `phpredis-fuzz-coercive`.
+off by default and works with both `redis-client-tester` and `redis-client-tester-coercive`.
 The probe uses a separate PhpRedis connection with the supplied credentials and
 timeouts, reads `INFO cluster`, and closes before workload hooks or forks run.
 If detection fails, the invocation fails rather than guessing a topology.
@@ -625,7 +647,7 @@ harness, use `--port={port}` and omit `--seeds` so it defaults to that same targ
 
 ```bash
 # Standalone PhpRedis, fixed seed and focused command set
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=redis \
     --host=127.0.0.1 \
     --port=6379 \
@@ -634,21 +656,21 @@ vendor/bin/phpredis-fuzz \
     --commands='get*,set,h*'
 
 # Run the same workload across PhpRedis and Relay
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=redis,relay \
     --host=127.0.0.1 \
     --steps=500 \
     --seed=123456
 
 # Exercise client-count-sensitive paths with eight PhpRedis connections
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=redis:8 \
     --host=127.0.0.1 \
     --steps=5000 \
     --seed=123456
 
 # PhpRedis cluster
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=redis-cluster \
     --seeds=127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002 \
     --steps=500 \
@@ -676,7 +698,7 @@ reproduction scripts.
 
 ```bash
 # Eight concurrent PhpRedis workloads against a disposable target
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=redis \
     --forks=8 \
     --steps=10000 \
@@ -702,28 +724,28 @@ catalog. The subset is derived from the workload seed, so a reported seed
 reproduces the selection. Explicit names may be combined with `random` to add
 those scenarios to a random subset of the named choices.
 
-Use `vendor/bin/phpredis-fuzz --help` for all connection and run options. The
+Use `vendor/bin/redis-client-tester --help` for all connection and run options. The
 help path does not connect to Redis.
 
-The fuzzer binaries (`phpredis-fuzz`, `phpredis-fuzz-coercive`, and
-`phpredis-fuzz-killer`) exit `0` when the run finished with nothing caught, `1`
+The fuzzer binaries (`redis-client-tester`, `redis-client-tester-coercive`, and
+`redis-client-tester-killer`) exit `0` when the run finished with nothing caught, `1`
 when the run executed and something failed (a caught diagnostic, a differential
 divergence, or a failed scenario), and `78` for a *startup failure*: the command
 line was rejected, or it described an unusable configuration, so no command was
 executed. Only command-line handling produces `78` — a target that cannot be
 reached is a normal `1`, because the same invocation may well work against a
-reachable server. Supervisors, and `phpredis-fuzz-harness` in particular, use
+reachable server. Supervisors, and `redis-client-tester-harness` in particular, use
 that distinction to tell "this invocation is broken" from "this run found
 something".
 
 To inspect the command catalog without connecting to Redis, run
-`vendor/bin/phpredis-commands`. It prints each command's type, category flags,
+`vendor/bin/redis-client-tester-commands`. It prints each command's type, category flags,
 and available client, raw-protocol, and proxy-sampling surfaces. Its optional
 `--commands` argument uses the same case-insensitive names, globs, flag filters,
 and exclusions as the fuzzer:
 
 ```bash
-vendor/bin/phpredis-commands --commands='get*,-getex,@crossslot'
+vendor/bin/redis-client-tester-commands --commands='get*,-getex,@crossslot'
 ```
 
 The catalog listing includes every safety category so filters such as
@@ -741,25 +763,25 @@ Use `--invocation-mode=coercive` to exercise PHP's coercive scalar argument
 handling in the client extensions:
 
 ```bash
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --invocation-mode=coercive \
     --client=redis \
     --steps=1000 \
     --seed=123456
 ```
 
-`vendor/bin/phpredis-fuzz-coercive` is a convenience entrypoint with the same
+`vendor/bin/redis-client-tester-coercive` is a convenience entrypoint with the same
 coercive default; it accepts all normal fuzzer options. Passing
 `--invocation-mode=strict` overrides that default. The selected mode is stored
-in `FuzzResult::$configuration` and emitted as both metadata and the
+in `TestResult::$configuration` and emitted as both metadata and the
 `declare(strict_types=...)` setting in reproduction scripts.
 
 ### Disruption fuzzing
 
-`phpredis-fuzz-killer` repeatedly disrupts a running workload. `--mode` selects
+`redis-client-tester-killer` repeatedly disrupts a running workload. `--mode` selects
 what it disrupts each iteration:
 
-- `process` (default) discovers running `phpredis-fuzz` processes through Linux
+- `process` (default) discovers running `redis-client-tester` processes through Linux
   `/proc` and sends each one a randomly chosen signal.
 - `client` connects to a Redis target and runs `CLIENT KILL` against its normal
   client connections.
@@ -767,13 +789,13 @@ what it disrupts each iteration:
 
 ```bash
 # Signal fuzzer workers (the default mode)
-vendor/bin/phpredis-fuzz-killer \
+vendor/bin/redis-client-tester-killer \
     --signals=SIGINT,SIGTERM,SIGQUIT \
     --sleep=0.8-1.2 \
     --rate=100.0
 
 # Kill clients on a disposable Redis (or cluster) target
-vendor/bin/phpredis-fuzz-killer \
+vendor/bin/redis-client-tester-killer \
     --mode=client \
     --host=127.0.0.1 \
     --port=6379 \
@@ -781,7 +803,7 @@ vendor/bin/phpredis-fuzz-killer \
     --sleep=0.5-1.0
 
 # Do both, signalling every worker but only killing a quarter of clients
-vendor/bin/phpredis-fuzz-killer \
+vendor/bin/redis-client-tester-killer \
     --mode=both \
     --host=127.0.0.1 --port=7000 \
     --rate=100 --client-rate=25
@@ -808,7 +830,7 @@ KILL` disconnects live connections.
 
 ### Subscription callback fuzzing
 
-`phpredis-fuzz-subscribe` exercises recursive subscriptions. With Relay, it also
+`redis-client-tester-subscribe` exercises recursive subscriptions. With Relay, it also
 runs the normal command catalog on the connection delivering the callback.
 `--no-fork` disables PhpRedis compatibility so Relay subscription confirmations
 (whose message is `null`) start the workload without a publisher process.
@@ -820,7 +842,7 @@ their callbacks.
 
 ```bash
 # Use only a disposable target.
-vendor/bin/phpredis-fuzz-subscribe --client=relay --no-fork \
+vendor/bin/redis-client-tester-subscribe --client=relay --no-fork \
     --host=127.0.0.1 --port=6379 --seed=42 --steps=100 \
     --commands=get,set,hget,hset --command-steps=3 --verbose \
     --script-log=/tmp/subscribe-42
@@ -856,14 +878,14 @@ callers supplying their own client construction and output destinations.
 
 ### Parallel fuzzing harness
 
-`phpredis-fuzz-harness` runs many `phpredis-fuzz*` workers in parallel behind an
+`redis-client-tester-harness` runs many `redis-client-tester*` workers in parallel behind an
 AFL-style dashboard, and turns a crash, timeout, memory leak, or non-zero exit
 into a saved reproducer directory. It never interprets the workload itself — it
 launches the command you give it after `--`, substituting a few placeholders per
 run.
 
 ```bash
-vendor/bin/phpredis-fuzz-harness \
+vendor/bin/redis-client-tester-harness \
     --jobs 4 \
     --reduce steps \
     --rr --rr-chaos \
@@ -873,7 +895,7 @@ vendor/bin/phpredis-fuzz-harness \
     --php-ini "$(farmroot)/php.ini" --php-args -drelay.maxmemory=1g \
     --port 7000 7001 7002 7003 --isolate-ports \
     -- \
-    vendor/bin/phpredis-fuzz-coercive \
+    vendor/bin/redis-client-tester-coercive \
         --client=relay-cluster --seconds 2 --steps {steps} \
         --host=127.0.0.1 --port={port}
 ```
@@ -922,9 +944,9 @@ You can embed several expressions in a value, such as `{64-256}M`. Quote the
 option value to prevent your shell from expanding braces first:
 
 ```bash
-bin/phpredis-fuzz-harness --seed 123 \
+bin/redis-client-tester-harness --seed 123 \
     --php-args='-d relay.maxmemory={8m-128m} -d precision={10-17}' \
-    --php-ini fuzz.ini -- bin/phpredis-fuzz --steps '{steps}'
+    --php-ini fuzz.ini -- bin/redis-client-tester --steps '{steps}'
 ```
 
 Expansion happens after argument splitting, so a chosen value is never parsed
@@ -1129,7 +1151,7 @@ extensions. At startup the harness checks that PHP starts cleanly under the
 preload, and skips the `core_pattern` check. `--asan` cannot be combined with
 `--rr`, and refuses a Valgrind `LD_PRELOAD`. `USE_TRACKED_ALLOC=1` keeps
 `memory_limit` enforced without Zend MM, so `memory` captures still work. `command.txt` holds the full `env` prefix, so it replays as-is.
-`bin/phpredis-asan [--php PATH] [--asan-runtime FILE] -- <PHP args>` applies the
+`bin/redis-client-tester-asan [--php PATH] [--asan-runtime FILE] -- <PHP args>` applies the
 same environment to a single direct run.
 
 A run that exits `78` is treated as a startup failure rather than a finding: the
@@ -1192,7 +1214,7 @@ can exclude a known-problematic implementation while still varying the setting;
 for example, this selects every serializer except msgpack:
 
 ```bash
-vendor/bin/phpredis-fuzz --serializer=none,php,igbinary,json
+vendor/bin/redis-client-tester --serializer=none,php,igbinary,json
 ```
 
 CSV subsets work for every option in the table. Unknown names and empty CSV
@@ -1205,10 +1227,10 @@ same `--seed` selects the same settings and the same command stream:
 
 ```bash
 # Reproducible: both runs pick the same serializer and compressor
-vendor/bin/phpredis-fuzz --serializer=random --compression=random --seed=123456
+vendor/bin/redis-client-tester --serializer=random --compression=random --seed=123456
 
 # The generated seed is reported in the result; re-run with it to reproduce
-vendor/bin/phpredis-fuzz --serializer=random --steps=500
+vendor/bin/redis-client-tester --serializer=random --steps=500
 ```
 
 The selected values are reported under `environment.clients[]` in the JSON
@@ -1261,7 +1283,7 @@ exits with a nonzero status.
 
 ### Browsing reproducers
 
-`bin/phpredis-repros [DIR]` (default `reproducers`) is a read-only TUI over a
+`bin/redis-client-tester-repros [DIR]` (default `reproducers`) is a read-only TUI over a
 harness `--output` directory, one kind directory, or a single capture. Each row
 shows the capture's kind, minimized and original step counts (`897←5000`), and a
 one-line headline of the defect, chosen by how the run was captured:
@@ -1288,7 +1310,7 @@ written; gdb output is kept in memory.
 
 ### Differential stateful fuzzing: PhpRedis vs Relay
 
-`phpredis-fuzz-diff` hunts for behavioral differences rather than crashes. Its
+`redis-client-tester-diff` hunts for behavioral differences rather than crashes. Its
 invariant: given identical Redis state and an identical ordered sequence of
 client operations, PhpRedis and Relay should expose equivalent client-visible
 behavior and leave Redis in equivalent state. Both extensions must be loaded.
@@ -1400,7 +1422,7 @@ first version does not support cluster targets.
 
 ```bash
 # One worker, direct
-vendor/bin/phpredis-fuzz-diff --port 6379 --cases 1000 --keep-going \
+vendor/bin/redis-client-tester-diff --port 6379 --cases 1000 --keep-going \
     --serializer random --compression random --relay-cache random
 
 # Many workers under the harness. The harness appends --seed, and {steps} is
@@ -1408,8 +1430,8 @@ vendor/bin/phpredis-fuzz-diff --port 6379 --cases 1000 --keep-going \
 # the same case, so --reduce steps works. Either use the harness reducer
 # (with --no-dedupe, or its re-runs are skipped as duplicates) or the fuzzer's
 # own minimizer.
-vendor/bin/phpredis-fuzz-harness --jobs 8 --capture failures --steps 30 \
-    --port 6379 -- vendor/bin/phpredis-fuzz-diff --port={port} \
+vendor/bin/redis-client-tester-harness --jobs 8 --capture failures --steps 30 \
+    --port 6379 -- vendor/bin/redis-client-tester-diff --port={port} \
     --steps={steps} --cases 200
 
 php reproducers/differential/1a2b3c4d/reproduce.php
@@ -1426,7 +1448,7 @@ from unconstrained crash fuzzing. Enable it with an ordered client pair: the
 reference client first and the Relay subject second.
 
 ```bash
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=redis,relay \
     --differential \
     --differential-tolerance-ms=10 \
@@ -1480,7 +1502,7 @@ before the random command stream, use the run seed in their key namespace, and
 report every operation and postcondition in `stateful_outcomes`:
 
 ```bash
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=relay-cluster \
     --scenarios=transaction-exec,transaction-discard,watch-unwatch-discard \
     --steps=1000 \
@@ -1558,11 +1580,11 @@ matrices remain subsequent experiments.
 builds one lazily from the same `--client` configuration as the client under
 test, so it shares its target, prefix, database and serializer, and closes it
 when the scenarios finish. Embedded callers pass a `ScenarioPeers`
-implementation to `Fuzzer` (`CallableScenarioPeers` wraps a factory closure);
+implementation to `Tester` (`CallableScenarioPeers` wraps a factory closure);
 without one, both scenarios report `skipped`:
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\Stateful\CallableScenarioPeers;
+use Mgrunder\RedisClientTester\Stateful\CallableScenarioPeers;
 
 $peers = new CallableScenarioPeers(function (object $client): ?Redis {
     // Build a second connection configured exactly like $client.
@@ -1571,7 +1593,7 @@ $peers = new CallableScenarioPeers(function (object $client): ?Redis {
     return $peer->connect('127.0.0.1', 6379) ? $peer : null;
 });
 
-$result = (new Fuzzer(hooks: null, peers: $peers))->run([$redis], $configuration);
+$result = (new Tester(hooks: null, peers: $peers))->run([$redis], $configuration);
 ```
 
 The factory is called at most once per client, only when a scenario needs it,
@@ -1648,17 +1670,17 @@ The `connection` group is reserved for direct socket lifecycle operations;
 `CLIENT` needs only the admin opt-in. For a disposable target:
 
 ```bash
-bin/phpredis-fuzz --include=admin --commands=client --seed=42 --steps=100
+bin/redis-client-tester --include=admin --commands=client --seed=42 --steps=100
 ```
 
 `crash` is never enabled by `all` and has to be named on its own. It selects
 the deliberately process-crashing catalog entry (`Relay\Relay::crash()`), which
 only exists in debug builds of the extension and segfaults the running process
 by design. It is useful for verifying that a supervisor such as
-`phpredis-fuzz-harness` captures reproducers (cores, `rr` traces) correctly:
+`redis-client-tester-harness` captures reproducers (cores, `rr` traces) correctly:
 
 ```bash
-bin/phpredis-fuzz --include=crash --commands=crash --steps=1
+bin/redis-client-tester --include=crash --commands=crash --steps=1
 ```
 
 Because the safety gates and `--commands` filters are independent, a pattern
@@ -1704,7 +1726,7 @@ The HTTP adapter keeps both the cap and mutation permission server-controlled.
 For an explicitly selected disposable target, a focused workload can use:
 
 ```bash
-bin/phpredis-fuzz --commands=set,get --serializer=php --seed=42 \
+bin/redis-client-tester --commands=set,get --serializer=php --seed=42 \
     --max-value-bytes=4097 --steps=1000
 # Add --allow-deserialization-mutations only when testing those known edge cases.
 ```
@@ -1799,13 +1821,13 @@ dataset changes, and do not change Relay's separate `fullscan()` generator.
 
 ## Command coverage
 
-Composer also installs `vendor/bin/phpredis-coverage`, which reports the Redis
-commands the catalog does not yet exercise. Unlike `phpredis-fuzz`, it only
+Composer also installs `vendor/bin/redis-client-tester-coverage`, which reports the Redis
+commands the catalog does not yet exercise. Unlike `redis-client-tester`, it only
 issues `COMMAND` and never writes, so it is safe to point at a server the
 fuzzer itself must not touch.
 
 ```bash
-vendor/bin/phpredis-coverage --client=redis --port=6379
+vendor/bin/redis-client-tester-coverage --client=redis --port=6379
 ```
 
 ```
@@ -1862,7 +1884,7 @@ available in process through `Coverage\CoverageAnalyzer`, which accepts a
 
 ## Live command statistics
 
-`phpredis-commandstats` is a resize-aware php-tui dashboard for the calls in
+`redis-client-tester-commandstats` is a resize-aware php-tui dashboard for the calls in
 `INFO commandstats`. Its first sample is the baseline, so every displayed value
 is a cumulative delta since the dashboard started rather than a server lifetime
 counter. Commands are sorted from most to least frequent and the dashboard packs
@@ -1870,10 +1892,10 @@ multiple command groups across wider terminals.
 
 ```bash
 # A standalone server through PhpRedis
-vendor/bin/phpredis-commandstats --client=redis --host=127.0.0.1 --port=6379
+vendor/bin/redis-client-tester-commandstats --client=redis --host=127.0.0.1 --port=6379
 
 # Every connected primary and replica in a cluster, sampled through Relay
-vendor/bin/phpredis-commandstats \
+vendor/bin/redis-client-tester-commandstats \
     --client=relay-cluster \
     --seeds=127.0.0.1:7000,127.0.0.1:7001 \
     --interval=0.5
@@ -1887,11 +1909,11 @@ leave the dashboard. Unreachable servers and partial or complete cluster
 outages are shown in the dashboard without terminating it; connections and
 topology discovery are retried every interval, and recovered nodes resume from
 their prior counters (or establish a new baseline when first discovered). Run
-`vendor/bin/phpredis-commandstats --help` for all connection options.
+`vendor/bin/redis-client-tester-commandstats --help` for all connection options.
 
 ## Minimal HTTP shim
 
-`FuzzerEndpoint` is framework-neutral: give it a callable that returns one
+`TesterEndpoint` is framework-neutral: give it a callable that returns one
 application-owned client, or a non-empty list of clients. `handleJson()` accepts
 the request query array and returns JSON without sending headers, so the same
 class works in a plain PHP endpoint or inside a framework response.
@@ -1902,13 +1924,13 @@ class works in a plain PHP endpoint or inside a framework response.
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-use Mgrunder\PhpredisCommandFuzzer\Http\FuzzerEndpoint;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Http\TesterEndpoint;
+use Mgrunder\RedisClientTester\RunConfiguration;
 
 // Replace this with your container lookup.
 $client = $container->get(Redis::class);
 
-$endpoint = new FuzzerEndpoint(
+$endpoint = new TesterEndpoint(
     clientProvider: static fn () => $client,
     configuration: new RunConfiguration(
         maxSteps: 25,
@@ -1943,9 +1965,9 @@ GET /internal-redis-fuzz.php?steps=10&seed=42&commands=get%2A%2Cset
 configured connection:
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientFactory;
+use Mgrunder\RedisClientTester\ClientType;
 
 $relay = (new ClientFactory())->create(new ClientConfiguration(
     type: ClientType::Relay,
@@ -1969,11 +1991,11 @@ Use `--tls` with a server's TLS port. It applies to all selected client types,
 cluster discovery seeds, topology probes, and stateful peer connections:
 
 ```bash
-bin/phpredis-fuzz --client=redis,relay --host=localhost --port=6380 \
+bin/redis-client-tester --client=redis,relay --host=localhost --port=6380 \
     --tls --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
     --commands=get,set,del --steps=1000 --seed=42
 
-bin/phpredis-fuzz --client=redis-cluster,relay-cluster \
+bin/redis-client-tester --client=redis-cluster,relay-cluster \
     --seeds=localhost:7000,localhost:7001 --tls \
     --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
     --commands=get,set,del --steps=1000 --seed=42
@@ -1992,9 +2014,9 @@ Use TLS-enabled cluster ports and ensure discovered nodes advertise reachable
 TLS ports. Explicit `tls://` hosts/seeds are also accepted; `--tls` upgrades
 plain hosts and `tcp://` endpoints and rejects Unix sockets.
 
-The same flags work with `phpredis-fuzz-coercive`, `phpredis-fuzz-diff`,
-`phpredis-fuzz-subscribe`, `phpredis-fuzz-killer`, `phpredis-coverage`, and
-`phpredis-commandstats`. The differential runner encrypts its neutral RESP
+The same flags work with `redis-client-tester-coercive`, `redis-client-tester-diff`,
+`redis-client-tester-subscribe`, `redis-client-tester-killer`, `redis-client-tester-coverage`, and
+`redis-client-tester-commandstats`. The differential runner encrypts its neutral RESP
 connection as well as both client connections. Command statistics and killer
 connections use TLS for discovered nodes too.
 
@@ -2002,8 +2024,8 @@ For harness campaigns, put TLS flags on the worker command after `--`; the
 startup availability check inherits them:
 
 ```bash
-bin/phpredis-fuzz-harness --port 6380 -- \
-    bin/phpredis-fuzz --client=relay --host=localhost --port={port} \
+bin/redis-client-tester-harness --port 6380 -- \
+    bin/redis-client-tester --client=relay --host=localhost --port={port} \
     --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
     --commands=get,set,del --steps={steps} --seed={seed}
 ```
@@ -2016,7 +2038,7 @@ with an idle reader and concurrent writes.
 Library callers can configure the same transport explicitly:
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+use Mgrunder\RedisClientTester\TlsConfiguration;
 
 $relay = (new ClientFactory())->create(new ClientConfiguration(
     type: ClientType::Relay,
@@ -2034,7 +2056,7 @@ Factory-created clients retain their TLS configuration for explicit reconnects
 and generated command scripts. Differential reproducers also retain the TLS
 host and options. Certificate paths must exist on the replay machine; scripts
 contain the supplied context, including any passphrase. Application-owned
-clients can still be passed directly to `Fuzzer`; their certificate options
+clients can still be passed directly to `Tester`; their certificate options
 cannot be recovered through client getters for script logging or reconnects.
 
 ### Legacy cluster failover
@@ -2072,7 +2094,7 @@ when the client is created. Passing them with any other `ClientType` is an
 error rather than a silent no-op.
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
+use Mgrunder\RedisClientTester\RelayClusterOptions;
 
 $cluster = (new ClientFactory())->create(new ClientConfiguration(
     type: ClientType::RelayCluster,
@@ -2110,7 +2132,7 @@ supplied Relay cluster options are ignored with a warning so the same invocation
 can be reused while switching between standalone and cluster clients.
 
 ```bash
-vendor/bin/phpredis-fuzz \
+vendor/bin/redis-client-tester \
     --client=relay-cluster \
     --seeds=127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002 \
     --relay-failover=all \
@@ -2169,7 +2191,7 @@ At least one of `maxSteps` or `maxSeconds` must be greater than zero.
 
 ### Hot keys and read/write affinities
 
-All fuzzer entrypoints, including `bin/phpredis-fuzz-coercive`, support seeded
+All fuzzer entrypoints, including `bin/redis-client-tester-coercive`, support seeded
 key popularity and persistent read/write preferences. They are disabled by
 default, preserving the existing seeded selection sequence.
 
@@ -2206,8 +2228,8 @@ popularity.
 The library equivalent is:
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\KeyReadGroup;
+use Mgrunder\RedisClientTester\RunConfiguration;
 
 $configuration = new RunConfiguration(
     seed: 12345,
@@ -2261,8 +2283,8 @@ Command filters are case-insensitive:
 - `@common` selects a curated set of everyday Redis commands.
 - `-getex` or `-@scan` excludes a name or flag.
 - Within each group, positive filters are ORed, then negative filters are removed.
-- Repeated `--commands` arguments are ANDed in `phpredis-fuzz`,
-  `phpredis-fuzz-coercive`, and `phpredis-commands`. Previously, only the last
+- Repeated `--commands` arguments are ANDed in `redis-client-tester`,
+  `redis-client-tester-coercive`, and `redis-client-tester-commands`. Previously, only the last
   occurrence was used. A single occurrence keeps its existing behavior.
 - Exclusion-only groups narrow the selection; empty groups impose no restriction.
   An empty final selection reports an error.
@@ -2270,10 +2292,10 @@ Command filters are case-insensitive:
 For example, select common commands that either invalidate or read the cache:
 
 ```bash
-bin/phpredis-fuzz-coercive --commands='@common' --commands='@invalidating,@cached'
+bin/redis-client-tester-coercive --commands='@common' --commands='@invalidating,@cached'
 
 # Preview the same intersection without connecting to Redis:
-bin/phpredis-commands --commands='@common' --commands='@invalidating,@cached'
+bin/redis-client-tester-commands --commands='@common' --commands='@invalidating,@cached'
 ```
 
 `@common` is a judgment-based workload category, not a
@@ -2281,7 +2303,7 @@ measured popularity ranking. It covers routine string reads/writes and counters,
 key deletion/existence/expiry, basic hash and set operations, list queues and
 ranges, basic sorted-set operations, scans, and ping. It includes `get`, `set`,
 `mget`, `mset`, `hgetall`, `hmset`, `sadd`, `smembers`, and `sismember`; use
-`bin/phpredis-commands --commands=@common` for the full list. Membership does
+`bin/redis-client-tester-commands --commands=@common` for the full list. Membership does
 not enable safety categories: `blpop` and `brpop` still require blocking opt-in.
 
 Embedded callers keep the existing OR semantics of `commands` and can supply
@@ -2307,7 +2329,7 @@ explicitly naming `flushall` still requires `includeFlush: true`.
 Weights use command names or flags:
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\RunConfiguration;
 
 $configuration = new RunConfiguration(
     commands: ['@read', 'set', 'del'],
@@ -2337,7 +2359,7 @@ one error back instead of exercising real command paths.
 
 The fuzzer therefore opens a *slot scope* for each step, before the selected
 command builds any arguments, and every key generated inside that step follows
-one policy (`Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy`):
+one policy (`Mgrunder\RedisClientTester\Commands\SlotPolicy`):
 
 | Policy | Applies to | Generated keys |
 | --- | --- | --- |
@@ -2353,7 +2375,7 @@ is the interesting target. Every other multi-key command stays inside a single
 slot by default. Select them with the `@crossslot` filter:
 
 ```bash
-bin/phpredis-fuzz --client=redis-cluster --seeds=127.0.0.1:7000 --commands=@crossslot
+bin/redis-client-tester --client=redis-cluster --seeds=127.0.0.1:7000 --commands=@crossslot
 ```
 
 The scope is opened by the runner, so an embedded caller driving commands
@@ -2381,7 +2403,7 @@ step, and out-of-range values are clamped by `FuzzConfig::setCrossSlot()`
 (`RunConfiguration` rejects them outright instead).
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\RunConfiguration;
 
 $configuration = new RunConfiguration(
     maxSteps: 100000,
@@ -2390,7 +2412,7 @@ $configuration = new RunConfiguration(
 ```
 
 ```bash
-bin/phpredis-fuzz --client=redis-cluster --seeds=127.0.0.1:7000 \
+bin/redis-client-tester --client=redis-cluster --seeds=127.0.0.1:7000 \
     --crossslot-chance=0.05 --steps=100000
 ```
 
@@ -2525,14 +2547,14 @@ which sees raw bitmap bytes it did not write, so `fast` runs against a
 serializing client will report the corresponding client warnings or errors.
 
 ```bash
-bin/phpredis-fuzz --client=relay --steps=100000 \
+bin/redis-client-tester --client=relay --steps=100000 \
     --saturate-chance=0.05 --saturate-mode=fast \
     --saturate-target=16m --saturate-steps=10
 ```
 
 ```php
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
+use Mgrunder\RedisClientTester\RunConfiguration;
+use Mgrunder\RedisClientTester\SaturationMode;
 
 $configuration = new RunConfiguration(
     maxSteps: 100000,
@@ -2543,7 +2565,7 @@ $configuration = new RunConfiguration(
 ```
 
 ```bash
-bin/phpredis-fuzz --client=relay --steps=100000 \
+bin/redis-client-tester --client=relay --steps=100000 \
     --saturate-chance=0.02 --saturate-target=100m --saturate-mode=seeded
 ```
 
@@ -2555,7 +2577,7 @@ rounded to the nearest byte. The resolved byte count is recorded in the run
 configuration and reproduction log.
 
 ```bash
-bin/phpredis-fuzz --client=relay --steps=100000 \
+bin/redis-client-tester --client=relay --steps=100000 \
     --saturate-chance=0.02 --saturate-target=95.2% --saturate-mode=seeded
 ```
 
@@ -2570,11 +2592,11 @@ composer install
 find src tests bin -type f -exec php -l {} +
 vendor/bin/phpstan analyse --debug --no-progress
 vendor/bin/phpunit
-bin/phpredis-fuzz --help
-bin/phpredis-fuzz-harness --help
-bin/phpredis-commands --help
-bin/phpredis-coverage --help
-bin/phpredis-commandstats --help
+bin/redis-client-tester --help
+bin/redis-client-tester-harness --help
+bin/redis-client-tester-commands --help
+bin/redis-client-tester-coverage --help
+bin/redis-client-tester-commandstats --help
 ```
 
 PHPStan runs at level `max`. PHPUnit unit tests do not require a Redis server.

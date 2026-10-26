@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ListMoveManyCommand;
+use Mgrunder\RedisClientTester\Commands\ListMoveManyCommand;
 
 class lmovem extends ListMoveManyCommand {
     protected function blocking(): bool {

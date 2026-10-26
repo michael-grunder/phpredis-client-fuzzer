@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\DiagnosticNormalizer;
-use Mgrunder\PhpredisCommandFuzzer\FuzzResult;
+use Mgrunder\RedisClientTester\DiagnosticNormalizer;
+use Mgrunder\RedisClientTester\TestResult;
 
 final class ResultFormatter
 {
-    public function format(FuzzResult $result, OutputMode $mode): string
+    public function format(TestResult $result, OutputMode $mode): string
     {
         if ($mode === OutputMode::Json) {
             return json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
@@ -36,7 +36,7 @@ final class ResultFormatter
         return $output;
     }
 
-    private function problematicCommands(FuzzResult $result): string
+    private function problematicCommands(TestResult $result): string
     {
         $lines = ['Problematic commands (server-supported commands with only false replies)'];
         if ($result->problematicCommands === []) {
@@ -56,7 +56,7 @@ final class ResultFormatter
         return implode("\n", $lines) . "\n";
     }
 
-    private function summary(FuzzResult $result): string
+    private function summary(TestResult $result): string
     {
         $warnings = DiagnosticNormalizer::aggregate($result->warnings);
         [$exceptionOccurrences, $uniqueExceptions] = $this->exceptionCounts($result);
@@ -176,7 +176,7 @@ final class ResultFormatter
         return number_format($value);
     }
 
-    private function commandTable(FuzzResult $result): string
+    private function commandTable(TestResult $result): string
     {
         $rows = [];
         $commands = $result->commands;
@@ -232,7 +232,7 @@ final class ResultFormatter
         return '  ' . implode('  ', $cells);
     }
 
-    private function issueDetails(FuzzResult $result): string
+    private function issueDetails(TestResult $result): string
     {
         $redisErrors = $this->redisErrorsByCommand($result);
         $exceptions = $this->exceptionsByCommand($result);
@@ -272,7 +272,7 @@ final class ResultFormatter
     }
 
     /** @return array{int, int} */
-    private function exceptionCounts(FuzzResult $result): array
+    private function exceptionCounts(TestResult $result): array
     {
         $occurrences = 0;
         $unique = [];
@@ -287,7 +287,7 @@ final class ResultFormatter
     }
 
     /** @return array<string, array<string, int>> */
-    private function exceptionsByCommand(FuzzResult $result): array
+    private function exceptionsByCommand(TestResult $result): array
     {
         $exceptions = [];
         foreach ($result->commands as $command => $statistics) {
@@ -307,7 +307,7 @@ final class ResultFormatter
     }
 
     /** @return array{int, int} */
-    private function redisErrorCounts(FuzzResult $result): array
+    private function redisErrorCounts(TestResult $result): array
     {
         $occurrences = 0;
         $unique = [];
@@ -322,7 +322,7 @@ final class ResultFormatter
     }
 
     /** @return array<string, array<string, int>> */
-    private function redisErrorsByCommand(FuzzResult $result): array
+    private function redisErrorsByCommand(TestResult $result): array
     {
         $errors = [];
         foreach ([...$result->outcomes, ...$result->saturationOutcomes] as $outcome) {
@@ -338,7 +338,7 @@ final class ResultFormatter
     }
 
     /** @return array{matched: int, converged: int, divergent: int} */
-    private function differentialCounts(FuzzResult $result): array
+    private function differentialCounts(TestResult $result): array
     {
         $counts = ['matched' => 0, 'converged' => 0, 'divergent' => 0];
         foreach ($result->differentialOutcomes as $outcome) {
@@ -355,7 +355,7 @@ final class ResultFormatter
         return $counts;
     }
 
-    private function differentialDetails(FuzzResult $result): string
+    private function differentialDetails(TestResult $result): string
     {
         if (($result->configuration['differential'] ?? false) !== true) {
             return '';
@@ -396,7 +396,7 @@ final class ResultFormatter
     }
 
     /** @return array{total: int, passed: int, failed: int, skipped: int} */
-    private function statefulCounts(FuzzResult $result): array
+    private function statefulCounts(TestResult $result): array
     {
         $counts = ['total' => 0, 'passed' => 0, 'failed' => 0, 'skipped' => 0];
         foreach ($result->statefulOutcomes as $outcome) {
@@ -415,7 +415,7 @@ final class ResultFormatter
         return $counts;
     }
 
-    private function statefulDetails(FuzzResult $result): string
+    private function statefulDetails(TestResult $result): string
     {
         if (($result->configuration['scenarios'] ?? []) === []) {
             return '';

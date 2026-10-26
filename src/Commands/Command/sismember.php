@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyMemCommand;
+use Mgrunder\RedisClientTester\Commands\KeyMemCommand;
 
 class sismember extends KeyMemCommand {
     public function type(): string {

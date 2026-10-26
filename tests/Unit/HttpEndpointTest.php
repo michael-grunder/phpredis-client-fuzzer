@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Http\FuzzerEndpoint;
-use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Http\TesterEndpoint;
+use Mgrunder\RedisClientTester\KeyReadGroup;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use PHPUnit\Framework\TestCase;
 
 final class HttpEndpointTest extends TestCase
 {
     public function testCommandGroupsRemainServerControlled(): void
     {
-        $endpoint = new FuzzerEndpoint(
+        $endpoint = new TesterEndpoint(
             static fn (): \Redis => new \Redis(),
             new RunConfiguration(
                 maxSteps: 1, seed: 42, includeLocal: true,
@@ -36,7 +36,7 @@ final class HttpEndpointTest extends TestCase
     public function testConnectionPermissionRemainsServerControlled(): void
     {
         foreach ([false, true] as $allowed) {
-            $endpoint = new FuzzerEndpoint(
+            $endpoint = new TesterEndpoint(
                 static fn (): \Redis => new \Redis(),
                 new RunConfiguration(
                     maxSteps: 1,
@@ -59,7 +59,7 @@ final class HttpEndpointTest extends TestCase
     public function testValueLimitsAndMutationPermissionRemainServerControlled(): void
     {
         foreach ([false, true] as $allowed) {
-            $endpoint = new FuzzerEndpoint(
+            $endpoint = new TesterEndpoint(
                 static fn (): \Redis => new \Redis(),
                 new RunConfiguration(maxSteps: 1, seed: 42, commands: ['isconnected'], includeLocal: true,
                     maxValueBytes: 32, allowDeserializationMutations: $allowed),
@@ -82,7 +82,7 @@ final class HttpEndpointTest extends TestCase
             maxSteps: 1, seed: 42, commands: ['isconnected'], includeLocal: true,
             keySkew: 1.2, keyReadGroups: [new KeyReadGroup(1.0, 0.95)],
         );
-        $endpoint = new FuzzerEndpoint(static fn (): \Redis => new \Redis(), $configuration);
+        $endpoint = new TesterEndpoint(static fn (): \Redis => new \Redis(), $configuration);
         $response = $endpoint->handle(['keySkew' => 99, 'keyReadGroups' => [], 'key-skew' => 99]);
         self::assertTrue($response['ok']);
         $reported = $response['result']['configuration'] ?? null;
@@ -94,7 +94,7 @@ final class HttpEndpointTest extends TestCase
     public function testInvalidRuntimeOverrideFailsBeforeResolvingAClient(): void
     {
         $providerCalled = false;
-        $endpoint = new FuzzerEndpoint(function () use (&$providerCalled): \Redis {
+        $endpoint = new TesterEndpoint(function () use (&$providerCalled): \Redis {
             $providerCalled = true;
             return new \Redis();
         });
@@ -107,7 +107,7 @@ final class HttpEndpointTest extends TestCase
 
     public function testJsonResponseReportsProviderFailures(): void
     {
-        $endpoint = new FuzzerEndpoint(static function (): never {
+        $endpoint = new TesterEndpoint(static function (): never {
             throw new \RuntimeException('client unavailable');
         });
 
@@ -118,7 +118,7 @@ final class HttpEndpointTest extends TestCase
 
     public function testServerControlledCacheSaturationConfigurationIsPreserved(): void
     {
-        $endpoint = new FuzzerEndpoint(
+        $endpoint = new TesterEndpoint(
             static fn (): \Relay\Relay => new \Relay\Relay(),
             new RunConfiguration(
                 maxSteps: 1,

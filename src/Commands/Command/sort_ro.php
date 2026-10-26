@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\SortCommand;
+use Mgrunder\RedisClientTester\Commands\SortCommand;
 
 class sort_ro extends SortCommand {
     protected function canStore(): bool {

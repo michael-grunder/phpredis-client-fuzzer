@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\CallableScenarioPeers;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\ScenarioPeers;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
-use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
-use Mgrunder\PhpredisCommandFuzzer\Log\Log;
-use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
-use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\SaturationMode;
-use Mgrunder\PhpredisCommandFuzzer\SaturationTarget;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientFactory;
+use Mgrunder\RedisClientTester\Stateful\CallableScenarioPeers;
+use Mgrunder\RedisClientTester\Stateful\ScenarioPeers;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\Hooks\HookLoader;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\InvocationMode;
+use Mgrunder\RedisClientTester\KeyReadGroup;
+use Mgrunder\RedisClientTester\Log\Log;
+use Mgrunder\RedisClientTester\OptionChoices;
+use Mgrunder\RedisClientTester\RelayClusterOptions;
+use Mgrunder\RedisClientTester\RunConfiguration;
+use Mgrunder\RedisClientTester\SaturationMode;
+use Mgrunder\RedisClientTester\SaturationTarget;
 
 final class Application
 {
@@ -140,7 +140,7 @@ final class Application
 
             // Resolve the seed before anything random so that "pick a setting
             // for me" options are reproducible along with the command stream.
-            // Fuzzer::run() re-seeds with the same value, so a run that chooses
+            // Tester::run() re-seeds with the same value, so a run that chooses
             // its settings randomly executes the same commands as one given
             // those settings by name.
             $seed = $options->optionalInteger('seed') ?? random_int(0, PHP_INT_MAX);
@@ -162,7 +162,7 @@ final class Application
             );
             // Seeded now, before ClientFactory announces clients, so a
             // postConstructor hook draws the same values a rerun with
-            // --seed will draw. Fuzzer::run() seeds it again with the same
+            // --seed will draw. Tester::run() seeds it again with the same
             // value for the run itself.
             $hooks->setSeed($seed);
 
@@ -379,7 +379,7 @@ final class Application
                 },
             );
         } catch (\Throwable $throwable) {
-            $this->write('phpredis-fuzz: ' . $throwable->getMessage() . "\n", true);
+            $this->write('redis-client-tester: ' . $throwable->getMessage() . "\n", true);
             return $configured ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
     }
@@ -399,7 +399,7 @@ final class Application
         $output,
         ?ScenarioPeers $peers = null,
     ): int {
-        $result = (new Fuzzer($hooks, $peers))->run($clients, $configuration);
+        $result = (new Tester($hooks, $peers))->run($clients, $configuration);
 
         fwrite($output, (new ResultFormatter())->format($result, $outputMode));
 
@@ -512,10 +512,10 @@ final class Application
     }
 
     private const HELP = <<<'HELP'
-phpredis-fuzz - fuzz PhpRedis-compatible clients against a disposable Redis target
+redis-client-tester - fuzz PhpRedis-compatible clients against a disposable Redis target
 
 Usage:
-  phpredis-fuzz [options]
+  redis-client-tester [options]
 
 Clients and connection:
   --client=TYPE[:COUNT],...  redis, redis-cluster, relay, relay-cluster (default: redis)
@@ -697,7 +697,7 @@ Exit status:
   0   the run finished and nothing was caught
   1   a caught diagnostic, a differential divergence, or a failed scenario
   78  startup failure: the command line was rejected or describes an unusable
-      configuration, and no command was executed. phpredis-fuzz-harness stops a
+      configuration, and no command was executed. redis-client-tester-harness stops a
       campaign when a run exits this way.
 
 The target is mutated. Use only an explicitly selected disposable Redis instance.

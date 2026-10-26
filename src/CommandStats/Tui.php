@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\CommandStats;
+namespace Mgrunder\RedisClientTester\CommandStats;
 
 use PhpTui\Term\Actions;
 use PhpTui\Term\Event\CharKeyEvent;

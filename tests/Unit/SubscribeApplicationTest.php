@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\SubscribeApplication;
-use Mgrunder\PhpredisCommandFuzzer\Cli\SubscribeCommands;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\InvocationTrace;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\RecordingRedis;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\SubscribeRedis;
+use Mgrunder\RedisClientTester\Cli\SubscribeApplication;
+use Mgrunder\RedisClientTester\Cli\SubscribeCommands;
+use Mgrunder\RedisClientTester\Tests\Fixtures\InvocationTrace;
+use Mgrunder\RedisClientTester\Tests\Fixtures\RecordingRedis;
+use Mgrunder\RedisClientTester\Tests\Fixtures\SubscribeRedis;
 use PHPUnit\Framework\TestCase;
 
 final class SubscribeApplicationTest extends TestCase

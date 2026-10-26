@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Viewer;
+namespace Mgrunder\RedisClientTester\Viewer;
 
 /**
  * The first ASAN, LSan, or UBSan report in a stderr log, reduced to what the

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
-use Mgrunder\PhpredisCommandFuzzer\Cli\FuzzKillerApplication;
+use Mgrunder\RedisClientTester\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Cli\ClientKillerApplication;
 use PHPUnit\Framework\TestCase;
 
-final class FuzzKillerApplicationTest extends TestCase
+final class ClientKillerApplicationTest extends TestCase
 {
     public function testIterationSignalsSelectedPidsAndLogsEveryDecision(): void
     {
@@ -18,7 +18,7 @@ final class FuzzKillerApplicationTest extends TestCase
         $sleeps = [];
         $random = [1, 1, 999_999, 900_000];
 
-        $application = new FuzzKillerApplication(
+        $application = new ClientKillerApplication(
             output: $output,
             error: $error,
             pidFinder: static fn (): array => [101, 202],
@@ -62,7 +62,7 @@ final class FuzzKillerApplicationTest extends TestCase
     public function testSignalAliasesAreDeduplicatedByNumber(): void
     {
         $sent = [];
-        $application = new FuzzKillerApplication(
+        $application = new ClientKillerApplication(
             output: self::stream(),
             error: self::stream(),
             pidFinder: static fn (): array => [123],
@@ -91,7 +91,7 @@ final class FuzzKillerApplicationTest extends TestCase
         $killed = [];
         $random = [0, 1, 999_999, 1, 1_000_000];
 
-        $application = new FuzzKillerApplication(
+        $application = new ClientKillerApplication(
             output: $output,
             error: $error,
             pidFinder: static fn (): array => [],
@@ -133,7 +133,7 @@ final class FuzzKillerApplicationTest extends TestCase
         self::assertSame([['10.0.0.1:6379', [7, 11]]], $killed);
         self::assertSame([], $random);
         self::assertSame(
-            "phpredis-fuzz-killer: targeting 1 Redis node(s): 10.0.0.1:6379\n"
+            "redis-client-tester-killer: targeting 1 Redis node(s): 10.0.0.1:6379\n"
             . "[00:00:00] Killing client 7 on 10.0.0.1:6379\n"
             . "[00:00:00] Not killing client 9 on 10.0.0.1:6379 (rate roll)\n"
             . "[00:00:00] Killing client 11 on 10.0.0.1:6379\n"
@@ -150,7 +150,7 @@ final class FuzzKillerApplicationTest extends TestCase
         $killed = [];
         $random = [1, 0, 0, 999_999, 500_000];
 
-        $application = new FuzzKillerApplication(
+        $application = new ClientKillerApplication(
             output: $output,
             error: self::stream(),
             pidFinder: static fn (): array => [5],
@@ -189,7 +189,7 @@ final class FuzzKillerApplicationTest extends TestCase
         self::assertSame([], $killed);
         self::assertSame([], $random);
         self::assertSame(
-            "phpredis-fuzz-killer: targeting 1 Redis node(s): 127.0.0.1:6379\n"
+            "redis-client-tester-killer: targeting 1 Redis node(s): 127.0.0.1:6379\n"
             . "[00:00:00] Sending SIGINT to 5\n"
             . "[00:00:00] Not killing client 3 on 127.0.0.1:6379 (rate roll)\n"
             . "[00:00:00] Sleeping for 500000us\n",
@@ -203,7 +203,7 @@ final class FuzzKillerApplicationTest extends TestCase
         $killed = [];
         $random = [0, 0, 0];
 
-        $application = new FuzzKillerApplication(
+        $application = new ClientKillerApplication(
             output: self::stream(),
             error: self::stream(),
             pidFinder: static fn (): array => [9],
@@ -248,7 +248,7 @@ final class FuzzKillerApplicationTest extends TestCase
         $output = self::stream();
         $error = self::stream();
 
-        $application = new FuzzKillerApplication(
+        $application = new ClientKillerApplication(
             output: $output,
             error: $error,
             pidFinder: static fn (): array => [],
@@ -290,7 +290,7 @@ final class FuzzKillerApplicationTest extends TestCase
 
         foreach ($invalidOptions as [$arguments, $message]) {
             $error = self::stream();
-            $status = (new FuzzKillerApplication(self::stream(), $error))->run($arguments);
+            $status = (new ClientKillerApplication(self::stream(), $error))->run($arguments);
 
             self::assertSame(ExitCode::STARTUP, $status);
             self::assertStringContainsString($message, self::contents($error));
@@ -300,10 +300,10 @@ final class FuzzKillerApplicationTest extends TestCase
     public function testHelpDoesNotEnterTheLoop(): void
     {
         $output = self::stream();
-        $status = (new FuzzKillerApplication($output))->run(['--help']);
+        $status = (new ClientKillerApplication($output))->run(['--help']);
 
         self::assertSame(0, $status);
-        self::assertStringContainsString('phpredis-fuzz-killer', self::contents($output));
+        self::assertStringContainsString('redis-client-tester-killer', self::contents($output));
         self::assertStringContainsString('--sleep=MIN-MAX', self::contents($output));
     }
 

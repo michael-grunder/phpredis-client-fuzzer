@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\get;
-use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
+use Mgrunder\RedisClientTester\Commands\Command\get;
+use Mgrunder\RedisClientTester\InvocationMode;
+use Mgrunder\RedisClientTester\ScriptLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -78,7 +78,7 @@ final class InvocationModeTest extends TestCase
     #[DataProvider('invocationModes')]
     public function testReproductionUsesTheSelectedTypingMode(InvocationMode $mode): void
     {
-        $path = tempnam(sys_get_temp_dir(), 'phpredis-fuzz-mode');
+        $path = tempnam(sys_get_temp_dir(), 'redis-client-tester-mode');
         self::assertIsString($path);
 
         try {

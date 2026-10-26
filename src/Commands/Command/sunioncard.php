@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\SetCardinalityCommand;
+use Mgrunder\RedisClientTester\Commands\SetCardinalityCommand;
 
 class sunioncard extends SetCardinalityCommand {
     protected function supportsApprox(): bool {

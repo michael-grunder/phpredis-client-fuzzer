@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyScanCommand;
+use Mgrunder\RedisClientTester\Commands\KeyScanCommand;
 
 class sscan extends KeyScanCommand {
     public function flags(): int {

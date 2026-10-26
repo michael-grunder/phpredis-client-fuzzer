@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Hooks;
+namespace Mgrunder\RedisClientTester\Hooks;
 
 /** Options for the server's CHAOS preset; manual controls remain environment-driven. */
 final readonly class EvilrespChaosOptions

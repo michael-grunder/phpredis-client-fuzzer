@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespChaosOptions;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\EvilrespOptions;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookAction;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespCluster;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespProxy;
-use Mgrunder\PhpredisCommandFuzzer\Tests\Fixtures\FakeEvilrespRedis;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\EvilrespChaosOptions;
+use Mgrunder\RedisClientTester\Hooks\EvilrespOptions;
+use Mgrunder\RedisClientTester\Hooks\HookAction;
+use Mgrunder\RedisClientTester\Hooks\HookExecutionFailed;
+use Mgrunder\RedisClientTester\Hooks\HookLoader;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\ScriptLogger;
+use Mgrunder\RedisClientTester\Tests\Fixtures\FakeEvilrespCluster;
+use Mgrunder\RedisClientTester\Tests\Fixtures\FakeEvilrespProxy;
+use Mgrunder\RedisClientTester\Tests\Fixtures\FakeEvilrespRedis;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Random\Engine\Mt19937;
@@ -880,7 +880,7 @@ final class EvilrespHookTest extends TestCase
             if ($sequences === []) {
                 $hooks->recordScriptSetup();
             }
-            // The CLI seeds before construction, then Fuzzer::run seeds again.
+            // The CLI seeds before construction, then Tester::run seeds again.
             $hooks->setSeed($seed);
             for ($i = 0; $i < 20; $i++) {
                 $client->sent = [];

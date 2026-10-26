@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\GeoSearchCommand;
+use Mgrunder\RedisClientTester\Commands\GeoSearchCommand;
 
 class geosearch extends GeoSearchCommand {
     public function flags(): int {

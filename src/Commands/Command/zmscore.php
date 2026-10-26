@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeyMemsCommand;
+namespace Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\KeyMemsCommand;
 
 use Relay\Relay;
 use Relay\Cluster;

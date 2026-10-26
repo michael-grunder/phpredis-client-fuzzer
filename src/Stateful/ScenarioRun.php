@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
+namespace Mgrunder\RedisClientTester\Stateful;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\InvocationRecorder;
-use Mgrunder\PhpredisCommandFuzzer\StrictClientInvoker;
-use Mgrunder\PhpredisCommandFuzzer\Values\ValueCode;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\ValueSummary;
+use Mgrunder\RedisClientTester\ClientInvoker;
+use Mgrunder\RedisClientTester\InvocationRecorder;
+use Mgrunder\RedisClientTester\StrictClientInvoker;
+use Mgrunder\RedisClientTester\Values\ValueCode;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\ValueSummary;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;

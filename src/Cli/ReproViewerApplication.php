@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\Viewer\Reproducer;
+use Mgrunder\RedisClientTester\Viewer\Reproducer;
 use PhpTui\Term\Actions;
 use PhpTui\Term\Event\CharKeyEvent;
 use PhpTui\Term\Event\CodedKeyEvent;
@@ -98,7 +98,7 @@ final class ReproViewerApplication
 
             return $this->interactive();
         } catch (\InvalidArgumentException $error) {
-            fwrite(STDERR, 'phpredis-repros: ' . $error->getMessage() . "\n");
+            fwrite(STDERR, 'redis-client-tester-repros: ' . $error->getMessage() . "\n");
 
             return ExitCode::STARTUP;
         }
@@ -376,7 +376,7 @@ final class ReproViewerApplication
             ->direction(Direction::Vertical)
             ->constraints(Constraint::length(count($header) + 2), Constraint::min(3), Constraint::length(1))
             ->widgets(
-                BlockWidget::default()->borders(Borders::ALL)->titles(Title::fromString(' phpredis-repros '))
+                BlockWidget::default()->borders(Borders::ALL)->titles(Title::fromString(' redis-client-tester-repros '))
                     ->widget(ParagraphWidget::fromLines(...$header)),
                 BlockWidget::default()->borders(Borders::ALL)
                     ->titles(Title::fromString($this->grouped ? ' grouped by signature, most frequent first ' : ' captures, newest first '))
@@ -438,7 +438,7 @@ final class ReproViewerApplication
     private static function usage(): string
     {
         return <<<'TXT'
-Usage: phpredis-repros [DIR] [options]
+Usage: redis-client-tester-repros [DIR] [options]
 
 Browse harness reproducers under DIR (default: reproducers). DIR may be an
 --output root, one kind directory, or a single capture. Read-only.

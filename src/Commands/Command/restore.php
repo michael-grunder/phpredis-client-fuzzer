@@ -1,3 +1,3 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class restore extends \Mgrunder\PhpredisCommandFuzzer\Commands\RestoreCommand {}
+namespace Mgrunder\RedisClientTester\Commands\Command;
+class restore extends \Mgrunder\RedisClientTester\Commands\RestoreCommand {}

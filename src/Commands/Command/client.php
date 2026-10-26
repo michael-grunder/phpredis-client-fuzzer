@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
-use Mgrunder\PhpredisCommandFuzzer\Log\Log;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\Traits\FuzzGeneric;
+use Mgrunder\RedisClientTester\Log\Log;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -41,7 +41,7 @@ class client extends Command implements FuzzInterface, FuzzRawInterface
 
         if ($subcommand === 'SETNAME') {
             // CLIENT names must not contain whitespace or binary bytes.
-            $args[] = 'phpredis-fuzz-' . bin2hex($config->getRandomBytes(rand(1, 32)));
+            $args[] = 'redis-client-tester-' . bin2hex($config->getRandomBytes(rand(1, 32)));
         } elseif ($subcommand === 'KILL') {
             return $this->kill($client, $config, $fn, $route);
         }

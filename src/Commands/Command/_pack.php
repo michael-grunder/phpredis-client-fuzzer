@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\MixedCommand;
+namespace Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\MixedCommand;
 
 class _pack extends MixedCommand {
     public function flags(): int {

@@ -10,10 +10,10 @@ declare(strict_types=1);
  * A single hook file can register both kinds on the same HookRegistry.
  */
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookDecision;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 
 return static function (HookRegistry $hooks): void {
     if (!defined('Redis::SERIALIZER_MSGPACK')) {
@@ -60,7 +60,7 @@ return static function (HookRegistry $hooks): void {
        instance to see every value this guard let through:
 
        $hooks->onPreCommand('log-setoption', static function (
-           \Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation $invocation,
+           \Mgrunder\RedisClientTester\Hooks\PendingInvocation $invocation,
        ): void {
            if (strcasecmp($invocation->method, 'setOption') === 0) {
                fwrite(STDERR, var_export($invocation->arguments, true) . "\n");

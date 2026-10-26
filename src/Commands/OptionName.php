@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\ScriptArg;
+use Mgrunder\RedisClientTester\ScriptArg;
 
 use Redis;
 use RedisCluster;

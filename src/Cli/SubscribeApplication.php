@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientFactory;
+use Mgrunder\RedisClientTester\ClientType;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -40,7 +40,7 @@ final class SubscribeApplication
         if (!$noFork && !function_exists('pcntl_fork')) throw new \RuntimeException('pcntl extension is required');
         $steps = max(1, $options->integer('steps', 100));
         $seed = $options->integer('seed', 1);
-        // Fuzzer::run() seeds the process-global generator for each command batch.
+        // Tester::run() seeds the process-global generator for each command batch.
         $random = new Randomizer(new Mt19937($seed));
         $commands = new SubscribeCommands(
             $seed,
@@ -154,7 +154,7 @@ final class SubscribeApplication
     private function help(): string
     {
         return <<<'HELP'
-Usage: phpredis-fuzz-subscribe [--client=redis|redis-cluster|relay|relay-cluster]
+Usage: redis-client-tester-subscribe [--client=redis|redis-cluster|relay|relay-cluster]
     [--host=HOST] [--port=N] [--seeds=HOST:PORT,...] [--steps=N] [--seed=N]
     [--no-fork] [--commands=PATTERNS] [--command-steps=N] [--script-log=PREFIX] [--verbose]
 

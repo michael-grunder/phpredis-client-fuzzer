@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\ArgumentInjection;
-use Mgrunder\PhpredisCommandFuzzer\Harness\HarnessOptions;
-use Mgrunder\PhpredisCommandFuzzer\Harness\PhpStartupTemplate;
+use Mgrunder\RedisClientTester\Harness\ArgumentInjection;
+use Mgrunder\RedisClientTester\Harness\HarnessOptions;
+use Mgrunder\RedisClientTester\Harness\PhpStartupTemplate;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Random\Engine\Mt19937;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
 
 use Redis;
@@ -395,7 +395,7 @@ class ScriptLogger {
             }
             $id = $ref === null ? 'explicit' : bin2hex($ref->getId());
             if (!isset($aliases[$id])) {
-                $aliases[$id] = sprintf('$phpredisFuzzReference%d', $this->reference_counter++);
+                $aliases[$id] = sprintf('$redisClientTesterReference%d', $this->reference_counter++);
                 fprintf($this->fp, "%s = %s;\n", $aliases[$id], $this->varExport($arg));
             }
             $references[$index] = $aliases[$id];
@@ -418,7 +418,7 @@ class ScriptLogger {
             foreach ($aliases as $reference) {
                 $capture .= ', &' . $reference;
             }
-            fprintf($this->fp, "\\Mgrunder\\PhpredisCommandFuzzer\\Values\\CallbackContext::replay(%s, function () use (%s) { return %s->%s(%s); });\n",
+            fprintf($this->fp, "\\Mgrunder\\RedisClientTester\\Values\\CallbackContext::replay(%s, function () use (%s) { return %s->%s(%s); });\n",
                 $this->clientNames[$client], $capture, $this->clientNames[$client], $cmd, implode(', ', $code_args));
         } else {
             fprintf($this->fp, "%s->%s(%s);\n", $this->clientNames[$client], $cmd,
@@ -449,7 +449,7 @@ class ScriptLogger {
                 : $this->varExport($arg);
         }
 
-        $iterable = sprintf('$phpredisFuzzIterable%d', $this->iterable_counter++);
+        $iterable = sprintf('$redisClientTesterIterable%d', $this->iterable_counter++);
         $indent = '';
         if ($this->try_catch || $catchExceptions) {
             fprintf($this->fp, "try {\n");
@@ -466,7 +466,7 @@ class ScriptLogger {
             implode(", ", $code_args),
         );
         fprintf($this->fp, "%sif (%s instanceof \\Traversable) {\n", $indent, $iterable);
-        fprintf($this->fp, "%s    foreach (%s as \$phpredisFuzzBatch) {}\n", $indent, $iterable);
+        fprintf($this->fp, "%s    foreach (%s as \$redisClientTesterBatch) {}\n", $indent, $iterable);
         fprintf($this->fp, "%s}\n", $indent);
 
         if ($this->try_catch || $catchExceptions) {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Viewer;
+namespace Mgrunder\RedisClientTester\Viewer;
 
 /**
  * Parsed native stack frames from an ASAN/UBSan/LSan report or a gdb `bt`.

@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\OptionName;
-use Mgrunder\PhpredisCommandFuzzer\Commands\OptionValue;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\OptionName;
+use Mgrunder\RedisClientTester\Commands\OptionValue;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\Hooks\HookDecision;
+use Mgrunder\RedisClientTester\Hooks\HookExecutionFailed;
+use Mgrunder\RedisClientTester\Hooks\HookLoader;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\InvocationRejected;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use PHPUnit\Framework\TestCase;
 
 final class HookTest extends TestCase
@@ -79,7 +79,7 @@ final class HookTest extends TestCase
             }
         });
 
-        $result = (new Fuzzer($hooks))->run(
+        $result = (new Tester($hooks))->run(
             [new \Redis()],
             new RunConfiguration(
                 maxSteps: 3,
@@ -269,7 +269,7 @@ final class HookTest extends TestCase
         $this->expectException(HookExecutionFailed::class);
         $this->expectExceptionMessage('Invocation hook broken-hook failed: broken hook body');
 
-        (new Fuzzer($hooks))->run(
+        (new Tester($hooks))->run(
             [new \Redis()],
             new RunConfiguration(
                 maxSteps: 1,

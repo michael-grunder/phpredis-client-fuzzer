@@ -1,2 +1,2 @@
-<?php namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class vsim extends \Mgrunder\PhpredisCommandFuzzer\Commands\VectorSimCommand {}
+<?php namespace Mgrunder\RedisClientTester\Commands\Command;
+class vsim extends \Mgrunder\RedisClientTester\Commands\VectorSimCommand {}

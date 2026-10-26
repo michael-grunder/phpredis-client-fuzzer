@@ -4,7 +4,7 @@
 
 Draft for discussion.
 
-This document proposes ways to make `phpredis-command-fuzzer` materially more
+This document proposes ways to make `redis-client-tester` materially more
 effective at finding deep Relay and PhpRedis client defects. The emphasis is on
 new failure surfaces, coordinated concurrency, state-machine cleanup, liveness,
 and correctness under disruption. Merely increasing the number of random
@@ -20,7 +20,7 @@ useful stress features:
 - Multiple client instances, strict and coercive invocation, wrong-type input,
   deliberate cross-slot input, command weighting, and safety flags.
 - Random `CLIENT KILL` across cluster primaries and replicas, plus worker signal
-  injection through `phpredis-fuzz-killer`.
+  injection through `redis-client-tester-killer`.
 - Relay cluster failover, distribution, node-read-timeout, and multikey
   reordering options.
 - Differential cache observations, cache saturation, Relay statistics, and a
@@ -36,7 +36,7 @@ most activity is still an uncoordinated sequence of independent method calls.
 
 ### Operations are synchronous and uncorrelated
 
-`Fuzzer::run()` executes one synchronous operation at a time. Multiple client
+`Tester::run()` executes one synchronous operation at a time. Multiple client
 instances increase connection count, but a step still chooses one instance and
 waits for it to finish. Separate fuzzer processes can run concurrently, but they
 have no explicit roles, barriers, shared schedule, or causal event log.
@@ -55,7 +55,7 @@ specific interval such as:
 
 ### Disruption is not reproducibly tied to client state
 
-`phpredis-fuzz-killer` chooses actions with `random_int()`, has no schedule seed,
+`redis-client-tester-killer` chooses actions with `random_int()`, has no schedule seed,
 and discovers ordinary client IDs independently from the command stream. Its log
 can show that a client was killed near a command, but cannot prove which client
 object, node, command phase, transaction state, or cache state was affected.
@@ -132,9 +132,9 @@ epoch records, endpoint state, and debug-build allocator and epoch details.
 
 The observations above are grounded in these current implementation points:
 
-- `src/Fuzzer.php` contains the single-operation selection/execution loop and
+- `src/Tester.php` contains the single-operation selection/execution loop and
   runs `StatefulScenarioRunner` once before that loop.
-- `src/Cli/FuzzKillerApplication.php` independently discovers processes and
+- `src/Cli/ClientKillerApplication.php` independently discovers processes and
   server client IDs and uses an unseeded `random_int()`-backed schedule.
 - `src/Commands/FuzzConfig.php` uniformly chooses generated keys and mostly
   produces strings or one-element arrays as values.
@@ -377,7 +377,7 @@ invalid-value stream for validation and cleanup paths.
 ### 4. Make fault injection target the actual connection and phase
 
 Add a control-plane abstraction with capability-specific implementations. Do
-not put server administration into the generic `Fuzzer` class.
+not put server administration into the generic `Tester` class.
 
 #### Exact `CLIENT KILL`
 
@@ -633,7 +633,7 @@ mutating workload.
 - Topology control must use an allowlist of exact node addresses and resolved
   process identities. It must never infer permission from the cluster's ability
   to answer `CLUSTER NODES`.
-- Destructive controls are not exposed by `FuzzerEndpoint` and cannot be enabled
+- Destructive controls are not exposed by `TesterEndpoint` and cannot be enabled
   by request-controlled options.
 - The library accepts user-supplied fault/topology adapters but does not spawn or
   administer infrastructure implicitly.

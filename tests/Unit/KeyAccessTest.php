@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\AliasTable;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\HasWeight;
-use Mgrunder\PhpredisCommandFuzzer\InvocationMode;
-use Mgrunder\PhpredisCommandFuzzer\KeyAccessSampler;
-use Mgrunder\PhpredisCommandFuzzer\KeyReadGroup;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\WeightedIndexSampler;
+use Mgrunder\RedisClientTester\AliasTable;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\Commands\SlotPolicy;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\HasWeight;
+use Mgrunder\RedisClientTester\InvocationMode;
+use Mgrunder\RedisClientTester\KeyAccessSampler;
+use Mgrunder\RedisClientTester\KeyReadGroup;
+use Mgrunder\RedisClientTester\RunConfiguration;
+use Mgrunder\RedisClientTester\WeightedIndexSampler;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Random\Engine\Xoshiro256StarStar;
@@ -197,7 +197,7 @@ final class KeyAccessTest extends TestCase
             maxSteps: 300, seed: 12345, keys: 32, commands: ['get'],
             invocationMode: $mode, keySkew: 2.0, keyReadGroups: $this->readGroups(),
         );
-        $result = (new Fuzzer())->run([$client], $configuration);
+        $result = (new Tester())->run([$client], $configuration);
         self::assertSame(2.0, $result->configuration['keySkew']);
         self::assertSame($configuration->jsonSerialize()['keyReadGroups'], $result->configuration['keyReadGroups']);
         self::assertCount(300, $client->keys);
@@ -208,7 +208,7 @@ final class KeyAccessTest extends TestCase
         self::assertGreaterThan(100, max($counts));
         $first = $client->keys;
         $client->keys = [];
-        (new Fuzzer())->run([$client], $configuration);
+        (new Tester())->run([$client], $configuration);
         self::assertSame($first, $client->keys);
     }
 

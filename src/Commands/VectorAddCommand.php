@@ -1,6 +1,6 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+namespace Mgrunder\RedisClientTester\Commands;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 use Redis; use RedisCluster; use Relay\Relay; use Relay\Cluster;
 
 class VectorAddCommand extends VectorCommand {

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
-use Mgrunder\PhpredisCommandFuzzer\Harness\RrTrace;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Harness\RrTrace;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessRrTraceTest extends TestCase
@@ -107,7 +107,7 @@ final class HarnessRrTraceTest extends TestCase
     private function workspace(): string
     {
         if ($this->root === '') {
-            $this->root = sys_get_temp_dir() . '/phpredis-fuzz-rrtrace-' . getmypid() . '-' . mt_rand();
+            $this->root = sys_get_temp_dir() . '/redis-client-tester-rrtrace-' . getmypid() . '-' . mt_rand();
             Fs::ensureDir($this->root);
         }
 

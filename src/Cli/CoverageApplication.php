@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\CoverageAnalyzer;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\CoverageReport;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\IgnoreList;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientFactory;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\Coverage\CoverageAnalyzer;
+use Mgrunder\RedisClientTester\Coverage\CoverageReport;
+use Mgrunder\RedisClientTester\Coverage\IgnoreList;
+use Mgrunder\RedisClientTester\Coverage\ServerCommands;
 
 /**
  * Reports which server commands the catalog in src/Commands/Command/ does not
@@ -83,7 +83,7 @@ final class CoverageApplication
 
             return 0;
         } catch (\Throwable $throwable) {
-            $this->write('phpredis-coverage: ' . $throwable->getMessage() . "\n", true);
+            $this->write('redis-client-tester-coverage: ' . $throwable->getMessage() . "\n", true);
             return 1;
         }
     }
@@ -227,17 +227,17 @@ final class CoverageApplication
     }
 
     private const HELP = <<<'HELP'
-phpredis-coverage - report Redis commands the fuzzer catalog does not cover
+redis-client-tester-coverage - report Redis commands the fuzzer catalog does not cover
 
 Usage:
-  phpredis-coverage [options]
+  redis-client-tester-coverage [options]
 
 The server command table comes from COMMAND, uncovered commands are matched
 against the ignore patterns, and what remains is split by method_exists() on
 the selected client class. Container subcommands ("config|get") are folded into
 their parent because the catalog has one class per top-level command.
 
-Only COMMAND is issued, so unlike phpredis-fuzz this binary does not mutate the
+Only COMMAND is issued, so unlike redis-client-tester this binary does not mutate the
 target.
 
 Client and connection:
@@ -266,7 +266,7 @@ Output:
   --help                     Show this help without connecting
 
 Examples:
-  phpredis-coverage --client redis --port 6379
-  phpredis-coverage --client relay --ignore 'ft.*,json.*' --json
+  redis-client-tester-coverage --client redis --port 6379
+  redis-client-tester-coverage --client relay --ignore 'ft.*,json.*' --json
 HELP;
 }

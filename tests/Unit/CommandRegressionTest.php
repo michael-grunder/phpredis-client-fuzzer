@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\scan;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\config as ConfigCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\flushall as FlushAllCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\get as GetCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\mget as MGetCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\rawcommand as RawCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\unwatch as UnwatchCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\zdiffstore;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
+use Mgrunder\RedisClientTester\Commands\Command\scan;
+use Mgrunder\RedisClientTester\Commands\Command\config as ConfigCommand;
+use Mgrunder\RedisClientTester\Commands\Command\flushall as FlushAllCommand;
+use Mgrunder\RedisClientTester\Commands\Command\get as GetCommand;
+use Mgrunder\RedisClientTester\Commands\Command\mget as MGetCommand;
+use Mgrunder\RedisClientTester\Commands\Command\rawcommand as RawCommand;
+use Mgrunder\RedisClientTester\Commands\Command\unwatch as UnwatchCommand;
+use Mgrunder\RedisClientTester\Commands\Command\zdiffstore;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\SlotPolicy;
+use Mgrunder\RedisClientTester\ScriptLogger;
 use PHPUnit\Framework\TestCase;
 
 trait RecordsRawClusterCommands
@@ -184,7 +184,7 @@ final class CommandRegressionTest extends TestCase
 
         self::assertIsString($client->calls[0]['route']);
         self::assertMatchesRegularExpression(
-            '/^phpredis-command-fuzzer:\\{[0-9]+}:route$/',
+            '/^redis-client-tester:\\{[0-9]+}:route$/',
             $client->calls[0]['route'],
         );
         self::assertSame('get', $client->calls[0]['command']);
@@ -358,7 +358,7 @@ final class CommandRegressionTest extends TestCase
 
     public function testReferenceArgumentsUseVariablesInReproductionScripts(): void
     {
-        $path = tempnam(sys_get_temp_dir(), 'phpredis-fuzz-script');
+        $path = tempnam(sys_get_temp_dir(), 'redis-client-tester-script');
         self::assertIsString($path);
         $client = new \Redis();
 
@@ -377,9 +377,9 @@ final class CommandRegressionTest extends TestCase
         $script = file_get_contents($path);
         unlink($path);
         self::assertIsString($script);
-        self::assertStringContainsString('$phpredisFuzzReference1 = NULL;', $script);
+        self::assertStringContainsString('$redisClientTesterReference1 = NULL;', $script);
         self::assertStringContainsString(
-            '->scan($phpredisFuzzReference1, NULL, 10, NULL);',
+            '->scan($redisClientTesterReference1, NULL, 10, NULL);',
             $script,
         );
     }

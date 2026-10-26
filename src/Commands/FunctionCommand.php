@@ -1,10 +1,10 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\ScriptClosure;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\ScriptClosure;
 
 abstract class FunctionCommand extends Command {
     /** @var array<string, list<array{string, ScriptClosure}>> */

@@ -1,9 +1,9 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
 
-use Mgrunder\PhpredisCommandFuzzer\Utilities;
+use Mgrunder\RedisClientTester\Utilities;
 
 use Relay\Relay;
 use Relay\Cluster;

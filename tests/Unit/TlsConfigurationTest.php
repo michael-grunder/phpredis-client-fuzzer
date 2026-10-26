@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\Options;
-use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ClientType;
-use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+use Mgrunder\RedisClientTester\Cli\Options;
+use Mgrunder\RedisClientTester\ClientConfiguration;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\TlsConfiguration;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -121,7 +121,7 @@ namespace Relay {
     class Relay extends \Redis { const OPT_PHPREDIS_COMPATIBILITY = 99; }
     class Cluster { use \RecordingCluster; }
 }
-namespace Mgrunder\PhpredisCommandFuzzer\Differential {
+namespace Mgrunder\RedisClientTester\Differential {
     function stream_socket_client($address, &$errno, &$error, $timeout, $flags, $context) {
         $GLOBALS['neutral'] = [$address, stream_context_get_options($context)];
         throw new \RuntimeException('recorded');
@@ -130,20 +130,20 @@ namespace Mgrunder\PhpredisCommandFuzzer\Differential {
 namespace {
     require $argv[1];
     $results = [];
-    foreach (\Mgrunder\PhpredisCommandFuzzer\ClientType::cases() as $type) {
-        $config = new \Mgrunder\PhpredisCommandFuzzer\ClientConfiguration(
+    foreach (\Mgrunder\RedisClientTester\ClientType::cases() as $type) {
+        $config = new \Mgrunder\RedisClientTester\ClientConfiguration(
             type: $type, host: 'localhost', port: 6380, seeds: ['localhost:6380'],
             timeout: 2.0, readTimeout: 3.0, auth: ['user', 'secret'],
-            tls: new \Mgrunder\PhpredisCommandFuzzer\TlsConfiguration(true, ['cafile' => '/tmp/test-ca.pem']),
+            tls: new \Mgrunder\RedisClientTester\TlsConfiguration(true, ['cafile' => '/tmp/test-ca.pem']),
         );
-        $client = (new \Mgrunder\PhpredisCommandFuzzer\ClientFactory())->create($config);
+        $client = (new \Mgrunder\RedisClientTester\ClientFactory())->create($config);
         $path = tempnam(sys_get_temp_dir(), 'tls-script-');
-        \Mgrunder\PhpredisCommandFuzzer\ScriptLogger::init($path, clients: [$client]);
-        \Mgrunder\PhpredisCommandFuzzer\ScriptLogger::finish();
+        \Mgrunder\RedisClientTester\ScriptLogger::init($path, clients: [$client]);
+        \Mgrunder\RedisClientTester\ScriptLogger::finish();
         $results[$type->value] = [$client->arguments, file_get_contents($path)];
-        if ($type === \Mgrunder\PhpredisCommandFuzzer\ClientType::Relay) {
-            (new \Mgrunder\PhpredisCommandFuzzer\Commands\Command\close())->fuzz($client,
-                new \Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig());
+        if ($type === \Mgrunder\RedisClientTester\ClientType::Relay) {
+            (new \Mgrunder\RedisClientTester\Commands\Command\close())->fuzz($client,
+                new \Mgrunder\RedisClientTester\Commands\FuzzConfig());
             $results['reconnect'] = $client->arguments;
         }
         unlink($path);
@@ -151,11 +151,11 @@ namespace {
     $server = ['host' => 'tls://localhost', 'port' => 6380, 'timeout' => 1.0,
         'read_timeout' => 1.0, 'auth' => 'secret', 'tls_options' => ['cafile' => '/tmp/test-ca.pem']];
     foreach (['phpredis', 'relay'] as $kind) {
-        $client = \Mgrunder\PhpredisCommandFuzzer\Differential\DiffRuntime::client($kind, $server,
+        $client = \Mgrunder\RedisClientTester\Differential\DiffRuntime::client($kind, $server,
             ['serializer' => 'none', 'compression' => 'none', 'relay_cache' => true]);
         $results['diff-' . $kind] = $client->arguments;
     }
-    try { \Mgrunder\PhpredisCommandFuzzer\Differential\DiffRuntime::connect($server); }
+    try { \Mgrunder\RedisClientTester\Differential\DiffRuntime::connect($server); }
     catch (\RuntimeException $e) { if ($e->getMessage() !== 'recorded') throw $e; }
     $results['neutral'] = $GLOBALS['neutral'];
     echo json_encode($results, JSON_THROW_ON_ERROR);

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\CommandCatalogApplication;
+use Mgrunder\RedisClientTester\Cli\CommandCatalogApplication;
 use PHPUnit\Framework\TestCase;
 
 final class CommandCatalogApplicationTest extends TestCase
@@ -28,7 +28,7 @@ final class CommandCatalogApplicationTest extends TestCase
         self::assertSame('', self::contents($error));
     }
 
-    public function testCommandsUsesFuzzerGlobAndExclusionSemantics(): void
+    public function testCommandsUsesTesterGlobAndExclusionSemantics(): void
     {
         $output = self::stream();
         $error = self::stream();
@@ -113,7 +113,7 @@ final class CommandCatalogApplicationTest extends TestCase
         $status = (new CommandCatalogApplication($output, $error))->run(['--help']);
 
         self::assertSame(0, $status);
-        self::assertStringContainsString('phpredis-commands', self::contents($output));
+        self::assertStringContainsString('redis-client-tester-commands', self::contents($output));
         self::assertSame('', self::contents($error));
     }
 

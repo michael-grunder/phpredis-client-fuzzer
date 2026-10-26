@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\HarnessOptions;
+use Mgrunder\RedisClientTester\Harness\HarnessOptions;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessOptionsTest extends TestCase
 {
-    public function testSplitsHarnessOptionsFromTheFuzzerCommand(): void
+    public function testSplitsHarnessOptionsFromTheTesterCommand(): void
     {
         $options = HarnessOptions::parse([
             '--jobs', '4',
             '--port', '7000', '7001', '7002',
             '--rr-chaos',
             '--',
-            'bin/phpredis-fuzz-coercive', '--steps', '{steps}', '--port={port}',
+            'bin/redis-client-tester-coercive', '--steps', '{steps}', '--port={port}',
         ]);
 
         self::assertSame(4, $options->jobs);
@@ -24,7 +24,7 @@ final class HarnessOptionsTest extends TestCase
         self::assertTrue($options->rr, 'rr-chaos implies rr');
         self::assertTrue($options->rrChaos);
         self::assertSame(
-            ['bin/phpredis-fuzz-coercive', '--steps', '{steps}', '--port={port}'],
+            ['bin/redis-client-tester-coercive', '--steps', '{steps}', '--port={port}'],
             $options->command,
         );
     }
@@ -54,7 +54,7 @@ final class HarnessOptionsTest extends TestCase
 
     public function testDefaultsAreApplied(): void
     {
-        $options = HarnessOptions::parse(['--', 'bin/phpredis-fuzz']);
+        $options = HarnessOptions::parse(['--', 'bin/redis-client-tester']);
 
         self::assertSame(1, $options->jobs);
         self::assertSame(5000, $options->steps);

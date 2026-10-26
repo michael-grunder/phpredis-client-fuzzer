@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Lifecycle hook example.
  *
- *     bin/phpredis-fuzz --include=local --steps=50 \
+ *     bin/redis-client-tester --include=local --steps=50 \
  *         --hook=hooks/lifecycle-example.php
  *
  * Lifecycle hooks only observe: unlike an invocation hook they cannot reject
@@ -18,10 +18,10 @@ declare(strict_types=1);
  * hook form, which can live in the same file as these.
  */
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Hooks\ClientEvent;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 
 return static function (HookRegistry $hooks): void {
     /* Lifecycle hooks are the natural place to accumulate state across a run.

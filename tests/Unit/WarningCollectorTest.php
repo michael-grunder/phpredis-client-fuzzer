@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\WarningCollector;
+use Mgrunder\RedisClientTester\WarningCollector;
 use PHPUnit\Framework\TestCase;
 
 final class WarningCollectorTest extends TestCase

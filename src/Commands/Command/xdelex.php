@@ -1,3 +1,3 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class xdelex extends \Mgrunder\PhpredisCommandFuzzer\Commands\StreamDeleteExCommand {}
+namespace Mgrunder\RedisClientTester\Commands\Command;
+class xdelex extends \Mgrunder\RedisClientTester\Commands\StreamDeleteExCommand {}

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Job;
-use Mgrunder\PhpredisCommandFuzzer\Harness\RunLog;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Harness\Job;
+use Mgrunder\RedisClientTester\Harness\RunLog;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessRunLogTest extends TestCase
@@ -177,7 +177,7 @@ final class HarnessRunLogTest extends TestCase
 
     private function workspace(): string
     {
-        $this->root = sys_get_temp_dir() . '/phpredis-fuzz-runlog-' . getmypid() . '-' . mt_rand();
+        $this->root = sys_get_temp_dir() . '/redis-client-tester-runlog-' . getmypid() . '-' . mt_rand();
         Fs::ensureDir($this->root);
 
         return $this->root;

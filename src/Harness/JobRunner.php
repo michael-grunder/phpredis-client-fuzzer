@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Harness;
+namespace Mgrunder\RedisClientTester\Harness;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\ExitCode;
-use Mgrunder\PhpredisCommandFuzzer\AsanRuntime;
+use Mgrunder\RedisClientTester\Cli\ExitCode;
+use Mgrunder\RedisClientTester\AsanRuntime;
 
 /**
  * Launches fuzzer child processes, polls them without blocking, classifies how
@@ -589,7 +589,7 @@ final class JobRunner
         ];
 
         // Run from the directory the harness was launched in so relative command
-        // paths (bin/phpredis-fuzz-*) and relative core patterns resolve the way
+        // paths (bin/redis-client-tester-*) and relative core patterns resolve the way
         // the operator expects; per-run isolation of cores comes from the
         // mandated %p in core_pattern, not from a private working directory.
         $process = proc_open($argv, $descriptors, $pipes, $this->baseDir, $this->childEnv());

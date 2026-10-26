@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\OutputMode;
-use Mgrunder\PhpredisCommandFuzzer\Cli\ResultFormatter;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Cli\OutputMode;
+use Mgrunder\RedisClientTester\Cli\ResultFormatter;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use PHPUnit\Framework\TestCase;
 
 final class DifferentialOracleTest extends TestCase
@@ -15,7 +15,7 @@ final class DifferentialOracleTest extends TestCase
     public function testMatchingInitialAndRepeatedReadsAreMatched(): void
     {
         $this->requireRelay();
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$this->reference('current'), $this->subject(['current', 'current'])],
             $this->configuration(),
         );
@@ -32,7 +32,7 @@ final class DifferentialOracleTest extends TestCase
     public function testTransientMismatchIsSeparatedFromDivergence(): void
     {
         $this->requireRelay();
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$this->reference('current'), $this->subject(['stale', 'stale', 'current'])],
             $this->configuration(toleranceMilliseconds: 20.0),
         );
@@ -62,7 +62,7 @@ final class DifferentialOracleTest extends TestCase
     public function testMismatchPastToleranceIsDivergent(): void
     {
         $this->requireRelay();
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$this->reference('current'), $this->subject(['stale'])],
             $this->configuration(toleranceMilliseconds: 0.0),
         );
@@ -79,7 +79,7 @@ final class DifferentialOracleTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('exactly two clients');
 
-        (new Fuzzer())->run(
+        (new Tester())->run(
             [new \Redis()],
             $this->configuration(),
         );
@@ -88,7 +88,7 @@ final class DifferentialOracleTest extends TestCase
     public function testNondeterministicCachedReadsAreNotCompared(): void
     {
         $this->requireRelay();
-        $result = (new Fuzzer())->run(
+        $result = (new Tester())->run(
             [$this->reference('reference'), $this->subject(['subject'])],
             new RunConfiguration(
                 maxSteps: 1,

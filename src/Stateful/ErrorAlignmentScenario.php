@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
+namespace Mgrunder\RedisClientTester\Stateful;
 
-use Mgrunder\PhpredisCommandFuzzer\ValueSummary;
+use Mgrunder\RedisClientTester\ValueSummary;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;

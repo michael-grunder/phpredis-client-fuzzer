@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
 /** Linux ASAN startup settings, applied only to the inferior process. */
 final class AsanRuntime

@@ -1,10 +1,10 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZRemRangeByCommand;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZSetRange;
+use Mgrunder\RedisClientTester\Commands\ZRemRangeByCommand;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\ZSetRange;
 
 
 class zremrangebyscore extends ZRemRangeByCommand  {

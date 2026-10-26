@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\HarnessApplication;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
+use Mgrunder\RedisClientTester\Cli\HarnessApplication;
+use Mgrunder\RedisClientTester\Harness\Fs;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessApplicationTest extends TestCase
@@ -19,7 +19,7 @@ final class HarnessApplicationTest extends TestCase
         }
     }
 
-    public function testMissingFuzzerScriptIsRejectedBeforeSpawningAnything(): void
+    public function testMissingTesterScriptIsRejectedBeforeSpawningAnything(): void
     {
         $output = self::stream();
         $error = self::stream();
@@ -27,12 +27,12 @@ final class HarnessApplicationTest extends TestCase
         $status = (new HarnessApplication($output, $error))->run([
             '--runs', '1',
             '--',
-            'bin/phpredis-fuz', '--steps', '{steps}',
+            'bin/redis-client-teste', '--steps', '{steps}',
         ]);
 
         self::assertSame(1, $status);
         self::assertStringContainsString(
-            'fuzzer script not found: bin/phpredis-fuz',
+            'fuzzer script not found: bin/redis-client-teste',
             self::contents($error),
         );
     }
@@ -44,12 +44,12 @@ final class HarnessApplicationTest extends TestCase
 
         $status = (new HarnessApplication($output, $error))->run([
             '--',
-            'php', 'bin/phpredis-fuz',
+            'php', 'bin/redis-client-teste',
         ]);
 
         self::assertSame(1, $status);
         self::assertStringContainsString(
-            'fuzzer script not found: bin/phpredis-fuz',
+            'fuzzer script not found: bin/redis-client-teste',
             self::contents($error),
         );
     }
@@ -60,15 +60,15 @@ final class HarnessApplicationTest extends TestCase
         $error = self::stream();
 
         $status = (new HarnessApplication($output, $error))->run([
-            '--php-ini', '/nonexistent/phpredis-fuzz.ini',
+            '--php-ini', '/nonexistent/redis-client-tester.ini',
             '--runs', '1',
             '--',
-            'bin/phpredis-fuzz', '--steps', '{steps}',
+            'bin/redis-client-tester', '--steps', '{steps}',
         ]);
 
         self::assertSame(1, $status);
         self::assertStringContainsString(
-            'php ini file not found: /nonexistent/phpredis-fuzz.ini',
+            'php ini file not found: /nonexistent/redis-client-tester.ini',
             self::contents($error),
         );
     }
@@ -84,7 +84,7 @@ final class HarnessApplicationTest extends TestCase
             '--no-core-check',
             '--runs', '1',
             '--',
-            'bin/phpredis-fuzz', '--steps', '{steps}',
+            'bin/redis-client-tester', '--steps', '{steps}',
         ]);
 
         self::assertSame(1, $status);
@@ -111,7 +111,7 @@ final class HarnessApplicationTest extends TestCase
         $status = (new HarnessApplication(self::stream(), $error))->run([
             '--no-core-check', '--port', '6379', '7000',
             '--output', $root . '/out', '--run-log', $root . '/runs.log',
-            '--', 'bin/phpredis-fuzz', '--port={port}', '--host=' . $root . '/missing.sock',
+            '--', 'bin/redis-client-tester', '--port={port}', '--host=' . $root . '/missing.sock',
         ]);
 
         self::assertSame(1, $status);
@@ -209,7 +209,7 @@ final class HarnessApplicationTest extends TestCase
 
     private function workspace(): string
     {
-        $this->root = sys_get_temp_dir() . '/phpredis-fuzz-harness-app-' . getmypid() . '-' . mt_rand();
+        $this->root = sys_get_temp_dir() . '/redis-client-tester-harness-app-' . getmypid() . '-' . mt_rand();
 
         return $this->root;
     }

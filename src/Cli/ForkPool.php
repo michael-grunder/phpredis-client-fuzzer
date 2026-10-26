@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
 /**
  * Runs a workload concurrently in `pcntl_fork()`ed children.
@@ -310,6 +310,6 @@ final class ForkPool
 
     private function report(string $message): void
     {
-        fwrite($this->error, 'phpredis-fuzz: ' . $message . "\n");
+        fwrite($this->error, 'redis-client-tester: ' . $message . "\n");
     }
 }

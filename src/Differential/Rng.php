@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Differential;
+namespace Mgrunder\RedisClientTester\Differential;
 
 use Random\Engine\Xoshiro256StarStar;
 use Random\Randomizer;
@@ -38,6 +38,7 @@ final class Rng
 
     private static function expand(int $seed): string
     {
+        // Keep the original salt so saved seeds retain their command sequence.
         return hash('sha256', 'phpredis-fuzz-diff:' . $seed, true);
     }
 

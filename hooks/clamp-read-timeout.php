@@ -23,17 +23,17 @@ declare(strict_types=1);
  *
  * Load it alongside the workload's own timeout flags:
  *
- *     bin/phpredis-fuzz --include=local --read-timeout=1.0 \
+ *     bin/redis-client-tester --include=local --read-timeout=1.0 \
  *         --hook=hooks/clamp-read-timeout.php
  *
  * Relay\Cluster::OPT_NODE_READ_TIMEOUT is deliberately not covered: the catalog
  * already generates only sane values for it.
  */
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookDecision;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Hooks\HookDecision;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationHook;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 
 return static function (HookRegistry $hooks): void {
     /* PhpRedis and Relay have always numbered this option the same, but read

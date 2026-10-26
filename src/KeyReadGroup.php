@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
 /** A relative share of keys with a persistent read affinity. */
 final readonly class KeyReadGroup implements \JsonSerializable

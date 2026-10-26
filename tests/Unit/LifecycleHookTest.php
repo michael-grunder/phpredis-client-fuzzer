@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\OptionName;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\CompletedInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ExactInvocationDenyHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookLoader;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PostCommandHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PostConstructorHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PreCommandHook;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PreDestructorHook;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\OptionName;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\Hooks\ClientEvent;
+use Mgrunder\RedisClientTester\Hooks\CompletedInvocation;
+use Mgrunder\RedisClientTester\Hooks\ExactInvocationDenyHook;
+use Mgrunder\RedisClientTester\Hooks\HookEvent;
+use Mgrunder\RedisClientTester\Hooks\HookExecutionFailed;
+use Mgrunder\RedisClientTester\Hooks\HookLoader;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\Hooks\PostCommandHook;
+use Mgrunder\RedisClientTester\Hooks\PostConstructorHook;
+use Mgrunder\RedisClientTester\Hooks\PreCommandHook;
+use Mgrunder\RedisClientTester\Hooks\PreDestructorHook;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use PHPUnit\Framework\TestCase;
 
 final class LifecycleHookTest extends TestCase
@@ -47,7 +47,7 @@ final class LifecycleHookTest extends TestCase
             },
         );
 
-        (new Fuzzer($hooks))->run(
+        (new Tester($hooks))->run(
             $clients,
             new RunConfiguration(maxSteps: 4, seed: 7, commands: ['isconnected'], includeLocal: true),
         );
@@ -73,7 +73,7 @@ final class LifecycleHookTest extends TestCase
            run that receives it. */
         $hooks->dispatchPostConstructor($client);
         $hooks->dispatchPostConstructor($client, 0);
-        (new Fuzzer($hooks))->run(
+        (new Tester($hooks))->run(
             [$client],
             new RunConfiguration(maxSteps: 1, seed: 7, commands: ['isconnected'], includeLocal: true),
         );
@@ -190,7 +190,7 @@ final class LifecycleHookTest extends TestCase
             'preDestructor' => ['every-surface'],
         ], $hooks->metadata()['listeners']);
 
-        (new Fuzzer($hooks))->run(
+        (new Tester($hooks))->run(
             [new \Redis()],
             new RunConfiguration(maxSteps: 1, seed: 7, commands: ['isconnected'], includeLocal: true),
         );
@@ -234,7 +234,7 @@ final class LifecycleHookTest extends TestCase
         $this->expectException(HookExecutionFailed::class);
         $this->expectExceptionMessage('preCommand hook broken failed: broken listener body');
 
-        (new Fuzzer($hooks))->run(
+        (new Tester($hooks))->run(
             [new \Redis()],
             new RunConfiguration(maxSteps: 1, seed: 7, commands: ['isconnected'], includeLocal: true),
         );
@@ -253,7 +253,7 @@ final class LifecycleHookTest extends TestCase
         $this->expectException(HookExecutionFailed::class);
         $this->expectExceptionMessage('preCommand hook broken failed: the real failure');
 
-        (new Fuzzer($hooks))->run(
+        (new Tester($hooks))->run(
             [new \Redis()],
             new RunConfiguration(maxSteps: 1, seed: 7, commands: ['isconnected'], includeLocal: true),
         );

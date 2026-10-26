@@ -1,13 +1,13 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
 use Relay\Relay;
 use Relay\Cluster;
 use Redis;
 use RedisCluster;
-use Mgrunder\PhpredisCommandFuzzer\KeyAccessSampler;
-use Mgrunder\PhpredisCommandFuzzer\Values\ValueCorpus;
+use Mgrunder\RedisClientTester\KeyAccessSampler;
+use Mgrunder\RedisClientTester\Values\ValueCorpus;
 
 /**
  * Class FuzzConfig
@@ -241,7 +241,7 @@ class FuzzConfig {
             $routeTag = ($routeTag + 1) % $this->shards;
         }
         $command->setRawRoutingKey(sprintf(
-            'phpredis-command-fuzzer:{%d}:route',
+            'redis-client-tester:{%d}:route',
             $routeTag,
         ));
 

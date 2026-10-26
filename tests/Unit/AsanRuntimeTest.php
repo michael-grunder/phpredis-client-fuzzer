@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\AsanRuntime;
+use Mgrunder\RedisClientTester\AsanRuntime;
 use PHPUnit\Framework\TestCase;
 
 final class AsanRuntimeTest extends TestCase

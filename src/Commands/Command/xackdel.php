@@ -1,3 +1,3 @@
 <?php
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-class xackdel extends \Mgrunder\PhpredisCommandFuzzer\Commands\StreamDeleteExCommand {}
+namespace Mgrunder\RedisClientTester\Commands\Command;
+class xackdel extends \Mgrunder\RedisClientTester\Commands\StreamDeleteExCommand {}

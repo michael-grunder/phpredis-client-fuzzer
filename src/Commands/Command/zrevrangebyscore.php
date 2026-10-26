@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZRangeByScoreCommand;
+use Mgrunder\RedisClientTester\Commands\ZRangeByScoreCommand;
 
 class zrevrangebyscore extends ZRangeByScoreCommand {
     protected function reverse(): bool {

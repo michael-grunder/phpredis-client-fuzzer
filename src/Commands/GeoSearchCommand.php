@@ -1,9 +1,9 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\GeoRadius;
-use Mgrunder\PhpredisCommandFuzzer\Data\Cities;
+use Mgrunder\RedisClientTester\Commands\Traits\GeoRadius;
+use Mgrunder\RedisClientTester\Data\Cities;
 
 use Relay\Relay;
 use Relay\Cluster;

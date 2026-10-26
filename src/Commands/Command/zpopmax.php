@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\ZPopCommand;
+use Mgrunder\RedisClientTester\Commands\ZPopCommand;
 
 class zpopmax extends ZPopCommand  { }
 

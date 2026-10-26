@@ -3,7 +3,7 @@ parameters:
     paths:
         - src
         - tests
-    tmpDir: /tmp/phpredis-command-fuzzer-phpstan
+    tmpDir: /tmp/redis-client-tester-phpstan
     reportUnmatchedIgnoredErrors: true
     parallel:
         maximumNumberOfProcesses: 1

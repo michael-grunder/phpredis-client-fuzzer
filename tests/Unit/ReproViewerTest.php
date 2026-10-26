@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Cli\ReproViewerApplication;
-use Mgrunder\PhpredisCommandFuzzer\Harness\Fs;
-use Mgrunder\PhpredisCommandFuzzer\Viewer\Backtrace;
-use Mgrunder\PhpredisCommandFuzzer\Viewer\Reproducer;
-use Mgrunder\PhpredisCommandFuzzer\Viewer\SanitizerAnalysis;
+use Mgrunder\RedisClientTester\Cli\ReproViewerApplication;
+use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Viewer\Backtrace;
+use Mgrunder\RedisClientTester\Viewer\Reproducer;
+use Mgrunder\RedisClientTester\Viewer\SanitizerAnalysis;
 use PHPUnit\Framework\TestCase;
 
 final class ReproViewerTest extends TestCase
@@ -152,7 +152,7 @@ TXT;
         file_put_contents($dir . '/meta.json', json_encode($meta));
         file_put_contents($dir . '/stderr.log', $stderr);
         file_put_contents($dir . '/stdout.log', '');
-        file_put_contents($dir . '/command.txt', "php bin/phpredis-fuzz --steps 5000\n\n# cwd:   /work\n");
+        file_put_contents($dir . '/command.txt', "php bin/redis-client-tester --steps 5000\n\n# cwd:   /work\n");
         if ($minimized !== null) {
             Fs::ensureDir($dir . '/minimized');
             file_put_contents($dir . '/minimized/meta.json', json_encode(['steps' => $minimized, 'kind' => $meta['kind']]));

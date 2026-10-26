@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\OptionChoices;
-use Mgrunder\PhpredisCommandFuzzer\RelayClusterOptions;
+use Mgrunder\RedisClientTester\OptionChoices;
+use Mgrunder\RedisClientTester\RelayClusterOptions;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

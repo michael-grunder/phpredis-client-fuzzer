@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Values;
+namespace Mgrunder\RedisClientTester\Values;
 
 /** Export supported values without invoking serialization or conversion callbacks. */
 final class ValueCode

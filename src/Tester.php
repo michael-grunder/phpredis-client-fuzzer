@@ -2,28 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\Commands\SlotPolicy;
-use Mgrunder\PhpredisCommandFuzzer\Coverage\ServerCommands;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookExecutionFailed;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\InvocationRejected;
-use Mgrunder\PhpredisCommandFuzzer\Log\Log;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\ScenarioPeers;
-use Mgrunder\PhpredisCommandFuzzer\Stateful\StatefulScenarioRunner;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\Commands\SlotPolicy;
+use Mgrunder\RedisClientTester\Coverage\ServerCommands;
+use Mgrunder\RedisClientTester\Hooks\HookEvent;
+use Mgrunder\RedisClientTester\Hooks\HookExecutionFailed;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\InvocationRejected;
+use Mgrunder\RedisClientTester\Log\Log;
+use Mgrunder\RedisClientTester\Stateful\ScenarioPeers;
+use Mgrunder\RedisClientTester\Stateful\StatefulScenarioRunner;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
 use Relay\Relay;
 
-final class Fuzzer
+final class Tester
 {
     private const RELAY_STATS_SAMPLE_INTERVAL = 100;
     private const MAX_CONSECUTIVE_HOOK_REJECTIONS = 10000;
@@ -42,7 +42,7 @@ final class Fuzzer
     /**
      * @param list<object> $clients
      */
-    public function run(array $clients, RunConfiguration $configuration = new RunConfiguration()): FuzzResult
+    public function run(array $clients, RunConfiguration $configuration = new RunConfiguration()): TestResult
     {
         $clients = $this->normalizeClients($clients);
         /* The seed is fixed before any hook runs so that a postConstructor
@@ -409,7 +409,7 @@ final class Fuzzer
             'ids' => [],
         ];
 
-        return new FuzzResult(
+        return new TestResult(
             $seed,
             $steps,
             $elapsed,

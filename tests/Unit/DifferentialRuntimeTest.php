@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Differential\DiffRuntime;
+use Mgrunder\RedisClientTester\Differential\DiffRuntime;
 use PHPUnit\Framework\TestCase;
 
 /**

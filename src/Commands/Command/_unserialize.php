@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\DecodeCommand;
+use Mgrunder\RedisClientTester\Commands\DecodeCommand;
 
 class _unserialize extends DecodeCommand
 {

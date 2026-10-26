@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command\fullscan;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
-use Mgrunder\PhpredisCommandFuzzer\ScriptLogger;
+use Mgrunder\RedisClientTester\Commands\Command\fullscan;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\RunConfiguration;
+use Mgrunder\RedisClientTester\ScriptLogger;
 use PHPUnit\Framework\TestCase;
 
 final class FullscanCommandTest extends TestCase
@@ -101,7 +101,7 @@ final class FullscanCommandTest extends TestCase
         $this->expectException(\UnderflowException::class);
         $this->expectExceptionMessage('None of the selected commands are supported');
 
-        (new Fuzzer())->run(
+        (new Tester())->run(
             [$client],
             new RunConfiguration(maxSteps: 1, seed: 9281, commands: ['fullscan']),
         );
@@ -109,7 +109,7 @@ final class FullscanCommandTest extends TestCase
 
     public function testReproductionScriptConsumesTheGenerator(): void
     {
-        $path = tempnam(sys_get_temp_dir(), 'phpredis-fuzz-fullscan');
+        $path = tempnam(sys_get_temp_dir(), 'redis-client-tester-fullscan');
         self::assertIsString($path);
         $client = new \Redis();
 
@@ -124,11 +124,11 @@ final class FullscanCommandTest extends TestCase
         unlink($path);
         self::assertIsString($script);
         self::assertStringContainsString(
-            "\$phpredisFuzzIterable1 = \$redis1->fullscan('string:*', 10, 'string');",
+            "\$redisClientTesterIterable1 = \$redis1->fullscan('string:*', 10, 'string');",
             $script,
         );
         self::assertStringContainsString(
-            'foreach ($phpredisFuzzIterable1 as $phpredisFuzzBatch) {}',
+            'foreach ($redisClientTesterIterable1 as $redisClientTesterBatch) {}',
             $script,
         );
     }

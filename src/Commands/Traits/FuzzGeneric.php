@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Traits;
+namespace Mgrunder\RedisClientTester\Commands\Traits;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 
 use Relay\Relay;
 use Relay\Cluster;

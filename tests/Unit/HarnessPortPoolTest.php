@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Harness\PortPool;
+use Mgrunder\RedisClientTester\Harness\PortPool;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessPortPoolTest extends TestCase

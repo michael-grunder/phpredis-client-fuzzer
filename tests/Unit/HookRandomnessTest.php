@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Tests\Unit;
+namespace Mgrunder\RedisClientTester\Tests\Unit;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\ClientEvent;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
-use Mgrunder\PhpredisCommandFuzzer\Hooks\PendingInvocation;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\Hooks\ClientEvent;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use PHPUnit\Framework\TestCase;
 
 final class HookRandomnessTest extends TestCase
@@ -78,7 +78,7 @@ final class HookRandomnessTest extends TestCase
             $hooks->onPostConstructor('draw', function (ClientEvent $event) use ($hooks, &$seen): void {
                 $seen[] = [$hooks->seed(), $hooks->randomizer('test')->getInt(0, PHP_INT_MAX)];
             });
-            (new Fuzzer($hooks))->run(
+            (new Tester($hooks))->run(
                 [new \Redis()],
                 new RunConfiguration(maxSteps: 2, seed: $seed, commands: ['isconnected'], includeLocal: true),
             );
@@ -102,9 +102,9 @@ final class HookRandomnessTest extends TestCase
                 if ($draw) {
                     $hooks->randomizer('noise')->getInt(0, PHP_INT_MAX);
                 }
-                $seen[] = [$invocation->method, \Mgrunder\PhpredisCommandFuzzer\Values\ValueCode::export($invocation->arguments)];
+                $seen[] = [$invocation->method, \Mgrunder\RedisClientTester\Values\ValueCode::export($invocation->arguments)];
             });
-            (new Fuzzer($hooks))->run(
+            (new Tester($hooks))->run(
                 [new \Redis()],
                 new RunConfiguration(maxSteps: 12, seed: 5, commands: ['_prefix', '_serialize'], includeLocal: true),
             );

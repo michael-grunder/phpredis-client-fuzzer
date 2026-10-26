@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Http;
+namespace Mgrunder\RedisClientTester\Http;
 
-use Mgrunder\PhpredisCommandFuzzer\Fuzzer;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\Tester;
+use Mgrunder\RedisClientTester\RunConfiguration;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
 use Relay\Relay;
 
-final class FuzzerEndpoint
+final class TesterEndpoint
 {
     /** @var callable(): (Redis|RedisCluster|Relay|Cluster|non-empty-list<Redis|RedisCluster|Relay|Cluster>) */
     private $clientProvider;
@@ -40,7 +40,7 @@ final class FuzzerEndpoint
             $provided = ($this->clientProvider)();
             $clients = is_array($provided) ? $provided : [$provided];
             /** @var non-empty-list<Redis|RedisCluster|Relay|Cluster> $clients */
-            $result = (new Fuzzer())->run($clients, $configuration);
+            $result = (new Tester())->run($clients, $configuration);
 
             return ['ok' => true, 'result' => $result->jsonSerialize()];
         } catch (\Throwable $throwable) {

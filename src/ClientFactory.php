@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer;
+namespace Mgrunder\RedisClientTester;
 
-use Mgrunder\PhpredisCommandFuzzer\Hooks\HookRegistry;
+use Mgrunder\RedisClientTester\Hooks\HookRegistry;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;

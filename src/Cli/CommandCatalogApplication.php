@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Mgrunder\PhpredisCommandFuzzer\Cli;
+namespace Mgrunder\RedisClientTester\Cli;
 
-use Mgrunder\PhpredisCommandFuzzer\CommandFilter;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ProxyInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\Registry;
-use Mgrunder\PhpredisCommandFuzzer\RunConfiguration;
+use Mgrunder\RedisClientTester\CommandFilter;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\ProxyInterface;
+use Mgrunder\RedisClientTester\Commands\Registry;
+use Mgrunder\RedisClientTester\RunConfiguration;
 
 final class CommandCatalogApplication
 {
@@ -58,7 +58,7 @@ final class CommandCatalogApplication
             $this->write($this->table($registry));
             return 0;
         } catch (\Throwable $throwable) {
-            $this->write('phpredis-commands: ' . $throwable->getMessage() . "\n", true);
+            $this->write('redis-client-tester-commands: ' . $throwable->getMessage() . "\n", true);
             return 1;
         }
     }
@@ -142,10 +142,10 @@ final class CommandCatalogApplication
     }
 
     private const HELP = <<<'HELP'
-phpredis-commands - list commands covered by the fuzzer catalog
+redis-client-tester-commands - list commands covered by the fuzzer catalog
 
 Usage:
-  phpredis-commands [options]
+  redis-client-tester-commands [options]
 
 Options:
   --commands=PATTERN,...  Include/exclude command names, globs, or @categories

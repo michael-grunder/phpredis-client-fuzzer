@@ -1,17 +1,17 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Command;
-use Mgrunder\PhpredisCommandFuzzer\Commands\ProxyInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\KeySample;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzRawInterface;
-use Mgrunder\PhpredisCommandFuzzer\Commands\FuzzConfig;
-use Mgrunder\PhpredisCommandFuzzer\Data\Cities;
-use Mgrunder\PhpredisCommandFuzzer\Data\City;
+use Mgrunder\RedisClientTester\Commands\Command;
+use Mgrunder\RedisClientTester\Commands\ProxyInterface;
+use Mgrunder\RedisClientTester\Commands\KeySample;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
+use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Data\Cities;
+use Mgrunder\RedisClientTester\Data\City;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\Traits\FuzzGeneric;
+use Mgrunder\RedisClientTester\Commands\Traits\FuzzGeneric;
 
 use Redis;
 use RedisCluster;

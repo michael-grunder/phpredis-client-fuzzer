@@ -1,8 +1,8 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands;
+namespace Mgrunder\RedisClientTester\Commands;
 
-use Mgrunder\PhpredisCommandFuzzer\Data\Events;
+use Mgrunder\RedisClientTester\Data\Events;
 
 use Redis;
 use RedisCluster;

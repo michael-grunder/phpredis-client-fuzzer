@@ -1,7 +1,7 @@
 <?php
 
-namespace Mgrunder\PhpredisCommandFuzzer\Commands\Command;
+namespace Mgrunder\RedisClientTester\Commands\Command;
 
-use Mgrunder\PhpredisCommandFuzzer\Commands\RenameCommand;
+use Mgrunder\RedisClientTester\Commands\RenameCommand;
 
 class rename extends RenameCommand { }
