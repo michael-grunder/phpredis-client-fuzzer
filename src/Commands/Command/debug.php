@@ -40,7 +40,6 @@ class debug extends Command implements FuzzRawInterface {
             'OBJECT' => $config->getRandomKey($this->type()),
             'ERROR' => bin2hex($config->getRandomBytes(rand(1, 1024))),
             'PROTOCOL' => self::TYPES[array_rand(self::TYPES)],
-            default => throw new \LogicException("Unknown DEBUG mode: {$mode}"),
         };
 
         return $this->execRaw($client, $mode, $arg);

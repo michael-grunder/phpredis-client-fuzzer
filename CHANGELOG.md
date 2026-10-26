@@ -100,6 +100,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Fix PHPStan errors in command dispatch, differential helpers, value corpus
+  generation, and the evilresp test's mutable command snapshots without changing
+  seeded workloads or suppressing diagnostics.
+
 - Flag `BITPOS`, `PFCOUNT`, `ZCOUNT`, `ZMSCORE`, `ZRANK`, `ZREVRANK`, and
   `ZSCORE` as `cached`; Relay serves all of them from its in-memory cache, but
   `@cached` filters skipped them.

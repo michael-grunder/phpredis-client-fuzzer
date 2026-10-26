@@ -28,16 +28,12 @@ class rawcommand extends Command implements FuzzRawInterface {
     }
 
     private function randomArg(FuzzConfig $config): mixed {
-        switch (rand() % 4) {
-            case 0:
-                return $config->getRandomKey(self::ANY);
-            case 1:
-                return $config->getRandomString();
-            case 2:
-                return $config->getRandomInt();
-            case 3:
-                return $config->getRandomFloat();
-        }
+        return match (rand() % 4) {
+            0 => $config->getRandomKey(self::ANY),
+            1 => $config->getRandomString(),
+            2 => $config->getRandomInt(),
+            3 => $config->getRandomFloat(),
+        };
     }
 
     public function fuzzRaw(Redis|RedisCluster|Relay|Cluster $client,

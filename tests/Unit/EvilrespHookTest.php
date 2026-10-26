@@ -853,17 +853,23 @@ final class EvilrespHookTest extends TestCase
                 $hooks->dispatchPreCommand($this->pending($client));
                 self::assertCount($changed ? 3 : 1, $client->sent);
                 if ($changed) {
-                    self::assertSame($command, $this->sent($client)[1]);
+                    $this->assertChaosPreset($command, $client);
                 }
             }
             $client->close();
             $client->sent = [];
             $hooks->dispatchPostCommand($this->completed($client, method: 'close'));
             $hooks->dispatchPreCommand($this->pending($client));
-            self::assertSame($command, $this->sent($client)[1]);
+            $this->assertChaosPreset($command, $client);
         }
         self::assertSame($sequences[0], $sequences[1]);
         self::assertNotSame($sequences[0][2], $sequences[2][2]);
+    }
+
+    /** @param list<mixed> $command */
+    private function assertChaosPreset(array $command, FakeEvilrespRedis $client): void
+    {
+        self::assertSame($command, $client->sent[1]);
     }
 
     public function testFreshChaosSeedsVaryOnArmingAndReplayFromTheRunSeed(): void

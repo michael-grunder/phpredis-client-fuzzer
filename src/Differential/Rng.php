@@ -100,6 +100,6 @@ final class Rng
      */
     public function shuffle(array $items): array
     {
-        return array_values($this->random->shuffleArray($items));
+        return $this->random->shuffleArray($items);
     }
 }

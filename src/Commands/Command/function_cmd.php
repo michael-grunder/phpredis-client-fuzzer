@@ -51,7 +51,6 @@ class function_cmd extends FunctionCommand implements FuzzInterface, FuzzRawInte
         return match($scmd) {
             'load' => $this->load($client, $fn),
             'list' => $this->$fn($client, 'list'),
-            default => throw new \LogicException("Unknown FUNCTION subcommand: {$scmd}"),
         };
     }
 }

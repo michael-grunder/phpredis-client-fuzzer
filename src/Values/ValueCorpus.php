@@ -24,9 +24,10 @@ final class ValueCorpus
     {
         $variant ??= self::STRING_VARIANTS[array_rand(self::STRING_VARIANTS)];
         $lengths = array_values(array_filter(
-            [0, 1, 31, 32, 33, 255, 256, 257, 511, 512, 513, 4095, 4096, 4097, $this->maxBytes],
+            [0, 1, 31, 32, 33, 255, 256, 257, 511, 512, 513, 4095, 4096, 4097],
             fn (int $size): bool => $size <= $this->maxBytes,
         ));
+        $lengths[] = $this->maxBytes;
         $length = $lengths[array_rand($lengths)];
         $value = match ($variant) {
             'empty' => '',

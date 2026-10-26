@@ -61,8 +61,9 @@ final readonly class RunPair
     /** Index of the first operation at which the runs diverge, if known. */
     public function firstIndex(): ?int
     {
-        $reply = $this->comparison['reply']['index'] ?? null;
-        $state = $this->comparison['state']['index'] ?? null;
+        $comparison = $this->comparison;
+        $reply = $comparison['reply']['index'] ?? null;
+        $state = $comparison['state']['index'] ?? null;
         if ($reply === null || $state === null) {
             return $reply ?? $state;
         }
