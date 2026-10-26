@@ -2,6 +2,7 @@
 
 namespace Mgrunder\PhpredisCommandFuzzer\Commands;
 
+use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Redis;
 use RedisCluster;
 use Relay\Relay;
@@ -38,6 +39,11 @@ class CloseCommand extends EmptyLocalCommand {
                     (float)$client->getReadTimeout(),
                     $auth === null || $auth === false ? [] : ['auth' => $auth],
                 ];
+                $configuration = ClientFactory::configurationFor($client);
+                if ($configuration !== null) {
+                    $endpoint[0] = $configuration->tls->endpoint($configuration->host);
+                    $endpoint[6] += $configuration->tls->context();
+                }
             } catch (\Throwable) {
                 /* Already closed: nothing to restore. */
             }

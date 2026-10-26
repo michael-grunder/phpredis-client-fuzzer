@@ -61,13 +61,13 @@ final class ClientTopologySelector
         $probe = $this->probe ?? new \Redis();
         $auth = is_string($configuration->auth) ? [$configuration->auth] : $configuration->auth;
         $connected = $probe->connect(
-            $configuration->host,
+            $configuration->tls->endpoint($configuration->host),
             $configuration->port,
             $configuration->timeout,
             null,
             0,
             $configuration->readTimeout,
-            $auth === null ? [] : ['auth' => $auth],
+            ($auth === null ? [] : ['auth' => $auth]) + $configuration->tls->context(),
         );
         if (!$connected) {
             throw new \RuntimeException('--pick-client could not connect to the target');

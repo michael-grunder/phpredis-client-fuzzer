@@ -1963,6 +1963,80 @@ $relay = (new ClientFactory())->create(new ClientConfiguration(
 `ClientType` values are `redis`, `redis-cluster`, `relay`, and
 `relay-cluster`. Cluster configurations use `seeds` in `host:port` form.
 
+### TLS connections
+
+Use `--tls` with a server's TLS port. It applies to all selected client types,
+cluster discovery seeds, topology probes, and stateful peer connections:
+
+```bash
+bin/phpredis-fuzz --client=redis,relay --host=localhost --port=6380 \
+    --tls --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
+    --commands=get,set,del --steps=1000 --seed=42
+
+bin/phpredis-fuzz --client=redis-cluster,relay-cluster \
+    --seeds=localhost:7000,localhost:7001 --tls \
+    --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
+    --commands=get,set,del --steps=1000 --seed=42
+```
+
+`--tls-options` accepts a JSON object of PHP SSL context options and implies
+`--tls`. Booleans must be JSON booleans, for example `{"verify_peer":false}`.
+Verification remains at the client's secure defaults unless explicitly changed.
+For mutual TLS, include `local_cert` and `local_pk` alongside `cafile`; use
+`peer_name` when the certificate name differs from the connection host.
+Options are forwarded without normalizing client differences. PhpRedis uses PHP
+streams; Relay supports the options implemented by the loaded extension (the
+current branch supports `cafile`, `local_cert`, `local_pk`, `peer_name`,
+`verify_peer`, and `verify_peer_name`). Ports are never changed automatically.
+Use TLS-enabled cluster ports and ensure discovered nodes advertise reachable
+TLS ports. Explicit `tls://` hosts/seeds are also accepted; `--tls` upgrades
+plain hosts and `tcp://` endpoints and rejects Unix sockets.
+
+The same flags work with `phpredis-fuzz-coercive`, `phpredis-fuzz-diff`,
+`phpredis-fuzz-subscribe`, `phpredis-fuzz-killer`, `phpredis-coverage`, and
+`phpredis-commandstats`. The differential runner encrypts its neutral RESP
+connection as well as both client connections. Command statistics and killer
+connections use TLS for discovered nodes too.
+
+For harness campaigns, put TLS flags on the worker command after `--`; the
+startup availability check inherits them:
+
+```bash
+bin/phpredis-fuzz-harness --port 6380 -- \
+    bin/phpredis-fuzz --client=relay --host=localhost --port={port} \
+    --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
+    --commands=get,set,del --steps={steps} --seed={seed}
+```
+
+TLS can be combined with existing multi-worker, saturation, and subscription
+workloads to exercise Relay's TLS invalidation worker. Enabling TLS alone does
+not assert that invalidations were processed while idle; that needs a workload
+with an idle reader and concurrent writes.
+
+Library callers can configure the same transport explicitly:
+
+```php
+use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+
+$relay = (new ClientFactory())->create(new ClientConfiguration(
+    type: ClientType::Relay,
+    host: 'localhost',
+    port: 6380,
+    tls: new TlsConfiguration(enabled: true, options: [
+        'cafile' => '/absolute/path/ca.crt',
+        'local_cert' => '/absolute/path/client.crt',
+        'local_pk' => '/absolute/path/client.key',
+    ]),
+));
+```
+
+Factory-created clients retain their TLS configuration for explicit reconnects
+and generated command scripts. Differential reproducers also retain the TLS
+host and options. Certificate paths must exist on the replay machine; scripts
+contain the supplied context, including any passphrase. Application-owned
+clients can still be passed directly to `Fuzzer`; their certificate options
+cannot be recovered through client getters for script logging or reconnects.
+
 ### Legacy cluster failover
 
 `--slave-failover` sets `OPT_SLAVE_FAILOVER` on both `redis-cluster` and
@@ -2070,7 +2144,7 @@ All settings are constructor arguments on the immutable `RunConfiguration`:
 | `saturateChance` | `0.0` | Chance from `0.0` to `1.0` of running a Relay cache-saturation event after a fuzz step |
 | `saturateSteps` | `null` | Maximum whole-key reads per saturation event; `null` makes one complete key-space pass. `Fast` mode requires it and splits `saturateTarget` into that many bitmaps |
 | `saturateTarget` | `null` | Target Relay `memory.used` byte count; overrides `saturateSteps` and stops after one key-space pass if unmet |
-| `saturateMode` | `SaturationMode::Natural` | `Natural` reads existing values; `Seeded` writes generated values before reading them; `Fast` grows one `SETBIT` bitmap per step and reads it back, and requires `saturateTarget` and `saturateSteps` |
+| `saturateMode` | `SaturationMode::Natural` | `Natural` reads existing values; `Seeded` writes generated values before reading them; `Churn` writes generated values, then reads them through partial cached commands around an optional whole read; `Fast` grows one `SETBIT` bitmap per step and reads it back, and requires `saturateTarget` and `saturateSteps` |
 | `invocationMode` | `InvocationMode::Strict` | Typing mode used at the client method-call boundary |
 | `commands` | `[]` | Command name, glob, and flag filters |
 | `commandGroups` | `[]` | Additional lists of command filters, ANDed with `commands` and each other; positives within each list use OR |
@@ -2385,6 +2459,23 @@ whole-value read. Seeded mode intentionally mutates only the fuzzer's known key
 namespaces and is more efficient when the goal is to fill an otherwise sparse
 Relay cache.
 
+The `churn` mode writes each key like `seeded`, then reads it through a
+random partial cached command, the whole-value read above half of the time, and
+a second random partial command. Relay caches more than whole values: length
+replies (`STRLEN`, `LLEN`, `SCARD`, `HLEN`, `ZCARD`), member existence
+(`EXISTS`, `SISMEMBER`, `SMISMEMBER`, `HEXISTS`), individual hash fields
+(`HGET`, `HMGET`), and ranges (`LRANGE`, `ZRANGEBYSCORE`, `ZREVRANGE`) each
+store a partial entry. The other probes (`GETRANGE`, `GETBIT`, `BITCOUNT`,
+`BITPOS`, `TYPE`, `MGET`, `LINDEX`, `LPOS`, `SRANDMEMBER`, `HKEYS`, `HVALS`,
+`HSTRLEN`, `HRANDFIELD`, `ZSCORE`, `ZRANK`, `ZREVRANK`, `ZCOUNT`, `ZMSCORE`) are
+answered only from an existing entry. A churn step therefore usually creates a
+partial entry, replaces it with a whole value, and then answers from whichever
+shape survived. Skipped whole reads leave partial entries for the normal
+workload to hit and invalidate. Each probe is recorded as its own saturation
+outcome named `saturate:churn:<command>`, so a step yields two or three
+outcomes. `saturateSteps` and `saturateTarget` count keys, as in the other
+modes.
+
 The `fast` mode ignores the generated key space and the read table above. Each
 step grows one dedicated bitmap with `SETBIT key offset 1` and immediately reads
 the whole value back with `GET`, which is the cheapest deterministic way to move
@@ -2426,9 +2517,10 @@ step, so an event that starts at or above the target does no work at all.
 
 What a `fast` event actually costs in cache bytes depends on Relay's own
 configuration, notably `relay.maxmemory`, `relay.maxmemory_pct`, and
-`relay.eviction_strategy`: a target above the eviction threshold will keep
+`relay.eviction_policy`: a target above the eviction threshold will keep
 evicting and refilling instead of settling, which is usually the point when
-testing eviction. A serializer or compressor is still applied to the `GET`,
+testing eviction. Relay's default policy is `noeviction`, so set
+`relay.eviction_policy=lru` or `random` to evict at all. A serializer or compressor is still applied to the `GET`,
 which sees raw bitmap bytes it did not write, so `fast` runs against a
 serializing client will report the corresponding client warnings or errors.
 

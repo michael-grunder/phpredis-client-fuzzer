@@ -33,8 +33,8 @@ final class CommandStatsApplication
         try {
             $options = Options::parse(
                 $arguments,
-                ['client', 'host', 'port', 'seeds', 'username', 'password', 'timeout', 'read-timeout', 'interval'],
-                ['help', 'cluster'],
+                ['tls-options', 'client', 'host', 'port', 'seeds', 'username', 'password', 'timeout', 'read-timeout', 'interval'],
+                ['tls', 'help', 'cluster'],
             );
             if ($options->has('help')) {
                 fwrite($this->output, self::HELP);
@@ -64,6 +64,7 @@ final class CommandStatsApplication
                 $options->number('timeout', 1.0),
                 $options->number('read-timeout', 1.0),
                 $auth,
+                tls: $options->tls(),
             );
             $tracker = new CounterTracker();
             $sample = $sampler->sample();
@@ -131,6 +132,8 @@ Usage:
 Connection:
   --client=TYPE           redis, redis-cluster, relay, relay-cluster (default: redis)
   --cluster               Treat redis/relay as a cluster client
+  --tls                     Use TLS for all sampled nodes
+  --tls-options=JSON        PHP SSL context options; implies --tls
   --host=HOST             Standalone host (default: 127.0.0.1)
   --port=PORT             Standalone port (default: 6379)
   --seeds=HOST:PORT,...   Cluster discovery seeds (defaults to host and port)

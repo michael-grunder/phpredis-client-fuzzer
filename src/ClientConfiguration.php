@@ -28,6 +28,7 @@ final readonly class ClientConfiguration
         public bool $relayCompatibility = true,
         public RelayClusterOptions $relayCluster = new RelayClusterOptions(),
         ?string $slaveFailover = null,
+        public TlsConfiguration $tls = new TlsConfiguration(),
     ) {
         $this->slaveFailover = $slaveFailover === null
             ? null
@@ -58,5 +59,22 @@ final readonly class ClientConfiguration
                 'Relay cluster options require the relay-cluster client type',
             );
         }
+    }
+
+    /** @return array<string, mixed>|null */
+    public function clusterContext(): ?array
+    {
+        if ($this->type !== ClientType::RedisCluster) {
+            return $this->tls->context();
+        }
+
+        // PhpRedis uses a non-null context to enable TLS on discovered nodes too.
+        foreach ($this->seeds as $seed) {
+            if ($this->tls->enabled || str_starts_with($seed, 'tls://')) {
+                return $this->tls->options;
+            }
+        }
+
+        return null;
     }
 }

@@ -12,6 +12,15 @@ use Relay\Relay;
 
 final class ClientFactory
 {
+    /** @var \WeakMap<object, ClientConfiguration>|null */
+    private static ?\WeakMap $configurations = null;
+
+    /** @internal Connection options unavailable through client getters, needed for reconnects and replay. */
+    public static function configurationFor(object $client): ?ClientConfiguration
+    {
+        return self::$configurations[$client] ?? null;
+    }
+
     /**
      * @param HookRegistry|null $hooks Optional; when supplied, postConstructor
      *        hooks see every client this factory builds, once it is connected
@@ -33,18 +42,20 @@ final class ClientFactory
             /** @var RedisCluster|Cluster $client */
             $client = new $class(
                 null,
-                $configuration->seeds,
+                array_map($configuration->tls->endpoint(...), $configuration->seeds),
                 $configuration->timeout,
                 $configuration->readTimeout,
                 false,
                 $configuration->auth,
+                $configuration->clusterContext(),
             );
         } else {
             /** @var Redis|Relay $client */
             $client = new $class();
             $context = $configuration->auth === null ? [] : ['auth' => $configuration->auth];
+            $context += $configuration->tls->context();
             $connected = $client->connect(
-                $configuration->host,
+                $configuration->tls->endpoint($configuration->host),
                 $configuration->port,
                 $configuration->timeout,
                 null,
@@ -86,6 +97,8 @@ final class ClientFactory
             $configuration->relayCluster->applyTo($client);
         }
 
+        self::$configurations ??= new \WeakMap();
+        self::$configurations[$client] = $configuration;
         $this->hooks?->dispatchPostConstructor($client);
 
         return $client;

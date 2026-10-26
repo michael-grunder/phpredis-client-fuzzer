@@ -225,13 +225,16 @@ final class DifferentialGenerationTest extends TestCase
     public function testReproducerIsStandaloneValidPhp(): void
     {
         $generated = (new CaseGenerator(new GeneratorOptions(steps: 40, edgeChance: 0.6, txnChance: 0.3)))->generate(3, 1, 'fuzz:r:');
-        $server = ['host' => '127.0.0.1', 'port' => 6379, 'timeout' => 1.0, 'read_timeout' => 1.0, 'auth' => null, 'ttl_tolerance_ms' => 2000, 'strict_messages' => false];
+        $server = ['host' => 'tls://localhost', 'tls_options' => ['cafile' => '/tmp/ca.pem', 'verify_peer' => true], 'port' => 6380, 'timeout' => 1.0, 'read_timeout' => 1.0, 'auth' => null, 'ttl_tolerance_ms' => 2000, 'strict_messages' => false];
         $source = ReproducerWriter::source($generated, $server, ['signature' => 'reply:get:x */ y']);
 
         self::assertStringNotContainsString('namespace ', $source);
         self::assertStringNotContainsString('Mgrunder', $source);
         self::assertStringContainsString('exit(DiffRuntime::main($case, $server));', $source);
         self::assertStringContainsString('reply:get:x * / y', $source);
+        self::assertStringContainsString("'host' => 'tls://localhost'", $source);
+        self::assertStringContainsString("'cafile' => '/tmp/ca.pem'", $source);
+        self::assertStringContainsString("'verify_peer' => true", $source);
 
         $file = tempnam(sys_get_temp_dir(), 'diffrepro');
         self::assertIsString($file);

@@ -18,7 +18,7 @@ abstract class ZRankCommand extends Command implements FuzzInterface,
     }
 
     public function flags(): int {
-        return self::READ;
+        return self::READ | self::CACHED;
     }
 
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,

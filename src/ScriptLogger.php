@@ -174,6 +174,7 @@ class ScriptLogger {
     }
 
     private function initObject(Redis|RedisCluster|Relay|Cluster $client): void {
+        $configuration = ClientFactory::configurationFor($client);
         $class        = get_class($client);
         $class_parts  = explode('\\', strtolower(get_class($client)));
         $name         = sprintf("\$%s%d", end($class_parts), $this->counter++);
@@ -202,9 +203,14 @@ class ScriptLogger {
             } catch (\Throwable) {
                 /* Keep a usable local default for disconnected test doubles. */
             }
+            if ($configuration !== null) {
+                $host = $configuration->tls->endpoint($configuration->host);
+                $context += $configuration->tls->context();
+            }
+            $port = $configuration === null ? '$port' : sprintf('(int)($opt[\'port\'] ?? %d)', $configuration->port);
             fprintf($this->fp, "%s = new %s;\n", $name, $class);
-            fprintf($this->fp, "%s->connect(%s, \$port, %f, null, 0, %f, %s);\n", $name,
-                    $this->varExport($host), $timeout,
+            fprintf($this->fp, "%s->connect(%s, %s, %f, null, 0, %f, %s);\n", $name,
+                    $this->varExport($host), $port, $timeout,
                     $read_timeout, $this->varExport($context));
         } else {
             /** @var RedisCluster|Cluster $client */
@@ -225,15 +231,22 @@ class ScriptLogger {
                 $auth = null;
             }
 
+            $context = $client instanceof RedisCluster ? null : [];
+            if ($configuration !== null) {
+                $seeds = array_map($configuration->tls->endpoint(...), $configuration->seeds);
+                $context = $configuration->clusterContext();
+            }
+
             fprintf(
                 $this->fp,
-                "%s = new %s(null, %s, %f, %f, false, %s);\n",
+                "%s = new %s(null, %s, %f, %f, false, %s, %s);\n",
                 $name,
                 get_class($client),
                 $this->varExport($seeds),
                 $timeout,
                 $read_timeout,
                 $this->varExport($auth),
+                $this->varExport($context),
             );
         }
 

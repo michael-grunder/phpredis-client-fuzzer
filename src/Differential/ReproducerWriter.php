@@ -139,6 +139,7 @@ final class ReproducerWriter
 
         $serverLiteral = PhpLiteral::export([
             'host' => $server['host'],
+            'tls_options' => $server['tls_options'] ?? [],
             'port' => $server['port'],
             'timeout' => $server['timeout'],
             'read_timeout' => $server['read_timeout'],

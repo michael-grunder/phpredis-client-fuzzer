@@ -16,7 +16,7 @@ class zscore extends KeyMemCommand implements ProxyInterface {
     }
 
     public function flags(): int {
-        return self::READ | self::COMMON;
+        return self::READ | self::CACHED | self::COMMON;
     }
 
     public function proxy(Redis|Relay $server, Redis|Relay $client,

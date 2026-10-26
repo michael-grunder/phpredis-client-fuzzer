@@ -9,6 +9,7 @@ enum SaturationMode: string
     case Natural = 'natural';
     case Seeded = 'seeded';
     case Fast = 'fast';
+    case Churn = 'churn';
 
     public static function parse(string $value): self
     {
@@ -16,8 +17,9 @@ enum SaturationMode: string
             self::Natural->value => self::Natural,
             self::Seeded->value => self::Seeded,
             self::Fast->value => self::Fast,
+            self::Churn->value => self::Churn,
             default => throw new \InvalidArgumentException(
-                "Unknown saturation mode: {$value}; expected natural, seeded, or fast",
+                "Unknown saturation mode: {$value}; expected natural, seeded, fast, or churn",
             ),
         };
     }

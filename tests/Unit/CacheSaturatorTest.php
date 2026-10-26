@@ -187,6 +187,37 @@ final class CacheSaturatorTest extends TestCase
         self::assertGreaterThanOrEqual(3, count($invoker->calls[8][1]));
     }
 
+    public function testChurnModeWrapsSeededKeysInPartialProbes(): void
+    {
+        mt_srand(20261025);
+        $invoker = new RecordingSaturationInvoker();
+        $saturator = new CacheSaturator((new FuzzConfig())->setKeys(1)->setMembers(2), $invoker);
+        $writes = ['set', 'rpush', 'sadd', 'hset', 'zadd'];
+        $wholeReads = ['get', 'lrange', 'smembers', 'hgetall', 'zrange'];
+
+        $batch = $saturator->run(new Relay(), 0, 1, 50, null, null, mode: SaturationMode::Churn);
+
+        // Two probes per step, plus the whole read on roughly half of them.
+        $calls = array_column($invoker->calls, 0);
+        $wholeCount = count($batch['outcomes']) - 100;
+        self::assertGreaterThan(0, $wholeCount);
+        self::assertLessThan(50, $wholeCount);
+        self::assertSame(50, count(array_intersect($calls, $writes)));
+        foreach ($batch['outcomes'] as $outcome) {
+            self::assertStringStartsWith('saturate:churn:', $outcome->command);
+            self::assertNull($outcome->exception);
+        }
+        // Every step starts with a write and immediately probes the same key.
+        foreach ($invoker->calls as $index => [$method, $arguments]) {
+            if (in_array($method, $writes, true)) {
+                $probeKey = $invoker->calls[$index + 1][1][0];
+                self::assertSame($arguments[0], is_array($probeKey) ? $probeKey[0] : $probeKey); // mget
+                self::assertNotContains($invoker->calls[$index + 1][0], $writes);
+            }
+        }
+        self::assertGreaterThan(15, count(array_unique(array_diff($calls, $writes, $wholeReads))));
+    }
+
     public function testFastModeSplitsTheTargetIntoOneBitmapPerStep(): void
     {
         $invoker = new RecordingSaturationInvoker();

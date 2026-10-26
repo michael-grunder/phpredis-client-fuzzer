@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Harness;
 
+use Mgrunder\PhpredisCommandFuzzer\Cli\Options;
 use Mgrunder\PhpredisCommandFuzzer\Commands\Command\ping;
 
 /** Read-only availability check for the harness's Redis port pool. */
@@ -25,7 +26,7 @@ final class TargetCheck
             $values = [];
             $tokens = $template->render(['port' => $port]);
             foreach ($tokens as $index => $token) {
-                foreach (['host', 'username', 'password'] as $name) {
+                foreach (['host', 'username', 'password', 'tls-options'] as $name) {
                     if ($token === '--' . $name) {
                         $values[$name] = $tokens[$index + 1] ?? '';
                     } elseif (str_starts_with($token, '--' . $name . '=')) {
@@ -33,12 +34,18 @@ final class TargetCheck
                     }
                 }
             }
-            $host = $values['host'] ?? '127.0.0.1';
+            $tlsArguments = in_array('--tls', $tokens, true) ? ['--tls'] : [];
+            if (isset($values['tls-options'])) {
+                $tlsArguments[] = '--tls-options=' . $values['tls-options'];
+            }
+            $tls = Options::parse($tlsArguments, ['tls-options'], ['tls'])->tls();
+            $host = $tls->endpoint($values['host'] ?? '127.0.0.1');
             $auth = isset($values['password'])
                 ? ['auth' => isset($values['username'])
                     ? [$values['username'], $values['password']]
                     : [$values['password']]]
                 : [];
+            $auth += $tls->context();
             $probe = $this->probe ?? new \Redis();
             $connected = false;
             try {

@@ -7,6 +7,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\CommandStats;
 use Mgrunder\PhpredisCommandFuzzer\ClientConfiguration;
 use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Mgrunder\PhpredisCommandFuzzer\ClientType;
+use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
 use Redis;
 use Relay\Relay;
 
@@ -36,6 +37,7 @@ final class Sampler
         private readonly ClientFactory $factory = new ClientFactory(),
         private readonly ClusterNodesParser $topologyParser = new ClusterNodesParser(),
         private readonly ?\Closure $clientProvider = null,
+        private readonly TlsConfiguration $tls = new TlsConfiguration(),
     ) {
         if ($seeds === []) {
             throw new \InvalidArgumentException('At least one Redis seed is required');
@@ -164,6 +166,7 @@ final class Sampler
             timeout: $this->timeout,
             readTimeout: $this->readTimeout,
             auth: $this->auth,
+            tls: $this->tls,
         );
         $client = $this->clientProvider === null
             ? $this->factory->create($configuration)

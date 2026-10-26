@@ -11,6 +11,23 @@ use PHPUnit\Framework\TestCase;
 
 final class HarnessTargetCheckTest extends TestCase
 {
+    public function testTlsWorkerOptionsReachTheStartupProbe(): void
+    {
+        $probe = $this->createMock(\Redis::class);
+        $probe->expects(self::once())->method('connect')->with(
+            'tls://localhost', 6380, 1.0, null, 0, 1.0,
+            ['auth' => ['secret'], 'stream' => ['cafile' => '/tmp/ca.pem', 'verify_peer_name' => false]],
+        )->willReturn(true);
+        $probe->method('ping')->willReturn(true);
+        $probe->expects(self::once())->method('close')->willReturn(true);
+        $template = new CommandTemplate([
+            'fuzzer.php', '--port={port}', '--host=localhost', '--password=secret', '--tls',
+            '--tls-options', '{"cafile":"/tmp/ca.pem","verify_peer_name":false}',
+        ]);
+        $template->validate();
+        (new TargetCheck($probe))->check($template, [6380]);
+    }
+
     /** @return iterable<string, array{list<string>, array{auth?: list<string>}}> */
     public static function credentials(): iterable
     {

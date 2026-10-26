@@ -228,7 +228,7 @@ final class ConfigurationTest extends TestCase
     public function testUnknownSaturationModeIsRejected(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('expected natural, seeded, or fast');
+        $this->expectExceptionMessage('expected natural, seeded, fast, or churn');
 
         SaturationMode::parse('synthetic');
     }

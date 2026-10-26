@@ -18,7 +18,7 @@ class bitpos extends Command implements FuzzInterface, FuzzRawInterface {
     }
 
     public function flags(): int {
-        return self::READ;
+        return self::READ | self::CACHED;
     }
 
     public function fuzz(Redis|RedisCluster|Relay|Cluster $client,

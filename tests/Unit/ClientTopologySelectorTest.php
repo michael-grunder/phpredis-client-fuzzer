@@ -13,6 +13,22 @@ use PHPUnit\Framework\TestCase;
 
 final class ClientTopologySelectorTest extends TestCase
 {
+    public function testTopologyProbeUsesTlsAndCertificateOptions(): void
+    {
+        $tls = new \Mgrunder\PhpredisCommandFuzzer\TlsConfiguration(true, ['cafile' => '/tmp/ca.pem']);
+        $probe = $this->createMock(\Redis::class);
+        $probe->expects(self::once())->method('connect')->with(
+            'tls://localhost', 6380, 1.0, null, 0, 1.0,
+            ['auth' => ['secret'], 'stream' => ['cafile' => '/tmp/ca.pem']],
+        )->willReturn(true);
+        $probe->method('info')->willReturn(['cluster_enabled' => 0]);
+        $probe->expects(self::once())->method('close')->willReturn(true);
+        $standalone = new ClientConfiguration(host: 'localhost', port: 6380, auth: 'secret', tls: $tls);
+        self::assertSame([$standalone], (new ClientTopologySelector($probe))->select([
+            $standalone, new ClientConfiguration(type: ClientType::RedisCluster, tls: $tls),
+        ]));
+    }
+
     /** @return iterable<string, array{int|string, list<int>}> */
     public static function topologies(): iterable
     {

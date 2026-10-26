@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add opt-in TLS transport and JSON SSL context options to the fuzzers, harness
+  startup probes, coverage, command statistics, and client killer. Support all
+  four clients through `TlsConfiguration`, preserve TLS on reconnects and in
+  reproducer scripts, and encrypt the differential runner's neutral RESP socket.
+
+- Add `--saturate-mode=churn` (`SaturationMode::Churn`): each saturation step
+  seeds a key, then wraps an optional whole-value read in randomly chosen
+  partial Relay-cached reads (lengths, member checks, field and range reads), so
+  Relay's partial cache entries are created, upgraded to whole values, and hit.
+- Add `asan-saturate.sh`, an ASAN campaign focused on Relay cache churn with
+  randomized `relay.maxmemory`, eviction policy, threshold, and sample size.
+
 - Add the `phpser` serializer choice (when PhpRedis defines
   `Redis::SERIALIZER_PHPSER`), random `OPT_PACK_IGNORE_NUMBERS` and backoff
   option changes, and `AGGREGATE COUNT` for zset union/intersection commands.
@@ -59,6 +71,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Build Relay and PhpRedis concurrently in `conf.d/build-extensions.sh`, waiting
+  for both builds and succeeding only when both succeed.
+
 - Repeated `--commands` arguments now intersect in the strict/coercive fuzzer
   and command catalog CLI. Comma-separated positives still use OR, exclusions
   still remove matches, and all safety gates remain in force.
@@ -77,6 +92,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Flag `BITPOS`, `PFCOUNT`, `ZCOUNT`, `ZMSCORE`, `ZRANK`, `ZREVRANK`, and
+  `ZSCORE` as `cached`; Relay serves all of them from its in-memory cache, but
+  `@cached` filters skipped them.
 - Reconnect standalone `Relay\Relay` clients after `close`/`pclose`; previously
   every later step of the run threw "Not connected".
 - Never send local client helpers through raw chaos, which only produced

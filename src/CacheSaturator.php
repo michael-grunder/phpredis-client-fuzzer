@@ -19,6 +19,11 @@ use Relay\Relay;
  * bitmap per step with SETBIT and immediately reads it back, which fills a
  * known number of cache bytes per event instead of however much the generated
  * values happen to be worth.
+ *
+ * Churn saturation seeds each key and reads it through partial cached
+ * commands around an optional whole-value read, so Relay's length-only,
+ * member-existence, partial-hash and partial-range entries are created,
+ * upgraded to whole values, and answered from the cache.
  */
 final class CacheSaturator
 {
@@ -33,6 +38,21 @@ final class CacheSaturator
 
     /** Commands fast saturation needs beyond the per-type read/write table. */
     private const FAST_COMMANDS = ['setbit', 'get'];
+
+    /**
+     * Relay-cached reads churn mode draws from for each type. Some store a
+     * partial entry on a miss (lengths, member existence, HGET/HMGET fields,
+     * ranges); the rest are only answered from an entry that already exists.
+     *
+     * @var array<string, non-empty-list<string>>
+     */
+    private const PROBES = [
+        Command::STRING => ['strlen', 'getrange', 'getbit', 'bitcount', 'bitpos', 'exists', 'type', 'mget'],
+        Command::LIST => ['llen', 'lindex', 'lpos', 'lrange'],
+        Command::SET => ['scard', 'sismember', 'smismember', 'srandmember'],
+        Command::HASH => ['hlen', 'hget', 'hmget', 'hexists', 'hkeys', 'hvals', 'hstrlen', 'hrandfield'],
+        Command::ZSET => ['zcard', 'zscore', 'zrank', 'zrevrank', 'zcount', 'zmscore', 'zrangebyscore', 'zrevrange'],
+    ];
 
     /** @var array<string, Command> */
     private array $commands = [];
@@ -53,6 +73,9 @@ final class CacheSaturator
         foreach (self::OPERATIONS as $operation) {
             $names[] = $operation['read'];
             $names[] = $operation['write'];
+        }
+        foreach (self::PROBES as $probes) {
+            array_push($names, ...$probes);
         }
         foreach (array_unique($names) as $name) {
             $command = Command::object($name);
@@ -124,35 +147,40 @@ final class CacheSaturator
             }
 
             [$operation, $command, $key, $arguments] = $this->nextRead();
-            $context = 'saturate:'
-                . ($mode === SaturationMode::Seeded ? 'seeded:' : '')
-                . $command->name();
+            if ($mode === SaturationMode::Churn) {
+                $stepOutcomes = $this->churn(
+                    $client,
+                    $clientIndex,
+                    $sequence,
+                    $operation,
+                    $command,
+                    $key,
+                    $arguments,
+                );
+            } else {
+                $context = 'saturate:'
+                    . ($mode === SaturationMode::Seeded ? 'seeded:' : '')
+                    . $command->name();
+                $stepOutcomes = [$this->record(
+                    $client,
+                    $clientIndex,
+                    $sequence,
+                    $context,
+                    $key,
+                    function () use ($mode, $operation, $client, $key, $command, $arguments): array {
+                        $exception = $mode === SaturationMode::Seeded
+                            ? $this->seed($client, $operation, $key)
+                            : null;
 
-            $outcome = $this->record(
-                $client,
-                $clientIndex,
-                $sequence,
-                $context,
-                $key,
-                function () use ($mode, $operation, $client, $key, $command, $arguments): array {
-                    $exception = null;
-                    if ($mode === SaturationMode::Seeded) {
-                        try {
-                            $this->commands[$operation['write']]->exec(
-                                $client,
-                                ...$this->seedArguments($client, $operation['type'], $key),
-                            );
-                        } catch (\Throwable $throwable) {
-                            $exception = $throwable;
-                        }
-                    }
+                        return $this->readReply($command, $client, $arguments, $exception);
+                    },
+                )];
+            }
 
-                    return $this->readReply($command, $client, $arguments, $exception);
-                },
-            );
-            $outcomes[] = $outcome;
-
-            $caughtDiagnostic = $this->matchingDiagnostic($outcome, $catchPattern);
+            foreach ($stepOutcomes as $outcome) {
+                $outcomes[] = $outcome;
+                $caughtDiagnostic ??= $this->matchingDiagnostic($outcome, $catchPattern);
+            }
             if ($caughtDiagnostic !== null) {
                 break;
             }
@@ -241,6 +269,121 @@ final class CacheSaturator
         }
 
         return ['outcomes' => $outcomes, 'caughtDiagnostic' => $caughtDiagnostic];
+    }
+
+    /**
+     * Seed the key, then read it through a random partial probe, a whole-value
+     * read half of the time, and a second probe. The first probe usually
+     * leaves a partial entry, the whole read replaces it, and the last probe
+     * is answered from whichever shape survived. Skipped whole reads leave
+     * partial entries behind for the normal workload to hit and invalidate.
+     *
+     * @param array{type: string, read: string, write: string} $operation
+     * @param list<mixed> $arguments
+     * @return list<InvocationOutcome>
+     */
+    private function churn(
+        Relay|Cluster $client,
+        int $clientIndex,
+        int $sequence,
+        array $operation,
+        Command $command,
+        string $key,
+        array $arguments,
+    ): array {
+        $outcomes = [$this->probe($client, $clientIndex, $sequence, $operation, $key, true)];
+        if (rand(0, 1) === 1) {
+            $outcomes[] = $this->record(
+                $client,
+                $clientIndex,
+                $sequence,
+                'saturate:churn:' . $command->name(),
+                $key,
+                fn (): array => $this->readReply($command, $client, $arguments, null),
+            );
+        }
+        $outcomes[] = $this->probe($client, $clientIndex, $sequence, $operation, $key, false);
+
+        return $outcomes;
+    }
+
+    /** @param array{type: string, read: string, write: string} $operation */
+    private function probe(
+        Relay|Cluster $client,
+        int $clientIndex,
+        int $sequence,
+        array $operation,
+        string $key,
+        bool $seed,
+    ): InvocationOutcome {
+        $probes = self::PROBES[$operation['type']];
+        $command = $this->commands[$probes[rand(0, count($probes) - 1)]];
+        $arguments = $this->probeArguments($client, $command->name(), $operation['type'], $key);
+
+        return $this->record(
+            $client,
+            $clientIndex,
+            $sequence,
+            'saturate:churn:' . $command->name(),
+            $key,
+            function () use ($seed, $operation, $client, $key, $command, $arguments): array {
+                $exception = $seed ? $this->seed($client, $operation, $key) : null;
+
+                return $this->readReply($command, $client, $arguments, $exception);
+            },
+        );
+    }
+
+    /** @return list<mixed> */
+    private function probeArguments(Relay|Cluster $client, string $name, string $type, string $key): array
+    {
+        $members = $this->configuration->getMembers();
+
+        return match ($name) {
+            'getrange' => [$key, rand(-64, 64), rand(-64, 64)],
+            'getbit' => [$key, rand(0, 8 * $this->configuration->getMaxLen())],
+            'bitpos' => [$key, rand(0, 1) === 1],
+            'mget' => [[$key]],
+            'lindex' => [$key, rand(-$members, $members)],
+            'lpos' => [$key, $this->configuration->getRandomValue($client, $type)],
+            'lrange', 'zrevrange' => [$key, rand(-$members, $members), rand(-$members, $members)],
+            'srandmember' => [$key, rand(-$members, $members)],
+            'sismember', 'hget', 'hexists', 'hstrlen', 'zscore', 'zrank', 'zrevrank' => [
+                $key,
+                $this->configuration->getRandomMember($type),
+            ],
+            'smismember', 'zmscore' => [$key, ...$this->configuration->getRandomMembers($type)],
+            'hmget' => [$key, $this->configuration->getRandomMembers($type)],
+            'zcount', 'zrangebyscore' => [$key, ...$this->scoreRange()],
+            default => [$key],
+        };
+    }
+
+    /** @return array{string, string} */
+    private function scoreRange(): array
+    {
+        $bounds = [(string) $this->configuration->getRandomFloat(), (string) $this->configuration->getRandomFloat()];
+        sort($bounds, SORT_NUMERIC);
+        if (rand(0, 3) === 0) {
+            $bounds[rand(0, 1)] = rand(0, 1) === 0 ? '-inf' : '+inf';
+        }
+
+        return [$bounds[0], $bounds[1]];
+    }
+
+    /** @param array{type: string, read: string, write: string} $operation */
+    private function seed(Relay|Cluster $client, array $operation, string $key): ?\Throwable
+    {
+        try {
+            $this->commands[$operation['write']]->exec(
+                $client,
+                ...$this->seedArguments($client, $operation['type'], $key),
+            );
+        } catch (\Throwable $throwable) {
+            return $throwable;
+        }
+
+        return null;
     }
 
     /**

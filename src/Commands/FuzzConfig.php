@@ -508,7 +508,7 @@ class FuzzConfig {
     }
 
     /**
-     * @return string[]
+     * @return list<string>
      */
     public function getRandomMembers(string $type, ?int $count = null): array {
         $result = [];

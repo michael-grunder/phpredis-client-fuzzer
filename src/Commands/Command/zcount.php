@@ -22,7 +22,7 @@ class zcount extends Command implements FuzzInterface, FuzzRawInterface {
     }
 
     public function flags(): int {
-        return self::READ | self::COMMON;
+        return self::READ | self::CACHED | self::COMMON;
     }
 
     public function fuzzGeneric(Redis|RedisCluster|Relay|Cluster $client,

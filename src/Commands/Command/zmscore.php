@@ -10,7 +10,7 @@ use RedisCluster;
 
 class zmscore extends KeyMemsCommand {
     public function flags(): int {
-        return self::READ;
+        return self::READ | self::CACHED;
     }
 
     public function type(): string {

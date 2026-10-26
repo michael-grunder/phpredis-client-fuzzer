@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Cli;
 
+use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+
 /**
  * The long-option parser shared by the package binaries.
  *
@@ -79,6 +81,20 @@ final class Options
     public function has(string $name): bool
     {
         return array_key_exists($name, $this->values);
+    }
+
+    public function tls(): TlsConfiguration
+    {
+        $json = $this->string('tls-options', '{}');
+        $options = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($options) || !str_starts_with(ltrim($json), '{')) {
+            throw new \InvalidArgumentException('--tls-options must be a JSON object of PHP SSL context options');
+        }
+
+        return new TlsConfiguration(
+            $this->has('tls') || $this->has('tls-options'),
+            $options,
+        );
     }
 
     public function string(string $name, string $default): string

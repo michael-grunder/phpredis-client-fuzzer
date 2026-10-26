@@ -38,11 +38,13 @@ final class CoverageApplication
     }
 
     private const VALUE_OPTIONS = [
+        'tls-options',
         'client', 'host', 'port', 'username', 'password', 'timeout',
         'read-timeout', 'ignore', 'ignore-file', 'commands-file',
     ];
 
     private const FLAG_OPTIONS = [
+        'tls',
         'help', 'json', 'all', 'no-default-ignores', 'quiet',
     ];
 
@@ -118,6 +120,7 @@ final class CoverageApplication
                 ClientType::Relay, ClientType::RelayCluster => ClientType::Relay,
                 default => ClientType::Redis,
             },
+            tls: $options->tls(),
             host: $host,
             port: $port,
             seeds: ["{$host}:{$port}"],
@@ -240,6 +243,8 @@ target.
 Client and connection:
   --client=TYPE              redis, redis-cluster, relay, relay-cluster (default: redis)
                              Selects the class checked with method_exists()
+  --tls                     Connect over TLS
+  --tls-options=JSON        PHP SSL context options; implies --tls
   --host=HOST                Server to read COMMAND from (default: 127.0.0.1)
   --port=PORT                Server port (default: 6379)
   --username=USER            ACL username

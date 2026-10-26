@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Cli;
 
+use Mgrunder\PhpredisCommandFuzzer\TlsConfiguration;
+
 /**
  * Repeatedly disrupts a running fuzzer workload by signalling the fuzzer
  * workers, by running `CLIENT KILL` against a Redis target, or both.
@@ -13,6 +15,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Cli;
 final class FuzzKillerApplication
 {
     private const VALUE_OPTIONS = [
+        'tls-options',
         'signals',
         'sleep',
         'rate',
@@ -23,7 +26,7 @@ final class FuzzKillerApplication
         'process-rate',
         'client-rate',
     ];
-    private const FLAG_OPTIONS = ['help'];
+    private const FLAG_OPTIONS = ['tls', 'help'];
 
     private const MODES = ['process', 'client', 'both'];
 
@@ -105,6 +108,8 @@ final class FuzzKillerApplication
 
     /** @var string|array{0: string, 1: string}|null */
     private string|array|null $auth = null;
+
+    private TlsConfiguration $tls;
 
     /**
      * The callable arguments and iteration limit are test seams; the binary
@@ -199,6 +204,7 @@ final class FuzzKillerApplication
             $this->assertRate($processRate, '--process-rate');
             $this->assertRate($clientRate, '--client-rate');
 
+            $this->tls = $options->tls();
             $this->auth = $this->credentials($options->nullableString('auth'));
 
             $this->checkCapabilities($signalProcesses, $killClients);
@@ -623,7 +629,7 @@ final class FuzzKillerApplication
         $redis = new \Redis();
 
         try {
-            $connected = @$redis->connect($host, $port, self::CONNECT_TIMEOUT, null, 0, self::CONNECT_TIMEOUT);
+            $connected = @$redis->connect($this->tls->endpoint($host), $port, self::CONNECT_TIMEOUT, null, 0, self::CONNECT_TIMEOUT, $this->tls->context());
         } catch (\RedisException $exception) {
             throw new \RuntimeException("could not connect to {$host}:{$port}: {$exception->getMessage()}", 0, $exception);
         }
@@ -729,6 +735,8 @@ Signal options (process and both modes):
                              Names are case-insensitive and the SIG prefix is optional
 
 Redis options (client and both modes):
+  --tls                     Use TLS for target and discovered nodes
+  --tls-options=JSON        PHP SSL context options; implies --tls
   --host=HOST               Redis host to inspect (default: 127.0.0.1)
   --port=PORT               Redis port to inspect (default: 6379)
   --auth=SECRET             Password, or user:pass, for the inspection connections

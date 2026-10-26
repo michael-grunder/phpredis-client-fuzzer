@@ -44,6 +44,7 @@ final class Application
     }
 
     private const VALUE_OPTIONS = [
+        'tls-options',
         'client', 'host', 'port', 'seeds', 'username', 'password', 'timeout',
         'read-timeout', 'serializer', 'compression', 'prefix', 'steps',
         'seconds', 'seed', 'forks', 'commands', 'weight', 'keys', 'members', 'shards',
@@ -60,6 +61,7 @@ final class Application
     ];
 
     private const FLAG_OPTIONS = [
+        'tls',
         'help', 'verbose', 'raw', 'raw-chaos', 'include-blocking', 'pick-client',
         'no-relay-compatibility', 'differential', 'allow-deserialization-mutations',
     ];
@@ -220,10 +222,12 @@ final class Application
                 'compression',
             );
 
+            $tls = $options->tls();
             $clientConfigurations = [];
             foreach ($clientTypes as $type) {
                 $clientConfigurations[] = new ClientConfiguration(
                     type: $type,
+                    tls: $tls,
                     host: $host,
                     port: $port,
                     seeds: $seeds,
@@ -520,6 +524,8 @@ Clients and connection:
   --pick-client              For mixed standalone/cluster lists, probe host/port
                              and keep matching clients. Single-topology lists
                              are unchanged, including deliberate mismatches.
+  --tls                     Use TLS (including cluster seeds)
+  --tls-options=JSON        PHP SSL context options; implies --tls
   --host=HOST                Standalone host (default: 127.0.0.1)
   --port=PORT                Standalone port (default: 6379)
   --seeds=HOST:PORT,...      Cluster seeds (defaults to host and port)
@@ -603,7 +609,10 @@ Run configuration:
   --saturate-mode=MODE       natural reads existing keys; seeded writes generated
                              values before reading each key; fast grows one
                              SETBIT bitmap per step and reads it back, filling
-                             the target quickly (default: natural).
+                             the target quickly; churn seeds each key, then
+                             wraps an optional whole read in partial cached
+                             probes (lengths, members, ranges) so entries are
+                             created, upgraded, and hit (default: natural).
                              fast requires --saturate-target and --saturate-steps
   --invocation-mode=MODE     Client call typing: strict or coercive
                              (default: {invocation-default})

@@ -31,7 +31,7 @@ final class SubscribeApplication
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
-        $options = Options::parse($arguments, ['client','host','port','seeds','steps','seed','commands','command-steps','script-log'], ['help','no-fork','verbose']);
+        $options = Options::parse($arguments, ['tls-options','client','host','port','seeds','steps','seed','commands','command-steps','script-log'], ['tls','help','no-fork','verbose']);
         if ($options->has('help')) { fwrite($this->output, $this->help()); return 0; }
         $type = ClientType::tryFrom($options->string('client', 'relay'));
         if ($type === null) throw new \InvalidArgumentException('Unknown client type');
@@ -67,7 +67,7 @@ final class SubscribeApplication
         $host = $options->string('host', '127.0.0.1');
         $port = $options->integer('port', 6379);
         $seeds = $options->csv('seeds', $host . ':' . $port);
-        $config = new ClientConfiguration(type: $type, host: $host, port: $port, seeds: $seeds);
+        $config = new ClientConfiguration(type: $type, host: $host, port: $port, seeds: $seeds, tls: $options->tls());
         $client = $createClient($config);
         $control = 'fuzz:control:' . $random->getInt(0, 0x7fffffff);
         if ($noFork) {
@@ -159,6 +159,8 @@ Usage: phpredis-fuzz-subscribe [--client=redis|redis-cluster|relay|relay-cluster
     [--no-fork] [--commands=PATTERNS] [--command-steps=N] [--script-log=PREFIX] [--verbose]
 
 --no-fork          Relay callback sequencing without forking (useful with Valgrind).
+--tls             Use TLS for subscriber and publisher connections, including cluster seeds.
+--tls-options=JSON PHP SSL context options; implies --tls.
 --steps=N          Callback limit without forking; publisher actions otherwise (default: 100).
 --seed=N           Seed for subscription actions and generated command batches (default: 1).
 --commands=LIST    Catalog command/glob/flag filters (default: all normally safe commands).

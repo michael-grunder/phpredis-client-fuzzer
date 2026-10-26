@@ -38,6 +38,7 @@ namespace Mgrunder\PhpredisCommandFuzzer\Differential;
  * }
  * @phpstan-type Server array{
  *     host: string,
+ *     tls_options?: array<string, mixed>,
  *     port: int,
  *     timeout: float,
  *     read_timeout: float,
@@ -79,10 +80,12 @@ final class DiffRuntime
      */
     public static function connect(array $server)
     {
-        $address = 'tcp://' . $server['host'] . ':' . $server['port'];
+        $host = $server['host'];
+        $address = (str_contains($host, '://') ? $host : 'tcp://' . $host) . ':' . $server['port'];
         $errno = 0;
         $errstr = '';
-        $socket = @stream_socket_client($address, $errno, $errstr, max(0.001, $server['timeout']));
+        $context = stream_context_create(['ssl' => $server['tls_options'] ?? []]);
+        $socket = @stream_socket_client($address, $errno, $errstr, max(0.001, $server['timeout']), STREAM_CLIENT_CONNECT, $context);
         if ($socket === false) {
             throw new \RuntimeException("cannot connect to {$address}: {$errstr}");
         }
@@ -435,7 +438,8 @@ final class DiffRuntime
             throw new \InvalidArgumentException("unknown client kind {$kind}");
         }
 
-        if (!$client->connect($server['host'], $server['port'], $server['timeout'], null, 0, $server['read_timeout'])) {
+        $context = empty($server['tls_options']) ? [] : ['stream' => $server['tls_options']];
+        if (!$client->connect($server['host'], $server['port'], $server['timeout'], null, 0, $server['read_timeout'], $context)) {
             throw new \RuntimeException("{$kind} could not connect");
         }
         if ($server['auth'] !== null && !$client->auth($server['auth'])) {

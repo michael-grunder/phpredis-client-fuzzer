@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\PhpredisCommandFuzzer\Stateful;
 
+use Mgrunder\PhpredisCommandFuzzer\ClientFactory;
 use Redis;
 use RedisCluster;
 use Relay\Cluster;
@@ -71,6 +72,19 @@ final class RecoveryScenario extends ScenarioBase
                     }
                 }
             }
+        }
+        $configuration = ClientFactory::configurationFor($client);
+        if ($endpoint !== null && $configuration !== null) {
+            $endpoint = [
+                $configuration->tls->endpoint($configuration->host),
+                $configuration->port,
+                $endpoint[2] ?? $configuration->timeout,
+                null,
+                0,
+                $readTimeout ?? $configuration->readTimeout,
+                ($configuration->auth === null ? [] : ['auth' => $configuration->auth])
+                    + $configuration->tls->context(),
+            ];
         }
         $closed = $run->attempt('close');
         $run->expectThat(

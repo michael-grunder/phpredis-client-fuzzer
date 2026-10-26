@@ -31,6 +31,7 @@ use Mgrunder\PhpredisCommandFuzzer\Differential\TestCase;
 final class DiffApplication
 {
     private const VALUE_OPTIONS = [
+        'tls-options',
         'host', 'port', 'username', 'password', 'timeout', 'read-timeout', 'seed', 'cases', 'seconds',
         'steps', 'keys', 'members', 'wrongtype-chance', 'missing-chance', 'edge-chance', 'txn-chance',
         'ttl-chance', 'max-value-bytes', 'serializer', 'compression', 'relay-cache', 'order', 'commands',
@@ -38,7 +39,7 @@ final class DiffApplication
         'replay', 'minimize-case',
     ];
 
-    private const FLAG_OPTIONS = ['help', 'strict-messages', 'no-dedupe', 'allow-flush', 'no-minimize', 'keep-going', 'verbose', 'fail-on-unstable', 'list-commands'];
+    private const FLAG_OPTIONS = ['tls', 'help', 'strict-messages', 'no-dedupe', 'allow-flush', 'no-minimize', 'keep-going', 'verbose', 'fail-on-unstable', 'list-commands'];
 
     /** @var resource */
     private $output;
@@ -122,9 +123,11 @@ final class DiffApplication
             throw new \InvalidArgumentException('--ttl-tolerance-ms cannot be negative');
         }
 
+        $tls = $options->tls();
         /** @var Server $server */
         $server = [
-            'host' => $options->string('host', '127.0.0.1'),
+            'host' => $tls->endpoint($options->string('host', '127.0.0.1')),
+            'tls_options' => $tls->options,
             'port' => $port,
             'timeout' => max(0.0, $options->number('timeout', 2.0)),
             'read_timeout' => max(0.0, $options->number('read-timeout', 5.0)),
@@ -582,6 +585,8 @@ Usage:
   phpredis-fuzz-diff [options]
 
 Connection:
+  --tls                     Encrypt client and neutral RESP connections
+  --tls-options=JSON        PHP SSL context options; implies --tls
   --host=HOST                 Redis host (default: 127.0.0.1)
   --port=PORT                 Redis port (default: 6379)
   --username=USER             ACL username (with --password)
