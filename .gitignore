@@ -6,3 +6,4 @@ stubs/
 /redis-client-tester-repros/
 profiles/
 conf.d/
+/local-scripts/

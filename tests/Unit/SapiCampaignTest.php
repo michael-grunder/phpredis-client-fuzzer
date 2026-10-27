@@ -23,11 +23,16 @@ final class SapiCampaignTest extends TestCase
     #[DataProvider('exits')]
     public function testWrapperCleansDetachedWorkers(string $script, string $mode, int $expected): void
     {
+        $source = dirname(__DIR__, 2) . '/local-scripts/' . $script;
+        if (!is_file($source)) {
+            self::markTestSkipped('Local wrapper is not installed: ' . $script);
+        }
         $root = sys_get_temp_dir() . '/sapi-campaign-test-' . bin2hex(random_bytes(6));
         mkdir($root, 0o700);
         mkdir($root . '/bin');
         mkdir($root . '/scripts');
-        copy(dirname(__DIR__, 2) . '/' . $script, $root . '/' . $script);
+        mkdir($root . '/local-scripts');
+        copy($source, $root . '/local-scripts/' . $script);
         copy(dirname(__DIR__, 2) . '/scripts/sapi-campaign.sh', $root . '/scripts/sapi-campaign.sh');
         file_put_contents($root . '/bin/redis-client-tester-harness', '#!' . PHP_BINARY . "\n" . <<<'PHP'
 <?php
@@ -69,11 +74,11 @@ PHP);
         $env = getenv();
         unset($env['FAILOVER']);
         $env['TEST_MODE'] = $mode;
-        $process = proc_open(['bash', $root . '/' . $script], [
+        $process = proc_open(['bash', $root . '/local-scripts/' . $script], [
             0 => ['file', '/dev/null', 'r'],
             1 => ['file', $root . '/output', 'w'],
             2 => ['file', $root . '/error', 'w'],
-        ], $pipes, $root, $env);
+        ], $pipes, '/', $env);
         self::assertIsResource($process);
         try {
             $deadline = microtime(true) + 5;

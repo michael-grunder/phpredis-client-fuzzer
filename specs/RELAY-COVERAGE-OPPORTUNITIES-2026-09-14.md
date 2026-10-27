@@ -55,7 +55,7 @@ Several experiments below overlap in the same files.
 
 ## What the current launcher suggests
 
-[fuzz-coverage.sh](fuzz-coverage.sh) currently selects `redis,relay`, a five-second
+[fuzz-coverage.sh](../local-scripts/fuzz-coverage.sh) currently selects `redis,relay`, a five-second
 coercive workload, raw and raw-chaos operations, local/stateful/connection/flush
 categories, two children, and fast cache saturation. Its comment says “Direct
 disposable cluster,” but the active client selection is standalone. The supplied

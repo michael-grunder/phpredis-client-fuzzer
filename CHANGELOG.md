@@ -87,6 +87,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Move local ASAN, harness, invocation, and coverage wrappers into ignored
+  `local-scripts/`, resolving paths from the repository root; update launcher
+  tests and documentation for the new location.
+
 - Rename the Composer package to `mgrunder/redis-client-tester`, the namespace
   to `Mgrunder\RedisClientTester`, and every binary to the `redis-client-tester`
   prefix. Rename `Fuzzer`, `FuzzResult`, `FuzzerEndpoint`, and

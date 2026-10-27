@@ -951,8 +951,8 @@ exit 128+signal, invalid workloads exit 78, and PHP fatals or incomplete HTTP
 responses fail the run. A worker's sanitizer or nonzero Valgrind error summary
 also fails the run even if the server parent exits successfully.
 
-The local `asan-sapi.sh` and `asan-saturate-sapi.sh` wrappers forward Ctrl+C to
-the harness. Their exit traps also send TERM, wait half a second, then send KILL
+The `local-scripts/asan-sapi.sh` and `local-scripts/asan-saturate-sapi.sh` wrappers
+forward Ctrl+C to the harness. Their exit traps also send TERM, wait half a second, then send KILL
 to remaining processes carrying that invocation's unique environment marker.
 This includes detached workers and the optional failover helper, even after
 their parents exit. Cleanup uses Linux `/proc` and affects only that campaign;
@@ -2113,12 +2113,23 @@ $relay = (new ClientFactory())->create(new ClientConfiguration(
 `ClientType` values are `redis`, `redis-cluster`, `relay`, and
 `relay-cluster`. Cluster configurations use `seeds` in `host:port` form.
 
+### Local invocation wrappers
+
+Local invocation wrappers live in the ignored `local-scripts/` directory (not
+included in a fresh checkout). Run them with paths such as
+`./local-scripts/asan.sh`; they change to the repository root, so relative
+configuration, hook, log, and reproducer paths stay rooted there, even when
+invoked from another working directory. Keep generated artifacts outside this
+directory. Ordinary `git clean -fd` leaves it alone; `git clean -fdx` and
+`git clean -fdX` can delete it. Preview any cleanup with `git clean -nd` (using
+the same flags and paths you intend to clean).
+
 ### TLS connections
 
-The local ephemeral `asan.sh` and `asan-saturate.sh` helpers accept `--tls` to
-switch from plaintext ports 6379/7000 to TLS ports 16379/18000. They pass
+The `local-scripts/asan.sh` and `local-scripts/asan-saturate.sh` helpers accept
+`--tls` to switch from plaintext ports 6379/7000 to TLS ports 16379/18000. They pass
 `--tls` and `--tls-options='{"verify_peer":false,"verify_peer_name":false}'`
-to the worker for these disposable test instances. `FAILOVER=N ./asan.sh --tls`
+to the worker for these disposable test instances. `FAILOVER=N ./local-scripts/asan.sh --tls`
 also uses TLS with certificate verification disabled for cluster failover.
 
 Use `--tls` with a server's TLS port. It applies to all selected client types,

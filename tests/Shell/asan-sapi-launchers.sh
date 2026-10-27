@@ -2,14 +2,21 @@
 # Assert launcher argument routing with a fake harness; never contact Redis or load ASAN.
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+for script in asan-sapi.sh asan-saturate-sapi.sh; do
+    if [[ ! -f $root/local-scripts/$script ]]; then
+        echo "SKIP: local-scripts/$script is not installed"
+        exit 0
+    fi
+done
 workspace=$(mktemp -d)
 trap 'rm -rf -- "$workspace"' EXIT
 unset FAILOVER
-mkdir "$workspace/bin" "$workspace/scripts"
+mkdir "$workspace/bin" "$workspace/scripts" "$workspace/local-scripts"
 cp "$root/scripts/sapi-campaign.sh" "$workspace/scripts/"
-cp "$root/asan-sapi.sh" "$root/asan-saturate-sapi.sh" "$workspace/"
+cp "$root/local-scripts/asan-sapi.sh" "$root/local-scripts/asan-saturate-sapi.sh" "$workspace/local-scripts/"
 cat > "$workspace/bin/redis-client-tester-harness" <<'STUB'
 #!/usr/bin/env bash
+[[ $PWD == "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)" ]] || exit 1
 printf '%s\0' "$@"
 STUB
 chmod +x "$workspace/bin/redis-client-tester-harness"
@@ -43,7 +50,7 @@ expect_option() {
 capture() {
     local script=$1 token stage=0
     shift
-    "$workspace/$script" "$@" > "$workspace/argv"
+    (cd / && "$workspace/local-scripts/$script" "$@") > "$workspace/argv"
     local args=()
     mapfile -d '' -t args < "$workspace/argv"
     harness=() sapi=() workload=()
@@ -112,10 +119,10 @@ for script in asan-sapi.sh asan-saturate-sapi.sh; do
     expect_option seed 42 "${workload[@]}"
     expect_option prefix 'space $literal' "${workload[@]}"
 
-    "$workspace/$script" --help > "$workspace/help"
+    "$workspace/local-scripts/$script" --help > "$workspace/help"
     for option in --jobs --workers; do
         status=0
-        "$workspace/$script" "$option" > "$workspace/argv" 2> "$workspace/error" || status=$?
+        "$workspace/local-scripts/$script" "$option" > "$workspace/argv" 2> "$workspace/error" || status=$?
         [[ $status == 78 && ! -s $workspace/argv ]]
     done
     printf '%s: OK\n' "$script"
