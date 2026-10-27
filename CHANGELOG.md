@@ -116,6 +116,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Kill owned harness process groups and detached SAPI workers on forced exit,
+  including reduction runs and shutdown after errors. Clean up descendants after
+  ordinary runs and find orphan workers even if their parent died before discovery.
+  Add campaign-scoped TERM/KILL exit cleanup to both local ASAN SAPI launchers.
+
 - Fix PHPStan errors in command dispatch, differential helpers, value corpus
   generation, and the evilresp test's mutable command snapshots without changing
   seeded workloads or suppressing diagnostics.

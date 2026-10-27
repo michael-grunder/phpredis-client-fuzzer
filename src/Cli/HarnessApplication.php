@@ -177,6 +177,7 @@ final class HarnessApplication
             $this->asan,
         );
         $reducer = new Reducer($runner, $options->reduceTimeout);
+        register_shutdown_function($runner->cleanup(...));
         $ports = new PortPool($options->ports, $options->portSelect, $options->isolatePorts);
         $stats = new Stats();
         $view = $this->makeView($options);
@@ -186,6 +187,7 @@ final class HarnessApplication
         try {
             return $scheduler->run();
         } finally {
+            $runner->cleanup();
             if (!$options->keepWork) {
                 // Only this campaign's own subtree: another harness may still
                 // be recording into its own. The shared parent goes away with

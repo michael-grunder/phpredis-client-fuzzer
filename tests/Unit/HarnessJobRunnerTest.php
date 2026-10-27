@@ -25,6 +25,63 @@ final class HarnessJobRunnerTest extends TestCase
 {
     private string $root = '';
 
+    public function testCleanupKillsDetachedSapiWorkersAndKeepsArtifacts(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, [], [
+            'php', dirname(__DIR__) . '/Fixtures/sapi-server.php', 'harness', 'idle',
+        ]);
+        $job = $runner->spawn(0, null, 42);
+        try {
+            $deadline = microtime(true) + 5;
+            do {
+                $response = @file_get_contents($job->workDir . '/sapi/request-0.php.http');
+                if ($response !== false && str_ends_with($response, 'idle')) {
+                    break;
+                }
+                usleep(10000);
+            } while (microtime(true) < $deadline);
+            self::assertIsString($response);
+            self::assertStringEndsWith('idle', $response);
+            $pids = file($job->workDir . '/sapi/pids.txt', FILE_IGNORE_NEW_LINES);
+            self::assertIsArray($pids);
+            self::assertGreaterThanOrEqual(3, count($pids));
+            $runner->cleanup();
+            foreach ([$job->pid, ...$pids] as $pid) {
+                self::assertTrue($this->waitForExit((int) $pid, 2), 'surviving process: ' . $pid);
+            }
+            self::assertFileExists($job->workDir . '/sapi/request-0.php.http');
+        } finally {
+            $runner->cleanup();
+            $runner->poll($job, true);
+        }
+    }
+
+    public function testNormalCompletionKillsChildrenLeftInTheRunGroup(): void
+    {
+        $root = $this->workspace();
+        $script = $root . '/fork.php';
+        file_put_contents($script, <<<'PHP'
+<?php
+$pid = pcntl_fork();
+if ($pid === 0) {
+    sleep(60);
+    exit(0);
+}
+file_put_contents(__DIR__ . '/child.pid', (string) $pid);
+PHP);
+        $runner = $this->runner($root, [], ['php', $script], setsid: '/usr/bin/setsid');
+        $job = $runner->spawn(0, null, 42);
+        try {
+            $this->await($runner, $job);
+            $pid = (int) file_get_contents($root . '/child.pid');
+            self::assertGreaterThan(1, $pid);
+            self::assertTrue($this->waitForExit($pid, 2));
+        } finally {
+            $runner->cleanup();
+        }
+    }
+
     public function testServerChildrenReceiveConcreteStartupArgsAndAnIsolatedArtifactDirectory(): void
     {
         $root = $this->workspace();
@@ -462,6 +519,7 @@ PHP);
         ?string $rr = null,
         ?RunLog $runLog = null,
         int $steps = 1,
+        ?string $setsid = null,
     ): JobRunner {
         $options = HarnessOptions::parse([...$harnessArgs, '--steps', (string) $steps, '--', ...$command]);
         $store = new ReproStore($root . '/out', new CorePattern('core.%e.%p', false), $root, null, 4242);
@@ -476,7 +534,7 @@ PHP);
             $root . '/work',
             $rr,
             'php test',
-            null,
+            $setsid,
             $runLog,
         );
     }

@@ -118,7 +118,7 @@ final class Scheduler
      * request begins a graceful shutdown that stops spawning and lets in-flight
      * runs finish. A further request while the shutdown is already under way —
      * immediately, or a quick double-tap once the reminder has been shown —
-     * forces an immediate exit and leaves child cleanup to the OS. A lone
+     * forces an immediate exit after killing owned process groups. A lone
      * request after the window has lapsed only re-arms it and prints a hint, so
      * an operator can tell "still draining a slow run" from "wedged".
      */
@@ -142,27 +142,19 @@ final class Scheduler
     }
 
     /**
-     * Abandon the graceful drain: best-effort, non-blocking kill of whatever is
-     * still running (so isolated ports and redis-servers are not left behind),
-     * restore the terminal, and exit. Anything still lingering is the OS's to
-     * reap.
+     * Abandon the graceful drain, kill owned runs and detached SAPI workers,
+     * restore the terminal, and exit without waiting for diagnostics.
      */
     private function forceQuit(): never
     {
-        $signal = defined('SIGKILL') ? SIGKILL : 9;
-        $left = 0;
-        foreach ($this->active as $job) {
-            if ($job->isRunning()) {
-                @proc_terminate($job->process, $signal);
-                $left++;
-            }
+        // Further interrupts must not interrupt the cleanup itself.
+        if (function_exists('pcntl_signal')) {
+            pcntl_signal(SIGINT, SIG_IGN);
+            pcntl_signal(SIGTERM, SIG_IGN);
         }
-
+        $this->runner->cleanup();
         $this->view->stop();
-        fwrite(STDOUT, sprintf(
-            "\nharness: forced exit on operator interrupt — %d run(s) left for the OS to reap\n",
-            $left,
-        ));
+        fwrite(STDOUT, "\nharness: forced exit on operator interrupt — killed owned runs and SAPI workers\n");
         exit(130);
     }
 

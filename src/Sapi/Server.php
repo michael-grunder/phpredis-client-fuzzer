@@ -54,7 +54,7 @@ final class Server
     }
 
     /** @internal Harness fallback when the supervisor itself crashes or is killed. */
-    public static function stopOrphans(string $directory): void
+    public static function stopOrphans(string $directory, bool $force = false): void
     {
         if (!function_exists('posix_kill')) {
             return;
@@ -64,16 +64,19 @@ final class Server
             return;
         }
         $group = (int) $pids[0];
-        foreach ($pids as $pid) {
-            if (!ctype_digit($pid)) {
-                continue;
-            }
-            $stat = @file_get_contents('/proc/' . $pid . '/stat');
+        // A parent can die before tick() records its workers; find surviving group members too.
+        $stats = glob('/proc/[0-9]*/stat') ?: [];
+        foreach ($stats as $path) {
+            $stat = @file_get_contents($path);
             if ($stat === false) {
                 continue;
             }
             $fields = explode(' ', substr($stat, (int) strrpos($stat, ')') + 2));
             if ($fields[0] !== 'Z' && ($fields[2] ?? '') === (string) $group && ($fields[3] ?? '') === (string) $group) {
+                if ($force) {
+                    @posix_kill(-$group, SIGKILL);
+                    return;
+                }
                 @posix_kill(-$group, SIGTERM);
                 $deadline = microtime(true) + 0.5;
                 while (@posix_kill(-$group, 0) && microtime(true) < $deadline) {
@@ -162,6 +165,7 @@ final class Server
         }
         $this->process = $process;
         $this->pid = proc_get_status($this->process)['pid'];
+        self::write($this->directory . '/pids.txt', $this->pid . "\n");
         $log = fopen($this->directory . '/server.stderr.log', 'r');
         if ($log === false) {
             throw new \RuntimeException('cannot read server diagnostics');

@@ -17,6 +17,9 @@ final class JobRunner
 {
     private int $nextId = 1;
 
+    /** @var array<int, array{process: resource, pid: int, directory: string}> */
+    private array $processes = [];
+
     private readonly PhpStartupTemplate $startup;
 
     /**
@@ -116,8 +119,7 @@ final class JobRunner
         $job->finishedAt = microtime(true);
         $job->signal = $status['signaled'] && $status['termsig'] > 0 ? $status['termsig'] : null;
         $job->exitCode = $status['exitcode'] >= 0 ? $status['exitcode'] : null;
-        @proc_close($job->process);
-        Server::stopOrphans($job->workDir . '/sapi');
+        $this->close($job->process);
 
         // Only a run the shutdown actually had to kill is discarded. One that
         // had already finished on its own is a normal result — and it may be a
@@ -189,8 +191,7 @@ final class JobRunner
                 }
                 usleep(50_000);
                 proc_get_status($process);
-                @proc_close($process);
-                Server::stopOrphans($workDir . '/sapi');
+                $this->close($process);
 
                 return new JobOutcome(
                     FailureClassifier::fromExit(false, null, null, true),
@@ -203,8 +204,7 @@ final class JobRunner
             usleep(20_000);
             $status = proc_get_status($process);
         }
-        @proc_close($process);
-        Server::stopOrphans($workDir . '/sapi');
+        $this->close($process);
 
         $signal = $status['signaled'] && $status['termsig'] > 0 ? $status['termsig'] : null;
         $exitCode = $status['exitcode'] >= 0 ? $status['exitcode'] : null;
@@ -608,12 +608,52 @@ final class JobRunner
         $env = $this->childEnv();
         $env['REDIS_CLIENT_TESTER_WORK_DIR'] = $workDir;
         $env['REDIS_CLIENT_TESTER_PHP_ARGS'] = json_encode($phpArgs, JSON_THROW_ON_ERROR);
-        $process = proc_open($argv, $descriptors, $pipes, $this->baseDir, $env);
-        if (!is_resource($process)) {
-            throw new \RuntimeException('failed to launch: ' . implode(' ', $argv));
+        // Defer handlers until ownership is recorded, without blocking signals in the child.
+        $async = function_exists('pcntl_async_signals') ? pcntl_async_signals(false) : null;
+        try {
+            $process = proc_open($argv, $descriptors, $pipes, $this->baseDir, $env);
+            if (!is_resource($process)) {
+                throw new \RuntimeException('failed to launch: ' . implode(' ', $argv));
+            }
+            $this->processes[(int) $process] = [
+                'process' => $process,
+                'pid' => proc_get_status($process)['pid'],
+                'directory' => $workDir,
+            ];
+        } finally {
+            if ($async !== null) {
+                pcntl_async_signals($async);
+            }
         }
 
         return $process;
+    }
+
+    /** Stop every owned run, including a synchronous reduction interrupted mid-flight. */
+    public function cleanup(): void
+    {
+        foreach ($this->processes as $child) {
+            $this->kill($child, true);
+        }
+    }
+
+    /** @param array{process: resource, pid: int, directory: string} $child */
+    private function kill(array $child, bool $force): void
+    {
+        if ($this->setsidBinary !== null && function_exists('posix_kill')) {
+            @posix_kill(-$child['pid'], 9);
+        }
+        @proc_terminate($child['process'], 9);
+        Server::stopOrphans($child['directory'] . '/sapi', $force);
+    }
+
+    /** @param resource $process */
+    private function close($process): void
+    {
+        $id = (int) $process;
+        $this->kill($this->processes[$id], false);
+        @proc_close($process);
+        unset($this->processes[$id]);
     }
 
     /** @return array<string, string> */

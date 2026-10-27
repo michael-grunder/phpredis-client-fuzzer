@@ -7,7 +7,14 @@ require dirname(__DIR__, 2) . '/vendor/autoload.php';
 use Mgrunder\RedisClientTester\Sapi\Server;
 
 $directory = $argv[1] ?? throw new RuntimeException('missing fixture directory');
+if ($directory === 'harness') {
+    $directory = getenv('REDIS_CLIENT_TESTER_WORK_DIR') . '/sapi';
+    mkdir($directory);
+}
 $mode = $argv[2] ?? throw new RuntimeException('missing fixture mode');
+if ($mode === 'reduce') {
+    $mode = str_contains($directory, '/reduce-') ? 'idle' : 'fatal';
+}
 $paths = [];
 for ($index = 0; $index < ($mode === 'normal' ? 8 : 1); $index++) {
     $name = "request-{$index}.php";
@@ -37,4 +44,4 @@ SOURCE;
     }
     Server::write($directory . '/' . $name, $source);
 }
-exit((new Server($directory, 2, 2, $mode === 'idle' ? 1000 : 40, $mode === 'timeout' ? 0.4 : 5.0))->run($paths, ['-dprecision=12']));
+exit((new Server($directory, 2, 2, $mode === 'idle' ? 60000 : 40, $mode === 'timeout' ? 0.4 : 5.0))->run($paths, ['-dprecision=12']));

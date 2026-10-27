@@ -951,6 +951,13 @@ exit 128+signal, invalid workloads exit 78, and PHP fatals or incomplete HTTP
 responses fail the run. A worker's sanitizer or nonzero Valgrind error summary
 also fails the run even if the server parent exits successfully.
 
+The local `asan-sapi.sh` and `asan-saturate-sapi.sh` wrappers forward Ctrl+C to
+the harness. Their exit traps also send TERM, wait half a second, then send KILL
+to remaining processes carrying that invocation's unique environment marker.
+This includes detached workers and the optional failover helper, even after
+their parents exit. Cleanup uses Linux `/proc` and affects only that campaign;
+logs and reproducers are retained. SIGKILL of the wrapper itself cannot run traps.
+
 Standalone runs retain everything in a fresh private temporary directory printed
 on stderr; `--directory=PATH` selects another fresh directory and refuses to
 reuse an existing one. It contains `workload.json`, request scripts, concrete
@@ -1296,7 +1303,11 @@ on its own during that drain is still classified and captured, so a crash landin
 in the last moments of a campaign is not thrown away; interrupting again
 while that shutdown is running — immediately, or a quick double-tap after the
 "still shutting down" hint — abandons the drain, kills whatever is left, and
-exits `130`, leaving any stragglers for the OS to reap. A lone interrupt once
+exits `130`. Forced exit sends SIGKILL to owned run groups and detached SAPI
+workers, including an in-progress reduction, before leaving. The harness also
+cleans up remaining descendants after each run and on PHP shutdown. Forced exit
+does not wait for final diagnostic capture; partial work artifacts remain.
+A lone interrupt once
 the drain has been running a while only re-arms that double-tap and prints the
 hint, so a slow-draining run reads differently from a wedged one.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,

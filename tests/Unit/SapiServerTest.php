@@ -243,6 +243,34 @@ final class SapiServerTest extends TestCase
         $this->assertStopped();
     }
 
+    public function testCleanupFindsWorkersEvenWhenOnlyTheDeadParentWasRecorded(): void
+    {
+        $process = $this->launchFixture('idle');
+        $pids = false;
+        try {
+            $this->waitForIdle();
+            $pids = file_get_contents($this->directory . '/pids.txt');
+            self::assertIsString($pids);
+            $parent = (int) strtok($pids, "\n");
+            proc_terminate($process, SIGKILL);
+            proc_close($process);
+            posix_kill($parent, SIGKILL);
+            file_put_contents($this->directory . '/pids.txt', $parent . "\n");
+            Server::stopOrphans($this->directory, true);
+            file_put_contents($this->directory . '/pids.txt', $pids);
+            $this->assertStopped();
+        } finally {
+            if (is_string($pids)) {
+                file_put_contents($this->directory . '/pids.txt', $pids);
+            }
+            Server::stopOrphans($this->directory);
+            if (is_resource($process)) {
+                proc_terminate($process, SIGKILL);
+                proc_close($process);
+            }
+        }
+    }
+
     private function waitForIdle(): void
     {
         $deadline = microtime(true) + 5.0;
@@ -261,7 +289,14 @@ final class SapiServerTest extends TestCase
         $pids = file($this->directory . '/pids.txt', FILE_IGNORE_NEW_LINES);
         self::assertIsArray($pids);
         foreach ($pids as $pid) {
-            $stat = @file_get_contents('/proc/' . $pid . '/stat');
+            $deadline = microtime(true) + 2;
+            do {
+                $stat = @file_get_contents('/proc/' . $pid . '/stat');
+                if ($stat === false || str_contains($stat, ') Z ')) {
+                    break;
+                }
+                usleep(10000);
+            } while (microtime(true) < $deadline);
             if ($stat !== false) {
                 self::assertStringContainsString(') Z ', $stat, 'server process still alive: ' . $pid);
             }

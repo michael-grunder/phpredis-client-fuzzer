@@ -6,11 +6,77 @@ namespace Mgrunder\RedisClientTester\Tests\Unit;
 
 use Mgrunder\RedisClientTester\Cli\HarnessApplication;
 use Mgrunder\RedisClientTester\Harness\Fs;
+use Mgrunder\RedisClientTester\Sapi\Server;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessApplicationTest extends TestCase
 {
     private string $root = '';
+
+    /** @return iterable<string, array{string, string}> */
+    public static function interruptedRuns(): iterable
+    {
+        yield 'active run' => ['idle', 'run'];
+        yield 'reduction run' => ['reduce', 'reduce'];
+    }
+
+    #[DataProvider('interruptedRuns')]
+    public function testDoubleInterruptCleansDetachedServers(string $mode, string $prefix): void
+    {
+        $root = $this->workspace();
+        mkdir($root, 0o700, true);
+        $process = proc_open([
+            PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-harness',
+            '--no-core-check', '--no-tui', '--keep-work', '--output=' . $root . '/campaign',
+            '--runs=1', '--jobs=1', '--seed=42', '--steps=4', '--capture=failures', '--reduce=steps',
+            '--', dirname(__DIR__) . '/Fixtures/sapi-server.php', 'harness', $mode, '{steps}',
+        ], [
+            0 => ['file', '/dev/null', 'r'],
+            1 => ['file', $root . '/output', 'w'],
+            2 => ['file', $root . '/error', 'w'],
+        ], $pipes);
+        self::assertIsResource($process);
+        try {
+            $deadline = microtime(true) + 10;
+            $directories = [];
+            do {
+                $directories = glob($root . '/campaign/.work/*/' . $prefix . '-*/sapi') ?: [];
+                if (isset($directories[0])) {
+                    $response = @file_get_contents($directories[0] . '/request-0.php.http');
+                    if ($response !== false && str_ends_with($response, 'idle')) {
+                        break;
+                    }
+                }
+                usleep(10000);
+            } while (microtime(true) < $deadline);
+            self::assertNotEmpty($directories, (string) file_get_contents($root . '/error'));
+            self::assertStringEndsWith('idle', (string) file_get_contents($directories[0] . '/request-0.php.http'));
+            proc_terminate($process, SIGINT);
+            usleep(100000);
+            proc_terminate($process, SIGINT);
+            $deadline = microtime(true) + 5;
+            do {
+                $status = proc_get_status($process);
+                usleep(10000);
+            } while ($status['running'] && microtime(true) < $deadline);
+            self::assertFalse($status['running']);
+            self::assertSame(130, $status['exitcode']);
+            $pids = file($directories[0] . '/pids.txt', FILE_IGNORE_NEW_LINES);
+            self::assertIsArray($pids);
+            self::assertGreaterThanOrEqual(3, count($pids));
+            foreach ($pids as $pid) {
+                $stat = @file_get_contents('/proc/' . $pid . '/stat');
+                self::assertTrue($stat === false || str_contains($stat, ') Z '), 'surviving worker: ' . $pid);
+            }
+        } finally {
+            proc_terminate($process, SIGKILL);
+            proc_close($process);
+            foreach (glob($root . '/campaign/.work/*/*/sapi') ?: [] as $directory) {
+                Server::stopOrphans($directory, true);
+            }
+        }
+    }
 
     protected function tearDown(): void
     {
