@@ -88,6 +88,87 @@ final class SapiServerTest extends TestCase
         self::assertStringContainsString('invalid-client', (string) file_get_contents($this->directory . '/first.err'));
     }
 
+    public function testStepJitterPreservesSeedsAndScalesBudgetsDuringReduction(): void
+    {
+        $runs = [
+            'plain' => [null, 1000], 'zero' => [0, 1000],
+            'jitter' => [90, 1000], 'repeat' => [90, 1000], 'reduced' => [90, 100],
+            'rounded' => [90, 3], 'single' => [100, 1], 'unlimited' => [0, 0], 'huge' => [90, PHP_INT_MAX],
+        ];
+        $budgets = array_fill_keys(array_keys($runs), []);
+        $seeds = array_fill_keys(array_keys($runs), []);
+        foreach ($runs as $name => [$jitter, $steps]) {
+            self::assertSame(78, $this->runApplication($name, [
+                ...($jitter === null ? [] : ['--step-jitter=' . $jitter]),
+                '--', '--steps=' . $steps, '--seconds=1', '--seed=42', '--client=invalid-client',
+            ]));
+            $manifest = json_decode((string) file_get_contents($this->directory . '/' . $name . '/workload.json'), true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($manifest);
+            self::assertSame($jitter ?? 0, $manifest['step_jitter']);
+            self::assertIsArray($manifest['request_steps']);
+            self::assertIsArray($manifest['request_seeds']);
+            $seeds[$name] = $manifest['request_seeds'];
+            self::assertCount(20, $manifest['request_steps']);
+            foreach ($manifest['request_steps'] as $index => $budget) {
+                self::assertIsInt($index);
+                self::assertIsInt($budget);
+                $budgets[$name][] = $budget;
+                self::assertGreaterThanOrEqual($steps === 0 ? 0 : 1, $budget);
+                self::assertLessThanOrEqual($steps, $budget);
+                if ($jitter !== null && $jitter > 0) {
+                    self::assertIsInt($seeds[$name][$index]);
+                    $script = sprintf('%s/%s/request-%05d-seed-%d.php', $this->directory, $name, $index + 1, $seeds[$name][$index]);
+                    self::assertStringContainsString("'--steps={$budget}'", (string) file_get_contents($script));
+                }
+            }
+            self::assertSame($seeds['plain'], $seeds[$name]);
+        }
+        self::assertSame(array_fill(0, 20, 1000), $budgets['plain']);
+        self::assertSame($budgets['plain'], $budgets['zero']);
+        self::assertSame($budgets['jitter'], $budgets['repeat']);
+        self::assertGreaterThan(1, count(array_unique($budgets['jitter'])));
+        self::assertSame(array_fill(0, 20, 1), $budgets['single']);
+        self::assertSame(array_fill(0, 20, 0), $budgets['unlimited']);
+        foreach ($budgets['jitter'] as $index => $budget) {
+            self::assertGreaterThanOrEqual(100, $budget);
+            self::assertSame($budget, $budgets['reduced'][$index] * 10);
+            self::assertSame(max(1, (int) ceil($budget * 3 / 1000)), $budgets['rounded'][$index]);
+        }
+    }
+
+    /** @return iterable<string, array{list<string>}> */
+    public static function invalidJitter(): iterable
+    {
+        foreach (['-1', '101', 'NaN', '1.5'] as $value) {
+            yield $value => [['--step-jitter=' . $value, '--', '--seed=42']];
+        }
+        yield 'unlimited steps' => [['--step-jitter=90', '--', '--steps=0', '--seconds=1', '--seed=42']];
+    }
+
+    /** @param list<string> $arguments */
+    #[DataProvider('invalidJitter')]
+    public function testInvalidJitterIsRejectedBeforeGeneratingScripts(array $arguments): void
+    {
+        self::assertSame(78, $this->runApplication('invalid', $arguments));
+        self::assertDirectoryDoesNotExist($this->directory . '/invalid');
+        self::assertStringContainsString('--step-jitter', (string) file_get_contents($this->directory . '/invalid.err'));
+    }
+
+    /** @param list<string> $arguments */
+    private function runApplication(string $name, array $arguments): int
+    {
+        $process = proc_open([
+            PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi',
+            '--directory=' . $this->directory . '/' . $name,
+            '--workers=2', '--idle-ms=0', ...$arguments,
+        ], [
+            1 => ['file', $this->directory . '/' . $name . '.out', 'w'],
+            2 => ['file', $this->directory . '/' . $name . '.err', 'w'],
+        ], $pipes);
+        self::assertIsResource($process);
+        return proc_close($process);
+    }
+
     /** @return iterable<string, array{string, int, string}> */
     public static function failures(): iterable
     {

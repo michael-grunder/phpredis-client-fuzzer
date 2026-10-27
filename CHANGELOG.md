@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `--tls` to the local `asan.sh` and `asan-saturate.sh` helpers to select
+  ports 16379/18000 with peer and hostname verification disabled, including
+  TLS for `asan.sh`'s optional cluster failover commands.
+
+- Add SAPI `--step-jitter=0..100` to vary per-request step budgets deterministically
+  without changing workload seeds. Record concrete budgets in scripts and
+  `workload.json`, and preserve per-request scales during harness reduction.
+
 - Add `redis-client-tester-sapi` for seeded workloads in concurrent HTTP requests
   against persistent PHP built-in server workers, with idle intervals, bounded
   requests, worker-death detection, process-group cleanup, and per-request scripts

@@ -902,6 +902,23 @@ options; commands and their concrete arguments are generated inside the request
 using the existing workload engine and recorded in a separate `.calls.php` file.
 There is no preliminary CLI execution against Redis.
 
+Use `--step-jitter=PERCENT` before `--` to stagger completion within each batch.
+It accepts an integer from 0 to 100 and defaults to 0 (unchanged budgets).
+For example, `--step-jitter=90 -- --steps=1000` assigns each request between
+100 and 1,000 steps. Each request's seed independently selects a whole-percent
+scale between `100 - PERCENT` and 100; the scaled budget is rounded up, with a
+minimum of one step. The request-seed sequence does not change when jitter is
+enabled. Scripts contain their concrete budgets, and `workload.json` records
+`step_jitter` and the ordered `request_steps` list alongside `request_seeds`.
+
+The dispatcher waits for the whole batch, so workers finishing shorter requests
+can stay idle while longer requests continue writing. Harness step reduction
+keeps each request's scale fixed and reduces its budget with `{steps}`. Nonzero
+jitter requires positive `--steps` (default 100); time-only `--steps=0` runs
+remain available with jitter disabled. A `--seconds` limit can still end a
+request before its step budget is exhausted. Budgets are deterministic, while
+execution times and worker assignment remain dependent on scheduling.
+
 Persistent connections are enabled for all four supported clients. The ordinary
 CLI exposes the same behavior as opt-in `--persistent`, and library callers can
 use `ClientConfiguration(persistent: true)` (default `false`). Standalone clients
@@ -2086,6 +2103,12 @@ $relay = (new ClientFactory())->create(new ClientConfiguration(
 `relay-cluster`. Cluster configurations use `seeds` in `host:port` form.
 
 ### TLS connections
+
+The local ephemeral `asan.sh` and `asan-saturate.sh` helpers accept `--tls` to
+switch from plaintext ports 6379/7000 to TLS ports 16379/18000. They pass
+`--tls` and `--tls-options='{"verify_peer":false,"verify_peer_name":false}'`
+to the worker for these disposable test instances. `FAILOVER=N ./asan.sh --tls`
+also uses TLS with certificate verification disabled for cluster failover.
 
 Use `--tls` with a server's TLS port. It applies to all selected client types,
 cluster discovery seeds, topology probes, and stateful peer connections:
