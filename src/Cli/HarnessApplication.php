@@ -188,7 +188,7 @@ final class HarnessApplication
             return $scheduler->run();
         } finally {
             $runner->cleanup();
-            if (!$options->keepWork) {
+            if (!$options->keepWork && !$scheduler->isStopping()) {
                 // Only this campaign's own subtree: another harness may still
                 // be recording into its own. The shared parent goes away with
                 // the last campaign to leave, and stays if one is still there.

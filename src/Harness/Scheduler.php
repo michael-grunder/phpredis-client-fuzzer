@@ -84,17 +84,20 @@ final class Scheduler
                 }
                 $this->view->render($this->stats, $this->snapshot());
 
-                if ($this->stopping && $this->active === []) {
-                    break;
-                }
                 if (!$this->stopping && $this->campaignComplete()) {
+                    if ($this->active === []) {
+                        break;
+                    }
                     $this->stopping = true;
                 }
 
                 usleep(50_000);
             }
 
-            $this->drain();
+            $this->view->render($this->stats, $this->snapshot());
+        } catch (ShutdownRequested) {
+            $this->runner->cleanup();
+            $this->active = [];
             $this->view->render($this->stats, $this->snapshot());
         } finally {
             $this->runner->setHeartbeat(null);
@@ -110,6 +113,12 @@ final class Scheduler
         return $this->stats->reproducers > 0 ? ExitCode::FAILURE : ExitCode::SUCCESS;
     }
 
+    /** Whether shutdown abandoned work whose partial artifacts must be retained. */
+    public function isStopping(): bool
+    {
+        return $this->stopping;
+    }
+
     private function heartbeat(): void
     {
         if (function_exists('pcntl_signal_dispatch')) {
@@ -119,16 +128,19 @@ final class Scheduler
             $this->requestStop();
         }
         $this->view->render($this->stats, $this->snapshot());
+        if ($this->stopping) {
+            throw new ShutdownRequested();
+        }
     }
 
     /**
      * Handle an operator stop request (Ctrl+C, or q/Esc in the TUI). The first
-     * request begins a graceful shutdown that stops spawning and lets in-flight
-     * runs finish. A further request while the shutdown is already under way —
+     * request cancels capture and reduction at the next heartbeat and kills
+     * owned inferiors. A further request while shutdown is already under way —
      * immediately, or a quick double-tap once the reminder has been shown —
      * forces an immediate exit after killing owned process groups. A lone
      * request after the window has lapsed only re-arms it and prints a hint, so
-     * an operator can tell "still draining a slow run" from "wedged".
+     * an operator can tell "still stopping a slow run" from "wedged".
      */
     private function requestStop(): void
     {
@@ -137,7 +149,7 @@ final class Scheduler
         if (!$this->stopping) {
             $this->stopping = true;
             $this->lastInterruptAt = $now;
-            $this->view->note('stopping — letting in-flight runs finish; interrupt again to exit now');
+            $this->view->note('stopping — cancelling capture and reduction, killing inferiors; interrupt again to exit now');
             return;
         }
 
@@ -150,7 +162,7 @@ final class Scheduler
     }
 
     /**
-     * Abandon the graceful drain, kill owned runs and detached SAPI workers,
+     * Abandon pending processing, kill owned runs and detached SAPI workers,
      * restore the terminal, and exit without waiting for diagnostics.
      */
     private function forceQuit(): never
@@ -170,6 +182,7 @@ final class Scheduler
     {
         $survivors = [];
         foreach ($this->active as $job) {
+            $this->heartbeat();
             $this->runner->poll($job);
             if ($job->isRunning()) {
                 $survivors[] = $job;
@@ -183,9 +196,7 @@ final class Scheduler
     }
 
     /**
-     * Account for a run that has stopped, whatever ended it. Shared by the
-     * campaign loop and the shutdown drain so a run that finished during the
-     * drain is counted and captured exactly like any other.
+     * Account for a run that completed before shutdown cancelled processing.
      */
     private function finish(Job $job): void
     {
@@ -328,7 +339,7 @@ final class Scheduler
 
         $original = $job->note;
         $job->note = 'reducing…';
-        $this->view->render($this->stats, $this->snapshot());
+        $this->heartbeat();
 
         $result = $this->reducer->reduce($job);
         if ($result === null) {
@@ -336,8 +347,8 @@ final class Scheduler
             return;
         }
 
-        $job->reducedSteps = $result['steps'];
         $job->note = 'recording minimum…';
+        $this->heartbeat();
         $finalTimeout = max(10.0, $job->duration() * 4.0);
         $final = $this->runner->rerun(
             $job->seed,
@@ -346,7 +357,9 @@ final class Scheduler
             $finalTimeout,
             $this->options->rr,
         );
+        $this->heartbeat();
         $this->store->addMinimized($job->reproDir, $final, $result['steps']);
+        $job->reducedSteps = $result['steps'];
         $this->runner->cleanupOutcome($final);
         $this->runner->cleanupOutcome($result['outcome']);
         $this->stats->reductions++;
@@ -415,20 +428,6 @@ final class Scheduler
         return $this->options->maxRuns > 0 || $this->options->maxSeconds > 0.0;
     }
 
-    private function drain(): void
-    {
-        if ($this->active === []) {
-            return;
-        }
-
-        $this->view->note('stopping — terminating ' . count($this->active) . ' run(s)…');
-        foreach ($this->active as $job) {
-            $this->runner->poll($job, true);
-            $this->finish($job);
-        }
-        $this->active = [];
-    }
-
     private function takeSlot(): int
     {
         for ($slot = 0; $slot < $this->options->jobs; $slot++) {
@@ -478,7 +477,7 @@ final class Scheduler
         );
     }
 
-    /** A header line shown while a graceful shutdown is draining in-flight runs. */
+    /** A header line shown while shutdown is stopping owned inferiors. */
     private function shutdownBanner(): ?string
     {
         if (!$this->stopping) {
@@ -490,7 +489,7 @@ final class Scheduler
         $running = count($this->active);
 
         return $running > 0
-            ? sprintf('shutting down — %d run(s) still draining · %s', $running, $hint)
+            ? sprintf('shutting down — stopping %d run(s) · %s', $running, $hint)
             : 'shutting down · ' . $hint;
     }
 
@@ -549,6 +548,10 @@ final class Scheduler
         ];
         if ($this->stats->reproducers > 0) {
             $lines[] = 'harness: reproducers saved under ' . $this->outputDir;
+        }
+        if ($this->stopping) {
+            $lines[] = 'harness: shutdown cancelled further capture and reduction; partial artifacts retained under '
+                . $this->outputDir . '/.work/' . $this->store->pid();
         }
         if ($this->stats->failedReproducers > 0) {
             $lines[] = sprintf(

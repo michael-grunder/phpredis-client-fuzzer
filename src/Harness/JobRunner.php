@@ -177,6 +177,7 @@ final class JobRunner
      */
     public function rerun(int $seed, ?int $port, int $steps, float $timeout, bool $withRr): JobOutcome
     {
+        $this->heartbeat?->__invoke();
         $id = $this->nextId++;
         $workDir = sprintf('%s/reduce-%05d', $this->workRoot, $id);
         Fs::ensureDir($workDir);
@@ -219,6 +220,7 @@ final class JobRunner
             $status = proc_get_status($process);
         }
         $this->close($process);
+        $this->heartbeat?->__invoke();
 
         $signal = $status['signaled'] && $status['termsig'] > 0 ? $status['termsig'] : null;
         $exitCode = $status['exitcode'] >= 0 ? $status['exitcode'] : null;
@@ -375,6 +377,7 @@ final class JobRunner
         $job->note = 'capturing…';
         $this->heartbeat?->__invoke();
         $trace = $this->finaliseTrace($job->traceDir, $job->workDir);
+        $this->heartbeat?->__invoke();
 
         // A 128+signal exit gives us a signal number even when the OS did not
         // report the child as "signaled"; keep it for the dashboard.

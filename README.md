@@ -1186,14 +1186,16 @@ output verbatim.
 ```
 
 The label after `::` is the same one the dashboard shows — `ok`, `SIGSEGV`,
-`timeout (SIGKILL)`, `memory`, `leak 2 (2048 bytes, zend-mm)`, `exit 1`, or `stopped` for
-a run the shutdown had to kill — so `grep '^#' runs.log | grep -v ':: ok'` lists
+`timeout (SIGKILL)`, `memory`, `leak 2 (2048 bytes, zend-mm)`, or `exit 1` — so
+`grep '^#' runs.log | grep -v ':: ok'` lists
 every run that did not pass, and `grep -v '^#' runs.log | jq …` reads the run
 documents as the stream of JSON that `--output=json` produces. Blocks are
 written whole by the harness after each child is reaped, so concurrent runs
 never interleave; the trade-off is that a run appears in the log when it
 finishes, not while it runs. A run that printed nothing (killed before it
 flushed, for instance) still gets a header, followed by `# (no output)`.
+Shutdown skips further run-log collection; interrupted runs keep their individual
+logs under `<output>/.work/<harness-pid>/`.
 
 The file is appended to and never truncated — several campaigns may share one,
 which is why each header carries the harness pid — and the resolved path is
@@ -1232,7 +1234,7 @@ records `trace_failure` in `<repro>/minimized/meta.json` and files no trace.
 To keep those recordings from failing in the first place, each run is launched
 through `setsid(1)` when one is available, so it runs in its own session instead
 of the harness' process group. The terminal's signals — `SIGINT` on Ctrl+C,
-which would kill the very runs a graceful shutdown is waiting on, and the
+which would bypass the harness' shutdown handling, and the
 `SIGWINCH` of a window resize, which is what aborts rr — then never reach the
 children. The harness verifies at startup that `setsid` execs in place rather
 than forking (a forking one would hide every run's exit status) and falls back
@@ -1304,18 +1306,20 @@ Templates without `{port}` are unchanged.
 
 Stop conditions are `--runs N`, `--seconds N`, and `--reproducers N` (any that
 are set; unlimited otherwise), or pressing `q`/`Esc`/`Ctrl-C` in the dashboard.
-The first stop request drains in-flight runs and then exits; a run that finishes
-on its own during that drain is still classified and captured, so a crash landing
-in the last moments of a campaign is not thrown away; interrupting again
-while that shutdown is running — immediately, or a quick double-tap after the
-"still shutting down" hint — abandons the drain, kills whatever is left, and
-exits `130`. Forced exit sends SIGKILL to owned run groups and detached SAPI
-workers, including an in-progress reduction, before leaving. The harness also
-cleans up remaining descendants after each run and on PHP shutdown. Forced exit
-does not wait for final diagnostic capture; partial work artifacts remain.
-A lone interrupt once
-the drain has been running a while only re-arms that double-tap and prints the
-hint, so a slow-draining run reads differently from a wedged one.
+The first stop request cancels capture, trace waits, and reduction at the next
+heartbeat, then sends SIGKILL to all owned run groups and detached SAPI workers,
+including an in-progress reduction replay. No new reproducers or minimized
+captures are collected during shutdown, even for runs that already exited.
+Existing captures remain intact, and partial artifacts are retained under
+`<output>/.work/<harness-pid>/` even without `--keep-work`. A filesystem operation
+already in progress finishes before the next cancellation checkpoint.
+Interrupting again while shutdown is running — immediately, or a quick
+double-tap after the "still shutting down" hint — forces exit `130`. A lone
+interrupt after the window expires re-arms the double-tap and prints the hint.
+Otherwise the exit status still reflects captures already collected (or a
+startup failure). The harness also cleans up descendants after ordinary runs
+and on PHP shutdown. Run and time limits stop new launches while existing runs
+finish; reaching the reproducer limit stops any remaining inferiors.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
 the harness prints a line per finished run and a periodic summary. The dashboard
 tallies failures, crashes, timeouts, reproducers, and reductions, plus a `leaks`
