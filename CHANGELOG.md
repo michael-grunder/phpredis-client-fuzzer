@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add an opening flaw-type category page to `redis-client-tester-repros`, with
+  capture counts, category filtering, and navigation back from the capture list.
+
 - Add `--tls` to the local `asan.sh` and `asan-saturate.sh` helpers to select
   ports 16379/18000 with peer and hostname verification disabled, including
   TLS for `asan.sh`'s optional cluster failover commands.
@@ -119,6 +122,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   separate `failed/` directory for incomplete recordings.
 
 ### Fixed
+
+- Make every local fuzzing wrapper enable unlimited core dump size before any
+  work and abort if the hard limit prevents it, including parallel campaigns
+  and direct forked runs.
 
 - Cancel harness capture, rr trace waits, and reduction on shutdown and kill
   owned inferiors and SAPI workers after the first stop request. Preserve

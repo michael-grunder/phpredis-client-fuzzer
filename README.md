@@ -1422,7 +1422,12 @@ exits with a nonzero status.
 ### Browsing reproducers
 
 `bin/redis-client-tester-repros [DIR]` (default `reproducers`) is a read-only TUI over a
-harness `--output` directory, one kind directory, or a single capture. Each row
+harness `--output` directory, one kind directory, or a single capture. It opens
+with a category page showing each captured flaw type (crash, failure, sanitizer,
+memory, leak, timeout) and its capture count. Enter opens the selected category;
+"All captures" opens the complete list. Esc or `q` goes back from details to the
+list, then to categories; `q` at categories quits (Ctrl-C quits from any page).
+`r` rescans from either categories or the capture list. Each capture row
 shows the capture's kind, minimized and original step counts (`897←5000`), and a
 one-line headline of the defect, chosen by how the run was captured:
 
@@ -1439,7 +1444,7 @@ one-line headline of the defect, chosen by how the run was captured:
 Enter opens the full analysis: summary, replay command (with the minimized step
 count, `rr replay` and `gdb` commands where a trace or core exists), the parsed
 stacks, the sanitizer report or stderr tail, the stdout tail, and the files. `g`
-groups captures by signature (defect type plus the top three frames, without
+groups captures within the selected category by signature (defect type plus the top three frames, without
 addresses, pids, or seeds), most frequent first, so a campaign that hit one bug
 35 times shows one row per distinct path to it. `--list`, `--group`, and
 `--show N|ID` print the same information without the TUI, which is also the
@@ -2133,6 +2138,12 @@ invoked from another working directory. Keep generated artifacts outside this
 directory. Ordinary `git clean -fd` leaves it alone; `git clean -fdx` and
 `git clean -fdX` can delete it. Preview any cleanup with `git clean -nd` (using
 the same flags and paths you intend to clean).
+
+Every local wrapper sets `ulimit -c unlimited` before doing any work, so its
+harness, forked clients, and SAPI workers inherit an unlimited core size limit.
+If the hard limit prevents this, the wrapper exits immediately; raise that limit
+in the launching shell or service before retrying. Core files still depend on
+the kernel's `core_pattern`, writable storage, and the runtime's core dump settings.
 
 ### TLS connections
 

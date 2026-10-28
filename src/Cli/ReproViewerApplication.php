@@ -33,7 +33,7 @@ use PhpTui\Tui\Widget\Direction;
 use PhpTui\Tui\Widget\Widget;
 
 /**
- * Browses harness reproducer directories: one row per capture (or per distinct
+ * Browses harness reproducer directories by kind, then capture (or distinct
  * defect signature with `g`), Enter for the full analysis. Read-only: nothing
  * under the reproducer directory is written, moved, or deleted.
  */
@@ -51,6 +51,8 @@ final class ReproViewerApplication
     private array $rows = [];
 
     private bool $grouped = false;
+
+    private ?string $kind = null;
 
     private ?string $gdb = null;
 
@@ -83,6 +85,7 @@ final class ReproViewerApplication
                 throw new \InvalidArgumentException("not a directory: {$root}");
             }
             $this->root = $root;
+            $this->kind = null;
             $this->gdb = $options->has('no-gdb') ? null : self::locate('gdb');
             $this->grouped = $options->has('group');
             $this->load($options->has('backtraces'));
@@ -117,13 +120,14 @@ final class ReproViewerApplication
 
     private function regroup(): void
     {
+        $repros = array_values(array_filter($this->repros, fn (Reproducer $r): bool => $this->kind === null || $r->kind() === $this->kind));
         if (!$this->grouped) {
-            $this->rows = array_map(static fn (Reproducer $r): array => [$r], $this->repros);
+            $this->rows = array_map(static fn (Reproducer $r): array => [$r], $repros);
 
             return;
         }
         $groups = [];
-        foreach ($this->repros as $repro) {
+        foreach ($repros as $repro) {
             $groups[$repro->signature()][] = $repro;
         }
         // Most frequent defect first; inside a group the smallest reproducer leads.
@@ -222,6 +226,8 @@ final class ReproViewerApplication
 
     private function loop(Terminal $terminal, Display $display): void
     {
+        $categories = true;
+        $categoryTable = new TableState(0, 0);
         $table = new TableState(0, $this->rows === [] ? null : 0);
         $detail = null;
         $scroll = 0;
@@ -231,9 +237,9 @@ final class ReproViewerApplication
 
         while (true) {
             if ($dirty || microtime(true) - $lastDraw > 0.5) {
-                $display->draw($detail === null
-                    ? $this->listView($table, $notice)
-                    : $this->detailView($detail, $scroll));
+                $display->draw($categories
+                    ? $this->categoryView($categoryTable, $notice)
+                    : ($detail === null ? $this->listView($table, $notice) : $this->detailView($detail, $scroll)));
                 $lastDraw = microtime(true);
                 $dirty = false;
                 $notice = null;
@@ -252,6 +258,26 @@ final class ReproViewerApplication
             }
             $page = max(1, $display->viewportArea()->height - 8);
 
+            if ($categories) {
+                $kinds = array_keys($this->categoryCounts());
+                if ($code === KeyCode::Esc || $key === 'q') {
+                    return;
+                }
+                if ($code === KeyCode::Enter || $code === KeyCode::Right || $key === 'l') {
+                    $this->kind = $kinds[$categoryTable->selected ?? 0] ?? null;
+                    $this->regroup();
+                    $table = new TableState(0, $this->rows === [] ? null : 0);
+                    $categories = false;
+                } elseif ($key === 'r') {
+                    $this->load(false);
+                    $categoryTable = new TableState(0, 0);
+                    $notice = 'rescanned: ' . count($this->repros) . ' captures';
+                } else {
+                    $categoryTable->selected = $this->move($categoryTable->selected ?? 0, $code, $key, $page, count($kinds));
+                }
+                continue;
+            }
+
             if ($detail !== null) {
                 $length = count($this->detailLines($detail));
                 $selected = $table->selected ?? 0;
@@ -267,8 +293,16 @@ final class ReproViewerApplication
                 continue;
             }
 
-            if ($code === KeyCode::Esc || $key === 'q') {
-                return;
+            if ($code === KeyCode::Esc || $code === KeyCode::Left || $code === KeyCode::Backspace || $key === 'q' || $key === 'h') {
+                $categories = true;
+                $categoryTable->selected = min($categoryTable->selected ?? 0, count($this->categoryCounts()));
+                continue;
+            }
+            if ($key === 'r') {
+                $this->load(false);
+                $table = new TableState(0, $this->rows === [] ? null : 0);
+                $notice = 'rescanned: ' . count($this->repros) . ' captures';
+                continue;
             }
             if ($this->rows === []) {
                 continue;
@@ -280,10 +314,6 @@ final class ReproViewerApplication
                 $this->grouped = !$this->grouped;
                 $this->regroup();
                 $table = new TableState(0, 0);
-            } elseif ($key === 'r') {
-                $this->load(false);
-                $table = new TableState(0, $this->rows === [] ? null : 0);
-                $notice = 'rescanned: ' . count($this->repros) . ' captures';
             } else {
                 $table->selected = $this->move($table->selected ?? 0, $code, $key, $page, count($this->rows) - 1);
             }
@@ -320,7 +350,7 @@ final class ReproViewerApplication
 
     private function listView(TableState $state, ?string $notice): Widget
     {
-        $kinds = array_count_values(array_map(static fn (Reproducer $r): string => $r->kind(), $this->repros));
+        $kinds = $this->categoryCounts();
         arsort($kinds);
         $counts = [];
         foreach ($kinds as $kind => $count) {
@@ -379,9 +409,47 @@ final class ReproViewerApplication
                 BlockWidget::default()->borders(Borders::ALL)->titles(Title::fromString(' redis-client-tester-repros '))
                     ->widget(ParagraphWidget::fromLines(...$header)),
                 BlockWidget::default()->borders(Borders::ALL)
-                    ->titles(Title::fromString($this->grouped ? ' grouped by signature, most frequent first ' : ' captures, newest first '))
+                    ->titles(Title::fromString(' ' . ($this->kind ?? 'all') . ($this->grouped ? ': grouped by signature, most frequent first ' : ': captures, newest first ')))
                     ->widget($this->rows === [] ? ParagraphWidget::fromString('no reproducers found') : $table),
-                ParagraphWidget::fromString(' ↑↓/jk move  PgUp/PgDn  Home/End  enter details  g group by signature  r rescan  q quit'),
+                ParagraphWidget::fromString(' ↑↓/jk move  PgUp/PgDn  Home/End  enter details  g group by signature  r rescan  esc/q categories'),
+            );
+    }
+
+    /** @return array<string, int> */
+    private function categoryCounts(): array
+    {
+        $counts = array_count_values(array_map(static fn (Reproducer $r): string => $r->kind(), $this->repros));
+        ksort($counts);
+
+        return $counts;
+    }
+
+    private function categoryView(TableState $state, ?string $notice): Widget
+    {
+        $rows = [];
+        foreach ($this->categoryCounts() as $kind => $count) {
+            $rows[] = TableRow::fromCells(
+                TableCell::fromLine(Line::fromSpan(Span::styled($kind, Style::default()->fg(AnsiColor::fromName(self::KIND_COLOURS[$kind] ?? 'white'))))),
+                TableCell::fromString((string) $count),
+            );
+        }
+        $rows[] = TableRow::fromStrings('All captures', (string) count($this->repros));
+        $table = TableWidget::default()
+            ->header(TableRow::fromStrings('Flaw type', 'Captures'))
+            ->widths(Constraint::min(20), Constraint::length(12))
+            ->state($state)
+            ->highlightSymbol('▶ ')
+            ->highlightStyle(Style::default()->addModifier(Modifier::REVERSED))
+            ->rows(...$rows);
+
+        return GridWidget::default()
+            ->direction(Direction::Vertical)
+            ->constraints(Constraint::length(2), Constraint::min(3), Constraint::length(1))
+            ->widgets(
+                ParagraphWidget::fromLines(Line::fromString($this->root), Line::fromString($notice ?? count($this->repros) . ' captures')),
+                BlockWidget::default()->borders(Borders::ALL)->titles(Title::fromString(' flaw types '))
+                    ->widget($this->repros === [] ? ParagraphWidget::fromString('no reproducers found') : $table),
+                ParagraphWidget::fromString(' ↑↓/jk move  enter open category  r rescan  q quit'),
             );
     }
 
@@ -442,6 +510,7 @@ Usage: redis-client-tester-repros [DIR] [options]
 
 Browse harness reproducers under DIR (default: reproducers). DIR may be an
 --output root, one kind directory, or a single capture. Read-only.
+The TUI opens with flaw types and capture counts; Enter opens a category.
 
 Each capture gets a one-line headline of the defect, from its sanitizer report
 (type, access, defect site and caller, where it was freed), a glibc assertion
@@ -459,8 +528,8 @@ Options:
   --no-gdb       Never run gdb
   --help         Show this help
 
-TUI keys: arrows/jk move, enter details, g group, r rescan, n/p next/previous
-in details, esc back, q quit.
+TUI keys: arrows/jk move, enter category/details, g group, r rescan,
+n/p next/previous in details, esc/q back (quit from categories), Ctrl-C quit.
 
 TXT;
     }

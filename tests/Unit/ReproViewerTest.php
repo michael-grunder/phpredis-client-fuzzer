@@ -10,6 +10,8 @@ use Mgrunder\RedisClientTester\Viewer\Backtrace;
 use Mgrunder\RedisClientTester\Viewer\Reproducer;
 use Mgrunder\RedisClientTester\Viewer\SanitizerAnalysis;
 use PHPUnit\Framework\TestCase;
+use PhpTui\Tui\Extension\Core\Widget\Table\TableState;
+use PhpTui\Tui\Widget\Widget;
 
 final class ReproViewerTest extends TestCase
 {
@@ -142,6 +144,49 @@ TXT;
         self::assertStringContainsString('minimized: the same failure at 897 steps', $show);
         self::assertStringContainsString('freed by:', $show);
         self::assertSame($before, $this->snapshot(), 'the viewer must never write into a reproducer directory');
+    }
+
+    public function testCategoriesCountCapturesAndFilterBeforeGrouping(): void
+    {
+        $this->capture('crash/1', ['kind' => 'crash'], self::UAF);
+        $this->capture('crash/2', ['kind' => 'crash'], self::UAF);
+        $this->capture('failure/3', ['kind' => 'failure'], self::UAF);
+        $this->capture('failed/4', ['kind' => 'timeout', 'capture_failure' => 'incomplete'], '');
+        $before = $this->snapshot();
+        $stream = fopen('php://memory', 'w+');
+        self::assertIsResource($stream);
+        $app = new ReproViewerApplication($stream);
+        self::assertSame(0, $app->run([$this->root, '--list', '--no-gdb']));
+
+        $counts = new \ReflectionMethod($app, 'categoryCounts');
+        self::assertSame(['crash' => 2, 'failure' => 1, 'timeout' => 1], $counts->invoke($app));
+        self::assertInstanceOf(Widget::class, (new \ReflectionMethod($app, 'categoryView'))->invoke($app, new TableState(0, 0), null));
+
+        $repros = (new \ReflectionProperty($app, 'repros'))->getValue($app);
+        self::assertIsArray($repros);
+        $crashes = array_values(array_filter($repros, static fn (mixed $r): bool => $r instanceof Reproducer && $r->kind() === 'crash'));
+        $kind = new \ReflectionProperty($app, 'kind');
+        $grouped = new \ReflectionProperty($app, 'grouped');
+        $rows = new \ReflectionProperty($app, 'rows');
+        $regroup = new \ReflectionMethod($app, 'regroup');
+
+        $kind->setValue($app, 'crash');
+        $regroup->invoke($app);
+        self::assertSame([[$crashes[0]], [$crashes[1]]], $rows->getValue($app));
+        $grouped->setValue($app, true);
+        $regroup->invoke($app);
+        self::assertSame([$crashes], $rows->getValue($app), 'matching signatures in another category must stay out');
+        self::assertSame(['crash' => 2, 'failure' => 1, 'timeout' => 1], $counts->invoke($app));
+
+        $kind->setValue($app, 'missing');
+        $regroup->invoke($app);
+        self::assertSame([], $rows->getValue($app));
+        $kind->setValue($app, null);
+        $grouped->setValue($app, false);
+        $regroup->invoke($app);
+        self::assertSame(array_map(static fn (mixed $r): array => [$r], $repros), $rows->getValue($app));
+        self::assertSame($before, $this->snapshot());
+        fclose($stream);
     }
 
     /** @param array<string, mixed> $meta */
