@@ -74,13 +74,9 @@ final class Scheduler
         $this->view->start();
 
         try {
+            $this->runner->setHeartbeat($this->heartbeat(...));
             while (true) {
-                if (function_exists('pcntl_signal_dispatch')) {
-                    pcntl_signal_dispatch();
-                }
-                if ($this->view->quitRequested()) {
-                    $this->requestStop();
-                }
+                $this->heartbeat();
 
                 $this->reap();
                 if (!$this->stopping) {
@@ -101,6 +97,7 @@ final class Scheduler
             $this->drain();
             $this->view->render($this->stats, $this->snapshot());
         } finally {
+            $this->runner->setHeartbeat(null);
             $this->view->stop();
         }
 
@@ -111,6 +108,17 @@ final class Scheduler
         }
 
         return $this->stats->reproducers > 0 ? ExitCode::FAILURE : ExitCode::SUCCESS;
+    }
+
+    private function heartbeat(): void
+    {
+        if (function_exists('pcntl_signal_dispatch')) {
+            pcntl_signal_dispatch();
+        }
+        if ($this->view->quitRequested()) {
+            $this->requestStop();
+        }
+        $this->view->render($this->stats, $this->snapshot());
     }
 
     /**
@@ -329,6 +337,7 @@ final class Scheduler
         }
 
         $job->reducedSteps = $result['steps'];
+        $job->note = 'recording minimum…';
         $finalTimeout = max(10.0, $job->duration() * 4.0);
         $final = $this->runner->rerun(
             $job->seed,

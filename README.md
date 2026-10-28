@@ -1257,6 +1257,12 @@ port; the minimised re-run's artifacts are written to
 `<repro>/minimized/`. The template must contain `{steps}` for this to work, and
 the search is bounded by `--reduce-timeout` seconds.
 
+The dashboard keeps refreshing and accepts quit keys during reduction re-runs,
+trace finalization, and process termination waits. Reduction remains sequential:
+other runs can continue executing, but their results are collected and new runs
+are launched after the current capture and reduction finish. The reducing run
+retains its slot and port until then.
+
 The kernel `core_pattern` must contain `%p` so a core produced by one concurrent
 run can be matched to it by PID; the harness aborts at startup otherwise. Pass
 `--no-core-check` to bypass that (core collection then becomes best-effort). A

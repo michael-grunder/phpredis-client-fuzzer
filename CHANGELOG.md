@@ -120,6 +120,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Keep the harness dashboard refreshing and accepting quit keys during step
+  reduction, the final minimized replay, rr trace finalization, and process
+  termination waits, including detached SAPI worker cleanup.
+
 - Kill owned harness process groups and detached SAPI workers on forced exit,
   including reduction runs and shutdown after errors. Clean up descendants after
   ordinary runs and find orphan workers even if their parent died before discovery.

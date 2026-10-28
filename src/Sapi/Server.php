@@ -53,8 +53,11 @@ final class Server
         }
     }
 
-    /** @internal Harness fallback when the supervisor itself crashes or is killed. */
-    public static function stopOrphans(string $directory, bool $force = false): void
+    /**
+     * @internal Harness fallback when the supervisor itself crashes or is killed.
+     * @param (\Closure(): void)|null $heartbeat
+     */
+    public static function stopOrphans(string $directory, bool $force = false, ?\Closure $heartbeat = null): void
     {
         if (!function_exists('posix_kill')) {
             return;
@@ -80,6 +83,7 @@ final class Server
                 @posix_kill(-$group, SIGTERM);
                 $deadline = microtime(true) + 0.5;
                 while (@posix_kill(-$group, 0) && microtime(true) < $deadline) {
+                    $heartbeat?->__invoke();
                     usleep(10000);
                 }
                 @posix_kill(-$group, SIGKILL);

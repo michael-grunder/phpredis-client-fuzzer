@@ -40,9 +40,10 @@ final class RrTrace
     /**
      * Block until rr has finalised the recording or $timeout seconds elapse.
      *
+     * @param (\Closure(): void)|null $heartbeat
      * @return bool True when the trace finalised within the timeout.
      */
-    public static function awaitComplete(string $traceDir, float $timeout): bool
+    public static function awaitComplete(string $traceDir, float $timeout, ?\Closure $heartbeat = null): bool
     {
         if (!is_dir($traceDir)) {
             return false;
@@ -54,6 +55,7 @@ final class RrTrace
             if (self::isComplete($traceDir)) {
                 return true;
             }
+            $heartbeat?->__invoke();
             usleep(100_000);
         } while (microtime(true) < $deadline);
 

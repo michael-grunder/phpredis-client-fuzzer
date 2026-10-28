@@ -22,6 +22,9 @@ final class JobRunner
 
     private readonly PhpStartupTemplate $startup;
 
+    /** @var (\Closure(): void)|null */
+    private ?\Closure $heartbeat = null;
+
     /**
      * @param list<string> $phpArgs Startup arguments inserted between the PHP
      *        binary and the fuzzer script (`--php-args`).
@@ -54,6 +57,15 @@ final class JobRunner
     public function launched(): int
     {
         return $this->nextId - 1;
+    }
+
+    /**
+     * Keep the view responsive during synchronous waits; must not poll jobs recursively.
+     * @param (\Closure(): void)|null $heartbeat
+     */
+    public function setHeartbeat(?\Closure $heartbeat): void
+    {
+        $this->heartbeat = $heartbeat;
     }
 
     public function spawn(int $slot, ?int $port, int $seed): Job
@@ -183,6 +195,7 @@ final class JobRunner
                 proc_terminate($process, 15);
                 $grace = microtime(true) + 1.0;
                 do {
+                    $this->heartbeat?->__invoke();
                     usleep(20_000);
                     $status = proc_get_status($process);
                 } while ($status['running'] && microtime(true) < $grace);
@@ -201,6 +214,7 @@ final class JobRunner
                     null,
                 );
             }
+            $this->heartbeat?->__invoke();
             usleep(20_000);
             $status = proc_get_status($process);
         }
@@ -252,7 +266,7 @@ final class JobRunner
 
         $fatal = RrTrace::fatalError($workDir . '/stderr.log');
         if ($fatal === null) {
-            RrTrace::awaitComplete($traceDir, $this->options->traceTimeout);
+            RrTrace::awaitComplete($traceDir, $this->options->traceTimeout, $this->heartbeat);
         }
 
         return new TraceVerdict($fatal, RrTrace::problem($traceDir));
@@ -311,6 +325,7 @@ final class JobRunner
             if ($this->status($job)['running'] === false) {
                 return true;
             }
+            $this->heartbeat?->__invoke();
             usleep(50_000);
         }
 
@@ -357,6 +372,8 @@ final class JobRunner
             return;
         }
 
+        $job->note = 'capturing…';
+        $this->heartbeat?->__invoke();
         $trace = $this->finaliseTrace($job->traceDir, $job->workDir);
 
         // A 128+signal exit gives us a signal number even when the OS did not
@@ -644,7 +661,7 @@ final class JobRunner
             @posix_kill(-$child['pid'], 9);
         }
         @proc_terminate($child['process'], 9);
-        Server::stopOrphans($child['directory'] . '/sapi', $force);
+        Server::stopOrphans($child['directory'] . '/sapi', $force, $force ? null : $this->heartbeat);
     }
 
     /** @param resource $process */

@@ -144,9 +144,14 @@ PHP);
     public function testAnUnfinalisedTraceIsParkedUnderFailedInsteadOfBecomingAReproducer(): void
     {
         $root = $this->workspace();
-        $runner = $this->runner($root, ['--rr'], $this->child(0), $this->fakeRr('quiet-abort'));
+        $runner = $this->runner($root, ['--rr', '--trace-timeout=0.3'], $this->child(0), $this->fakeRr('quiet-abort'));
+        $beats = 0;
+        $runner->setHeartbeat(static function () use (&$beats): void {
+            $beats++;
+        });
 
         $job = $this->await($runner, $runner->spawn(0, null, 7));
+        self::assertGreaterThan(1, $beats, 'capture must refresh while waiting for the trace');
 
         // Nothing in stderr says the recorder was at fault, so this stays a
         // failure — one whose evidence simply cannot be replayed.

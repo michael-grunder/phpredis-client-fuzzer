@@ -49,8 +49,12 @@ final class HarnessRrTraceTest extends TestCase
     {
         $trace = $this->trace(true);
         $started = microtime(true);
+        $beats = 0;
 
-        self::assertFalse(RrTrace::awaitComplete($trace, 0.3));
+        self::assertFalse(RrTrace::awaitComplete($trace, 0.3, static function () use (&$beats): void {
+            $beats++;
+        }));
+        self::assertGreaterThanOrEqual(2, $beats);
         self::assertGreaterThanOrEqual(0.25, microtime(true) - $started);
     }
 
