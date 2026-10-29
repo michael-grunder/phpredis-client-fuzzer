@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add a SAPI TUI worker pane between the summary and requests, showing each
+  worker and serving parent's PID, state, exit code and terminating signal.
+
 - Show live SAPI workers and parent status; record per-process exit codes,
   signals, raw wait statuses and cleanup phases in `processes.jsonl`. Preserve
   the initiating failure, pre-cleanup counts and stderr tail in `exit.json`, and

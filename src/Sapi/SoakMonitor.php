@@ -153,6 +153,20 @@ final class SoakMonitor
             ->titles(Title::fromString(' redis-client-tester-sapi — ' . $serverId . ' '))
             ->widget($metrics);
 
+        $workers = [];
+        foreach ($this->pool['processes'] ?? [] as $process) {
+            $workers[] = TableRow::fromStrings((string) $process['pid'], ucfirst($process['role']),
+                ucfirst($process['state']),
+                $process['exit_code'] === null ? '-' : (string) $process['exit_code'],
+                $process['signal'] === null ? '-' : (string) $process['signal']);
+        }
+        $workerTable = TableWidget::default()
+            ->header(TableRow::fromStrings('PID', 'Role', 'State', 'Exit', 'Signal'))
+            ->widths(Constraint::length(8), Constraint::length(8), Constraint::length(8),
+                Constraint::length(6), Constraint::min(6))
+            ->rows(...$workers);
+        $workerTable->columnSpacing = 2;
+
         $rows = [];
         foreach ($this->active as $pid => $request) {
             $rows[] = $this->row($request['path'], $pid, max(0, $now - $request['started']), null, null);
@@ -166,8 +180,11 @@ final class SoakMonitor
 
         return GridWidget::default()
             ->direction(Direction::Vertical)
-            ->constraints(Constraint::length(6), Constraint::min(3))
+            ->constraints(Constraint::length(6), Constraint::max(count($workers) + 3), Constraint::min(6))
             ->widgets($header, BlockWidget::default()
+                ->borders(Borders::ALL)
+                ->titles(Title::fromString(' workers — exit/signal: - = unavailable or not applicable '))
+                ->widget($workerTable), BlockWidget::default()
                 ->borders(Borders::ALL)
                 ->titles(Title::fromString(' requests — running, then newest completed — Ctrl+C to stop '))
                 ->widget($table));

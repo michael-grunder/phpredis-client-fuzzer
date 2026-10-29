@@ -981,6 +981,11 @@ first failure, incomplete reply, timeout, or interruption. They can be restarted
 or replaced without recycling the server workers. Workload seeds are reproducible;
 worker scheduling, shared Redis state and concurrent interleaving are not.
 
+The TUI places a worker pane between the summary and requests. It lists each
+worker and the serving parent by PID, with Running, Exited or Missing state,
+exit code and terminating signal number. A dash means unavailable or not
+applicable; missing/reaped processes are not assumed to have exited successfully.
+
 Ctrl+C or SIGTERM stops the server supervisor and all its workers. For a daemon,
 use the printed `kill -TERM PID` command. By default, worker exits are recorded
 without stopping the supervisor or surviving processes. Even with no forked

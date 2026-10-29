@@ -83,15 +83,24 @@ final class SapiSoakTest extends TestCase
         file_put_contents($this->directory . '/requests.jsonl', implode("\n", array_map(
             static fn (array $event): string => json_encode($event, JSON_THROW_ON_ERROR), $events,
         )) . "\n", FILE_APPEND);
+        $processes = [];
+        foreach ([[99, 'parent', 'running', null, null], [103, 'worker', 'running', null, null],
+            [104, 'worker', 'exited', null, 9], [105, 'worker', 'exited', 0, null],
+            [106, 'worker', 'missing', null, null]] as [$pid, $role, $state, $exit, $signal]) {
+            $processes[] = ['pid' => $pid, 'role' => $role, 'state' => $state, 'exit_code' => $exit,
+                'signal' => $signal, 'wait_status' => null, 'core_dumped' => null, 'source' => '/proc/stat',
+                'phase' => 'running', 'observed_at' => microtime(true)];
+        }
+        $pool = ['workers_alive' => 1, 'workers_expected' => 4,
+            'parent_alive' => true, 'processes' => $processes, 'reason' => null];
         try {
             $backend = new DummyBackend(120, 20);
             (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($backend)->build());
-            $monitor->render('a1b2c3d4e5f6', true, ['workers_alive' => 2, 'workers_expected' => 4,
-                'parent_alive' => true, 'processes' => [], 'reason' => null]);
+            $monitor->render('a1b2c3d4e5f6', true, $pool);
             $screen = $backend->toString();
             file_put_contents($this->directory . '/dashboard.txt', $screen);
             foreach (['redis-client-tester-sapi', 'Uptime', 'Completed', 'In flight',
-                'Status', 'PID', 'Time', 'Exit', 'HTTP', 'RUN', 'OK', 'FAIL', '0.125s', 'Workers', '2/4', 'Parent'] as $text) {
+                'Status', 'PID', 'Time', 'Exit', 'HTTP', 'RUN', 'OK', 'FAIL', '0.125s', 'Workers', '1/4', 'Parent'] as $text) {
                 self::assertStringContainsString($text, $screen);
             }
             self::assertStringContainsString('a1b2c3d4e5f6', $screen);
@@ -99,11 +108,16 @@ final class SapiSoakTest extends TestCase
             self::assertStringNotContainsString('Client:', $screen);
             self::assertStringNotContainsString('old.php', $screen);
             self::assertMatchesRegularExpression('/running\.php.*passed\.php.*failed\.php/s', $screen);
+            self::assertMatchesRegularExpression('/Uptime.* workers .* requests /s', $screen);
+            self::assertMatchesRegularExpression('/99\s+Parent\s+Running\s+-\s+-/', $screen);
+            self::assertMatchesRegularExpression('/103\s+Worker\s+Running\s+-\s+-/', $screen);
+            self::assertMatchesRegularExpression('/104\s+Worker\s+Exited\s+-\s+9/', $screen);
+            self::assertMatchesRegularExpression('/105\s+Worker\s+Exited\s+0\s+-/', $screen);
+            self::assertMatchesRegularExpression('/106\s+Worker\s+Missing\s+-\s+-/', $screen);
 
             $small = new DummyBackend(60, 12);
             (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($small)->build());
-            $monitor->render('a1b2c3d4e5f6', true, ['workers_alive' => 2, 'workers_expected' => 4,
-                'parent_alive' => true, 'processes' => [], 'reason' => null]);
+            $monitor->render('a1b2c3d4e5f6', true, $pool);
             self::assertCount(12, $small->toLines());
             self::assertStringContainsString('redis-client-tester-sapi', $small->toString());
             foreach ($small->toLines() as $line) {
