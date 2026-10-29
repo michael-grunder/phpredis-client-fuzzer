@@ -104,6 +104,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Use harness-style php-tui panels and tables for the long-lived SAPI server,
+  with aligned summary metrics, running requests, newest-first completed history,
+  coloured results and terminal-sized layout.
+
 - Shorten the local Relay SAPI saturation preset to 100 steps or 0.25 seconds
   per request and three-key churn batches, preserving shared server state across
   frequent request lifetimes.

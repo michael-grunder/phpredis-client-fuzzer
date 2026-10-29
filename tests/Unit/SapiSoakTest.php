@@ -11,6 +11,8 @@ use Mgrunder\RedisClientTester\Sapi\Server;
 use Mgrunder\RedisClientTester\Sapi\ServerDiscovery;
 use Mgrunder\RedisClientTester\Sapi\SoakMonitor;
 use PHPUnit\Framework\TestCase;
+use PhpTui\Tui\Display\Backend\DummyBackend;
+use PhpTui\Tui\DisplayBuilder;
 
 final class SapiSoakTest extends TestCase
 {
@@ -53,7 +55,7 @@ final class SapiSoakTest extends TestCase
         ob_start();
         try {
             $monitor->render('client', true);
-            $event = json_encode(['event' => 'start', 'path' => '/request.php', 'pid' => 12], JSON_THROW_ON_ERROR);
+            $event = json_encode(['event' => 'start', 'path' => '/request.php', 'pid' => 12, 'started' => microtime(true)], JSON_THROW_ON_ERROR);
             file_put_contents($this->directory . '/requests.jsonl', $event, FILE_APPEND);
             $monitor->render('client', true);
             file_put_contents($this->directory . '/requests.jsonl', "\n", FILE_APPEND);
@@ -61,6 +63,47 @@ final class SapiSoakTest extends TestCase
             self::assertStringContainsString('requests=1 completed=0 in-flight=1', (string) ob_get_contents());
         } finally {
             ob_end_clean();
+            $monitor->stop();
+        }
+    }
+
+    public function testDashboardRendersRunningRequestsAndBoundedHistoryAtDifferentSizes(): void
+    {
+        $monitor = new SoakMonitor($this->directory, 2, false);
+        $events = [];
+        foreach (['old', 'failed', 'passed', 'running'] as $index => $name) {
+            $event = ['path' => '/' . $name . '.php', 'pid' => 100 + $index, 'started' => microtime(true)];
+            $events[] = $event + ['event' => 'start'];
+            if ($name !== 'running') {
+                $events[] = $event + ['event' => 'finish', 'elapsed' => 0.125,
+                    'exit' => $name === 'failed' ? 1 : 0, 'status' => 200];
+            }
+        }
+        file_put_contents($this->directory . '/requests.jsonl', implode("\n", array_map(
+            static fn (array $event): string => json_encode($event, JSON_THROW_ON_ERROR), $events,
+        )) . "\n", FILE_APPEND);
+        try {
+            $backend = new DummyBackend(120, 20);
+            (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($backend)->build());
+            $monitor->render('client --server=test', true);
+            $screen = $backend->toString();
+            file_put_contents($this->directory . '/dashboard.txt', $screen);
+            foreach (['redis-client-tester-sapi', 'Uptime', 'Completed', 'In flight',
+                'Status', 'PID', 'Time', 'Exit', 'HTTP', 'RUN', 'OK', 'FAIL', '0.125s'] as $text) {
+                self::assertStringContainsString($text, $screen);
+            }
+            self::assertStringNotContainsString('old.php', $screen);
+            self::assertMatchesRegularExpression('/running\.php.*passed\.php.*failed\.php/s', $screen);
+
+            $small = new DummyBackend(60, 12);
+            (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($small)->build());
+            $monitor->render('client --server=test', true);
+            self::assertCount(12, $small->toLines());
+            self::assertStringContainsString('redis-client-tester-sapi', $small->toString());
+            foreach ($small->toLines() as $line) {
+                self::assertSame(60, mb_strlen($line));
+            }
+        } finally {
             $monitor->stop();
         }
     }

@@ -927,9 +927,14 @@ TLS, hooks, differential/scenario settings, and invocation modes remain availabl
 Persistent connections are enabled automatically. `--forks`, `--script-log`, and
 workload `--help` are reserved; use `redis-client-tester --help` for workload help.
 
-On a terminal the server displays uptime, total requests, completed/in-flight
-counts, and the last ten completed requests, including worker PID and result.
-`--history=N` changes that list (1..1000). `--no-tui`, or redirected stdout, emits
+On a terminal the server uses the same php-tui grid, bordered panels and table
+widgets as the harness. The header aligns uptime, request totals, completed and
+in-flight counts, average requests/second, directory and client command. The
+request table shows running requests first, followed by the newest completed
+requests, with coloured status, worker PID, elapsed time, exit code, HTTP status
+and request path. php-tui sizes and clips the widgets to the terminal.
+`--history=N` bounds retained completed requests (default 10, range 1..1000);
+it is independent of how many rows fit on screen. `--no-tui`, or redirected stdout, emits
 request events and periodic totals instead. To detach the supervisor and write
 its output to `supervisor.log`, add `--daemon` to `serve`. Startup waits for a
 successful readiness check before printing the client command. The daemon uses
