@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Publish hashed SAPI server IDs and per-user latest path pointers in the temp
+  directory. Allow clients to select `--server=ID` or discover the latest ready
+  server without a directory argument; reject stale pointers and unsafe files.
+
+- Add local `sapi-saturate-serve.sh` and `sapi-saturate-client.sh` wrappers for
+  long-lived standalone Relay cache churn, with a small evicting cache, codec
+  variation, weighted cached/invalidating commands, and cache scenarios.
+
 - Add `redis-client-tester-sapi serve` and `client` for long-running PHP worker
   testing, with interactive request statistics, daemon logging, independent
   concurrent clients, normal workload filters/weights, seeded scripts, streamed
@@ -95,6 +103,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and reference settings for the standalone evilresp proxy.
 
 ### Changed
+
+- Shorten the local Relay SAPI saturation preset to 100 steps or 0.25 seconds
+  per request and three-key churn batches, preserving shared server state across
+  frequent request lifetimes.
 
 - Move local ASAN, harness, invocation, and coverage wrappers into ignored
   `local-scripts/`, resolving paths from the repository root; update launcher

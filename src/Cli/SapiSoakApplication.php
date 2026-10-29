@@ -9,6 +9,7 @@ use Mgrunder\RedisClientTester\Harness\ReproStore;
 use Mgrunder\RedisClientTester\Sapi\Request;
 use Mgrunder\RedisClientTester\Sapi\RequestScript;
 use Mgrunder\RedisClientTester\Sapi\Server;
+use Mgrunder\RedisClientTester\Sapi\ServerDiscovery;
 use Mgrunder\RedisClientTester\Sapi\SoakMonitor;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
@@ -74,13 +75,14 @@ final class SapiSoakApplication
             $phpArgs = $startup->render($seed, $directory)['args'];
             $tui = !$options->has('no-tui') && stream_isatty(STDOUT);
             $monitor = new SoakMonitor($directory, $history, $tui);
+            $discovery = new ServerDiscovery(sys_get_temp_dir());
             $connection = $this->clientCommand($directory);
             $published = false;
             $started = true;
             try {
                 $code = (new Server($directory, $workers, 1, 0, $timeout, !$tui))->run(
                     [], $phpArgs, $options->repeated('server-prefix', splitCommas: false),
-                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, &$published): bool {
+                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, $discovery, &$published): bool {
                         if (!$published) {
                             $metadata = json_encode([
                                 'address' => $address, 'token' => $token, 'pid' => getmypid(), 'workers' => $workers,
@@ -90,6 +92,9 @@ final class SapiSoakApplication
                             if (!rename($directory . '/connection.json.tmp', $directory . '/connection.json')) {
                                 throw new \RuntimeException('cannot publish server connection');
                             }
+                            $discovery->publish($directory);
+                            Server::write($directory . '/server.ready', $discovery->id($directory) . "\n");
+                            echo "SAPI ID: " . $discovery->id($directory) . "\nLatest: " . $discovery->latestPath() . "\n";
                             echo "SAPI artifacts: {$directory}\nClient: {$connection}\nStop: kill -TERM " . getmypid() . "\n";
                             $published = true;
                         }
@@ -137,8 +142,10 @@ final class SapiSoakApplication
             if (is_file($directory . '/exit.json')) {
                 throw new \RuntimeException("daemon startup failed; see {$directory}/supervisor.log");
             }
-            if (is_file($directory . '/connection.json')) {
+            if (is_file($directory . '/server.ready')) {
                 $pid = trim((string) file_get_contents($directory . '/supervisor.pid'));
+                $discovery = new ServerDiscovery(sys_get_temp_dir());
+                echo "SAPI ID: " . $discovery->id($directory) . "\nLatest: " . $discovery->latestPath() . "\n";
                 echo "SAPI daemon PID: {$pid}\nArtifacts and log: {$directory}\nClient: " . $this->clientCommand($directory) . "\nStop: kill -TERM {$pid}\n";
                 return 0;
             }
@@ -154,7 +161,7 @@ final class SapiSoakApplication
     private function clientCommand(string $directory): string
     {
         return ReproStore::formatCommand([PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi',
-            'client', '--directory=' . $directory, '--']) . ' [workload options]';
+            'client', '--server=' . (new ServerDiscovery(sys_get_temp_dir()))->id($directory), '--']) . ' [workload options]';
     }
 
     /** @param list<string> $arguments */
@@ -162,16 +169,16 @@ final class SapiSoakApplication
     {
         $separator = array_search('--', $arguments, true);
         $options = Options::parse($separator === false ? $arguments : array_slice($arguments, 0, $separator),
-            ['directory', 'requests', 'idle-ms', 'request-timeout'], ['help']);
+            ['directory', 'server', 'requests', 'idle-ms', 'request-timeout'], ['help']);
         if ($options->has('help')) {
             echo self::HELP;
             return 0;
         }
-        if ($separator === false) {
-            throw new \InvalidArgumentException('separate client options from workload options with --');
+        if ($options->has('directory') && $options->has('server')) {
+            throw new \InvalidArgumentException('use either --directory or --server');
         }
         Server::assertSupported();
-        $workload = array_slice($arguments, $separator + 1);
+        $workload = $separator === false ? [] : array_slice($arguments, $separator + 1);
         $fuzzer = Application::parseOptions($workload);
         foreach (['forks', 'script-log', 'help'] as $name) {
             if ($fuzzer->has($name)) {
@@ -186,9 +193,11 @@ final class SapiSoakApplication
             || !is_finite($timeout) || $timeout <= 0) {
             throw new \InvalidArgumentException('require requests >= 0, idle-ms 0..60000, seed 0..2147483647 and positive finite request-timeout');
         }
-        $directory = realpath($options->string('directory', ''));
+        $selected = $options->nullableString('directory')
+            ?? (new ServerDiscovery(sys_get_temp_dir()))->resolve($options->nullableString('server'));
+        $directory = realpath($selected);
         if ($directory === false || !is_dir($directory . '/clients') || is_file($directory . '/exit.json')) {
-            throw new \InvalidArgumentException('--directory must name a running SAPI server directory');
+            throw new \InvalidArgumentException("SAPI server directory is unavailable or stopped: {$selected}; start serve or select another --server/--directory");
         }
         $json = @file_get_contents($directory . '/connection.json');
         $connection = $json === false ? null : json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -267,7 +276,7 @@ redis-client-tester-sapi - long-lived PHP server and continuous request clients
 
 Usage:
   redis-client-tester-sapi serve [server options]
-  redis-client-tester-sapi client --directory PATH [client options] -- [workload options]
+  redis-client-tester-sapi client [client options] [-- workload options]
 
 Server options:
   --workers N           PHP_CLI_SERVER_WORKERS, 2..128 (4; PHP also serves in parent)
@@ -282,11 +291,17 @@ Server options:
   --daemon              Detach; write events and totals to supervisor.log
 
 Client options (before --):
-  --directory PATH      The directory printed by serve; same machine/user required
+  --directory PATH      Explicit server directory (mutually exclusive with --server)
+  --server ID           Server ID printed by serve; default: latest ready server
   --requests N          Request limit, 0 runs until interrupted (0)
   --idle-ms N           Delay between requests, 0..60000 (100)
   --request-timeout N   Wall-clock deadline per HTTP request in seconds (30)
   --help                Show this help (also available on serve)
+
+Serve publishes path pointers in the temp directory as rct-sapi-UID-HASH and
+rct-sapi-UID-latest (normally /tmp). Clients without a selector use latest.
+Pointers remain after shutdown; stale servers fail rather than silently switching.
+Server and client must use the same user and temp directory.
 
 All normal workload filters, flags, weights, clients, TLS, hooks, serializers,
 cluster and invocation settings follow --. --steps/--seconds apply per request.

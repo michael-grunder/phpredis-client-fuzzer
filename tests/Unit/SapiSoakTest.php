@@ -8,6 +8,7 @@ use Mgrunder\RedisClientTester\Cli\ExitCode;
 use Mgrunder\RedisClientTester\Harness\Fs;
 use Mgrunder\RedisClientTester\Sapi\Request;
 use Mgrunder\RedisClientTester\Sapi\Server;
+use Mgrunder\RedisClientTester\Sapi\ServerDiscovery;
 use Mgrunder\RedisClientTester\Sapi\SoakMonitor;
 use PHPUnit\Framework\TestCase;
 
@@ -99,6 +100,22 @@ final class SapiSoakTest extends TestCase
         $this->stopServer();
     }
 
+    public function testClientsDiscoverLatestAndExplicitIdAndRejectStoppedServer(): void
+    {
+        $this->startServer();
+        $discovery = new ServerDiscovery($this->directory);
+        $directory = $this->directory . '/server';
+        $id = $discovery->id($directory);
+        self::assertSame($directory, $discovery->resolve());
+        self::assertSame($directory, $discovery->resolve($id));
+        self::assertStringContainsString('SAPI ID: ' . $id, (string) file_get_contents($this->directory . '/server.out'));
+        self::assertSame(0, proc_close($this->client('latest', '')));
+        self::assertSame(0, proc_close($this->client('id', $id)));
+        $this->stopServer();
+        self::assertSame(78, proc_close($this->client('stale', '')));
+        self::assertStringContainsString('unavailable or stopped', (string) file_get_contents($this->directory . '/stale.err'));
+    }
+
     public function testRouterRejectsAuthenticationTraversalAndReplay(): void
     {
         $connection = $this->startServer();
@@ -135,6 +152,7 @@ final class SapiSoakTest extends TestCase
     {
         $connection = $this->startServer(true);
         self::assertFileExists($this->directory . '/server/supervisor.log');
+        self::assertSame($this->directory . '/server', (new ServerDiscovery($this->directory))->resolve());
         $this->daemon = $connection['pid'];
         self::assertSame(0, proc_close($this->client('daemon')));
         posix_kill($this->daemon, SIGTERM);
@@ -158,6 +176,13 @@ final class SapiSoakTest extends TestCase
         $this->assertWorkersStopped();
     }
 
+    public function testClientWithoutArgumentsLooksForLatest(): void
+    {
+        $process = $this->launch('missing-latest', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'client']);
+        self::assertSame(78, proc_close($process));
+        self::assertStringContainsString('no SAPI server pointer', (string) file_get_contents($this->directory . '/missing-latest.err'));
+    }
+
     public function testExistingDirectoryIsNeverModified(): void
     {
         file_put_contents($this->directory . '/evidence', 'keep');
@@ -178,7 +203,7 @@ final class SapiSoakTest extends TestCase
         } else {
             $this->server = $process;
         }
-        $this->waitForFile($this->directory . '/server/connection.json');
+        $this->waitForFile($this->directory . '/server/server.ready');
         $data = json_decode((string) file_get_contents($this->directory . '/server/connection.json'), true, 512, JSON_THROW_ON_ERROR);
         self::assertIsArray($data);
         self::assertIsString($data['address']);
@@ -188,7 +213,7 @@ final class SapiSoakTest extends TestCase
     }
 
     /** @return resource */
-    private function client(string $name)
+    private function client(string $name, ?string $selector = null)
     {
         $autoload = $this->directory . '/' . $name . '-autoload.php';
         file_put_contents($autoload, <<<'SOURCE'
@@ -209,7 +234,9 @@ class Application {
 }
 SOURCE);
         return $this->launch($name, [dirname(__DIR__) . '/Fixtures/sapi-soak-client.php', $autoload,
-            '--directory=' . $this->directory . '/server', '--requests=3', '--idle-ms=0', '--',
+            ...($selector === null ? ['--directory=' . $this->directory . '/server']
+                : ($selector === '' ? [] : ['--server=' . $selector])),
+            '--requests=3', '--idle-ms=0', '--',
             '--seed=42', '--commands=get,set', '--weight=get:3', '--include-blocking']);
     }
 
@@ -243,7 +270,7 @@ SOURCE);
             0 => ['file', '/dev/null', 'r'],
             1 => ['file', $this->directory . '/' . $name . '.out', 'w'],
             2 => ['file', $this->directory . '/' . $name . '.err', 'w'],
-        ], $pipes);
+        ], $pipes, null, array_merge(getenv(), ['TMPDIR' => $this->directory]));
         self::assertIsResource($process);
         return $process;
     }

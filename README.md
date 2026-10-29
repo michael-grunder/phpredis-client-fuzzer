@@ -894,8 +894,30 @@ bin/redis-client-tester-sapi client --directory=/tmp/relay-soak -- \
     --steps=100 --keys=20 --seed=42
 ```
 
-The server chooses a loopback port and prints the client command and supervisor
-PID. The client must run on the same machine with access to the private server
+The server chooses a loopback port and prints the client command, supervisor
+PID, full directory and a stable hashed ID such as `rct-sapi-1000-a1b2c3d4e5f6`.
+Once ready, it writes the directory path to `/tmp/<id>` and atomically updates
+`/tmp/rct-sapi-<uid>-latest`. These per-user files contain paths, not credentials.
+If PHP uses a different temp directory, the pointers are written there instead;
+server and client must use the same temp directory and user.
+
+Omit the selector to connect to the latest successfully started server, or pin
+one explicitly by ID. `--directory` still works and cannot be combined with
+`--server`:
+
+```bash
+bin/redis-client-tester-sapi client -- --client=relay --port=6390 --seed=42
+bin/redis-client-tester-sapi client --server=rct-sapi-1000-a1b2c3d4e5f6 -- \
+    --client=relay --port=6390 --seed=42
+```
+
+With no workload options, even `redis-client-tester-sapi client` works (using
+the ordinary fuzzer defaults). Pointers remain after shutdown: stopped, missing
+or unresponsive servers fail instead of falling back to some other server.
+With multiple servers, latest means the last one to finish startup, not the
+last one still running. An explicit ID remains tied to its original directory.
+
+The client must run on the same machine with access to the private server
 directory. No Redis connection is made when starting the server. Run additional
 clients against that directory for concurrent traffic, with independent workload
 options and seeds. Each client sends one request at a time. All four client types
@@ -915,8 +937,8 @@ the same PHP executable as the launcher; `--php-ini` and repeatable `--php-arg`
 configure the **server**. Repeatable `--server-prefix` supports wrappers such as
 Valgrind. Server `--seed` (default 0) controls startup-template substitutions.
 
-Client options before `--` are `--directory`, `--requests=N` (0 means unlimited,
-the default), `--idle-ms=N` (100, range 0..60000), and `--request-timeout=N` (30
+Client options before `--` are `--directory`, `--server`, `--requests=N` (0 means
+unlimited, the default), `--idle-ms=N` (100, range 0..60000), and `--request-timeout=N` (30
 seconds). The workload `--steps` and `--seconds` budgets apply to **each request**.
 The first request uses the workload seed (0..2147483647); subsequent seeds come
 from a private deterministic generator. Omitting it selects and records a seed.
@@ -943,7 +965,7 @@ its directory publicly. The same Linux `/proc`, `setsid`, `pcntl` and `posix`
 requirements as the burst runner apply; no new dependency is required.
 
 Artifacts include `server-command.txt`, server stdout/stderr logs,
-`supervisor.pid`, `requests.jsonl` (start/finish events), and final `exit.json`.
+`supervisor.pid`, `server.ready`, `requests.jsonl` (start/finish events), and final `exit.json`.
 Each client gets `clients/client-*/workload.json`, its own final `exit.json`, and
 subdirectories of at most 1,000 requests containing PHP scripts, executable
 `.calls.php` concrete call logs, raw `.php.http` responses (including partial
@@ -953,6 +975,39 @@ redirected to a separate file. The monitor and HTTP reader use bounded memory;
 traffic. Artifacts are never automatically pruned or overwritten. A partial
 response without a finish event can indicate a worker died during a request;
 consult `server.stderr.log` and the concrete call log.
+
+The local saturation presets split server setup and workload generation:
+
+```bash
+./local-scripts/sapi-saturate-serve.sh --directory=/tmp/relay-soak
+# In another terminal, select your disposable Redis target:
+./local-scripts/sapi-saturate-client.sh -- --port=6390 --seed=42
+```
+
+The server preset uses four workers, a 16 MiB LRU cache with an 80% eviction
+threshold and 16 sampled keys, and a 768 MiB PHP memory limit. It uses the current
+PHP installation; pass `--php-ini=FILE` to choose an ini, `--php-arg=-d...` to
+override startup settings, or `--daemon` to detach. It does not enable ASAN itself.
+The client preset uses standalone Relay, coercive invocation, varied serializers
+and compressors, 1,000 keys, weighted cached/invalidating commands, and the
+`cache-hll,cache-collections` scenarios. Churn events run with probability 0.05
+and visit up to 3 keys. Each request allows 100 steps or 0.25 seconds; HTTP
+requests have a 60-second deadline and a 100 ms pause between them. The workload
+time budget is checked between operations, so slow commands/scenarios can exceed
+0.25 seconds. The short requests exercise shared state across many PHP request
+lifetimes. Running the client wrapper with no arguments discovers the latest
+server and uses the preset Redis target `127.0.0.1:6379`; select a disposable
+target with `-- --port=...` when needed.
+
+Put client controls such as `--requests=100` before `--`, and workload overrides
+such as `--keys=4000 --steps=50` after it. Scalar options override the presets;
+command filters, weights, and hooks accumulate. Hook paths are absolute so they
+also work inside HTTP requests. The preset enables local/stateful commands and
+rare Relay `flushmemory` calls, but excludes Redis `FLUSHALL` and `FLUSHDB`.
+Initial codec choices omit LZ4, as in the ASAN saturation preset; `setoption`
+can still select it and encounter the allocation issue described in that script.
+Start multiple client wrappers for concurrent traffic against the same workers.
+These scripts live in the repository's ignored `local-scripts/` directory.
 
 ### PHP server workers and idle invalidations
 
