@@ -877,6 +877,83 @@ runs only. `Cli\SubscribeApplication` accepts an optional `clientFactory`
 closure taking a `ClientConfiguration`, plus `output` and `error` streams, for
 callers supplying their own client construction and output destinations.
 
+### Long-running PHP server testing
+
+Use `redis-client-tester-sapi serve` to keep one PHP server and its workers alive
+across independent workload clients. Unlike the burst runner below, completing a
+client does not restart or stop the server. Both processes can run indefinitely.
+
+```bash
+# Terminal 1: start the server; directory must not already exist.
+bin/redis-client-tester-sapi serve --directory=/tmp/relay-soak \
+    --workers=4 --php-ini=/path/to/php.ini --php-arg=-drelay.maxmemory=128m
+
+# Terminal 2: use only a disposable Redis target you have selected.
+bin/redis-client-tester-sapi client --directory=/tmp/relay-soak -- \
+    --client=relay --port=6390 --commands=get,set,del --weight=get:3 \
+    --steps=100 --keys=20 --seed=42
+```
+
+The server chooses a loopback port and prints the client command and supervisor
+PID. The client must run on the same machine with access to the private server
+directory. No Redis connection is made when starting the server. Run additional
+clients against that directory for concurrent traffic, with independent workload
+options and seeds. Each client sends one request at a time. All four client types
+(`redis`, `redis-cluster`, `relay`, `relay-cluster`) use the ordinary workload
+engine: command and flag filters, weights, safety gates, serializers, compressors,
+TLS, hooks, differential/scenario settings, and invocation modes remain available.
+Persistent connections are enabled automatically. `--forks`, `--script-log`, and
+workload `--help` are reserved; use `redis-client-tester --help` for workload help.
+
+On a terminal the server displays uptime, total requests, completed/in-flight
+counts, and the last ten completed requests, including worker PID and result.
+`--history=N` changes that list (1..1000). `--no-tui`, or redirected stdout, emits
+request events and periodic totals instead. To detach the supervisor and write
+its output to `supervisor.log`, add `--daemon` to `serve`. Startup waits for a
+successful readiness check before printing the client command. The daemon uses
+the same PHP executable as the launcher; `--php-ini` and repeatable `--php-arg`
+configure the **server**. Repeatable `--server-prefix` supports wrappers such as
+Valgrind. Server `--seed` (default 0) controls startup-template substitutions.
+
+Client options before `--` are `--directory`, `--requests=N` (0 means unlimited,
+the default), `--idle-ms=N` (100, range 0..60000), and `--request-timeout=N` (30
+seconds). The workload `--steps` and `--seconds` budgets apply to **each request**.
+The first request uses the workload seed (0..2147483647); subsequent seeds come
+from a private deterministic generator. Omitting it selects and records a seed.
+Every request gets a fresh PHP script with fixed arguments, executed through the
+same application as the burst runner. Clients print the response and stop on the
+first failure, incomplete reply, timeout, or interruption. They can be restarted
+or replaced without recycling the server workers. Workload seeds are reproducible;
+worker scheduling, shared Redis state and concurrent interleaving are not.
+
+Ctrl+C or SIGTERM stops the server supervisor and all its workers. For a daemon,
+use the printed `kill -TERM PID` command. A worker death also stops the server;
+there is no automatic restart that could hide a defect. Stopping or timing out a
+client closes its HTTP connection but does not cancel PHP already running on the
+server. Stop the server to terminate a stuck request. Server `--request-timeout`
+bounds readiness and shutdown, not the lifetime of the server. Exit codes follow
+the burst runner: 78 for configuration errors, 124 for client request timeouts,
+128+signal for interruption/observed process death, and 1 for other failures.
+
+The fresh directory is private (0700). `connection.json` stores the local address,
+authentication token and startup settings; do not publish it. HTTP accepts only
+authenticated generated paths, never request-provided workload options, arbitrary
+files, or a second execution of an existing script. Do not expose the server or
+its directory publicly. The same Linux `/proc`, `setsid`, `pcntl` and `posix`
+requirements as the burst runner apply; no new dependency is required.
+
+Artifacts include `server-command.txt`, server stdout/stderr logs,
+`supervisor.pid`, `requests.jsonl` (start/finish events), and final `exit.json`.
+Each client gets `clients/client-*/workload.json`, its own final `exit.json`, and
+subdirectories of at most 1,000 requests containing PHP scripts, executable
+`.calls.php` concrete call logs, raw `.php.http` responses (including partial
+responses), and `.executed` markers preventing replay. Client stdout can be
+redirected to a separate file. The monitor and HTTP reader use bounded memory;
+**disk use grows with traffic**. Provision and monitor storage for days/weeks of
+traffic. Artifacts are never automatically pruned or overwritten. A partial
+response without a finish event can indicate a worker died during a request;
+consult `server.stderr.log` and the concrete call log.
+
 ### PHP server workers and idle invalidations
 
 `redis-client-tester-sapi` runs workloads in real HTTP requests against a private

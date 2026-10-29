@@ -6,6 +6,7 @@ namespace Mgrunder\RedisClientTester\Cli;
 
 use Mgrunder\RedisClientTester\Harness\PhpStartupTemplate;
 use Mgrunder\RedisClientTester\Sapi\Server;
+use Mgrunder\RedisClientTester\Sapi\RequestScript;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -19,6 +20,9 @@ final class SapiApplication
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
+        if (in_array($arguments[0] ?? '', ['serve', 'client'], true)) {
+            return (new SapiSoakApplication($this->autoload))->run($arguments);
+        }
         $started = false;
         try {
             $separator = array_search('--', $arguments, true);
@@ -110,15 +114,7 @@ final class SapiApplication
                     $args[] = '--steps=' . $budget;
                 }
                 $requestSteps[] = $budget;
-                $source = "<?php\ndeclare(strict_types=1);\nrequire " . var_export(realpath($this->autoload), true) . ";\n"
-                    . '$arguments = ' . var_export($args, true) . ";\n"
-                    . '$arguments[] = "--script-log=" . __DIR__ . ' . var_export('/' . $name . '.calls.php', true) . ";\n"
-                    . '$output = fopen("php://output", "w");' . "\n"
-                    . '$error = fopen("php://stderr", "w");' . "\n"
-                    . "ob_start();\n"
-                    . '$code = (new \\Mgrunder\\RedisClientTester\\Cli\\Application($output, $error))->run($arguments);' . "\n"
-                    . 'header("X-Fuzzer-Exit: " . $code);' . "\n"
-                    . "ob_end_flush();\n";
+                $source = RequestScript::source($this->autoload, $args, $name);
                 Server::write($directory . '/' . $name . '.php', $source);
             }
             Server::write($directory . '/workload.json', json_encode([
@@ -142,6 +138,8 @@ final class SapiApplication
 redis-client-tester-sapi - fuzz through persistent PHP built-in server workers
 
 Usage: redis-client-tester-sapi [server options] -- [redis-client-tester options]
+       redis-client-tester-sapi serve --help    Long-lived server
+       redis-client-tester-sapi client --help   Continuous request generator
 
   --workers N            PHP_CLI_SERVER_WORKERS (2..128, default: 4)
   --concurrency N        Requests per batch (1..workers, default: 2)

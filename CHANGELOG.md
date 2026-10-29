@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `redis-client-tester-sapi serve` and `client` for long-running PHP worker
+  testing, with interactive request statistics, daemon logging, independent
+  concurrent clients, normal workload filters/weights, seeded scripts, streamed
+  response capture, and retained diagnostics. Authenticate dynamic request paths,
+  reject replay, and reuse worker-death detection and process-group shutdown.
+
 - Add an opening flaw-type category page to `redis-client-tester-repros`, with
   capture counts, category filtering, and navigation back from the capture list.
 
@@ -122,6 +128,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   separate `failed/` directory for incomplete recordings.
 
 ### Fixed
+
+- Authenticate SAPI requests before returning their run token, and scan server
+  diagnostics without loading the entire log into memory.
 
 - Make every local fuzzing wrapper enable unlimited core dump size before any
   work and abort if the hard limit prevents it, including parallel campaigns

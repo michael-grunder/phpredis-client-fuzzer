@@ -29,6 +29,7 @@ final class Server
         private readonly int $concurrency,
         private readonly int $idleMs,
         private readonly float $timeout,
+        private readonly bool $forwardOutput = true,
     ) {
         if ($workers < 2 || $workers > 128 || $concurrency < 1 || $concurrency > $workers
             || $idleMs < 0 || $idleMs > 60000 || !is_finite($timeout) || $timeout <= 0) {
@@ -96,19 +97,24 @@ final class Server
      * @param list<string> $paths
      * @param list<string> $phpArgs
      * @param list<string> $prefix
+     * @param (\Closure(string, string): bool)|null $heartbeat Keep serving while this returns true.
      */
-    public function run(array $paths, array $phpArgs = [], array $prefix = []): int
+    public function run(array $paths, array $phpArgs = [], array $prefix = [], ?\Closure $heartbeat = null): int
     {
         self::assertSupported();
+        if ($heartbeat !== null) {
+            $this->token = bin2hex(random_bytes(32));
+        }
         $router = "<?php\n"
-            . 'header("X-Fuzzer-Run: ' . $this->token . '");' . "\n"
-            . 'header("X-Fuzzer-Pid: " . getmypid());' . "\n"
             . 'if (($_SERVER["HTTP_X_FUZZER_TOKEN"] ?? "") !== ' . var_export($this->token, true)
             . ') { http_response_code(403); return; }' . "\n"
-            . 'if ($_SERVER["REQUEST_URI"] === "/ready") { header("X-Fuzzer-Exit: 0"); echo "ready"; return; }' . "\n"
-            . '$paths = ' . var_export(array_map(static fn (string $path): string => '/' . $path, $paths), true) . ";\n"
-            . 'if (!in_array($_SERVER["REQUEST_URI"], $paths, true)) { http_response_code(404); return; }' . "\n"
-            . 'require __DIR__ . $_SERVER["REQUEST_URI"];' . "\n";
+            . 'header("X-Fuzzer-Run: ' . $this->token . '");' . "\n"
+            . 'header("X-Fuzzer-Pid: " . getmypid());' . "\n"
+            . 'if ($_SERVER["REQUEST_URI"] === "/ready") { header("X-Fuzzer-Exit: 0"); echo "ready"; return; }' . "\n";
+        $router .= $heartbeat !== null ? SoakRouter::source()
+            : '$paths = ' . var_export(array_map(static fn (string $path): string => '/' . $path, $paths), true) . ";\n"
+                . 'if (!in_array($_SERVER["REQUEST_URI"], $paths, true)) { http_response_code(404); return; }' . "\n"
+                . 'require __DIR__ . $_SERVER["REQUEST_URI"];' . "\n";
         self::write($this->directory . '/router.php', $router);
         $socket = @stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
         if ($socket === false) {
@@ -133,7 +139,7 @@ final class Server
             pcntl_signal($signal, function (int $received): void { $this->stopped = $received; });
         }
         try {
-            $code = $this->serve($paths, $argv, $env);
+            $code = $this->serve($paths, $argv, $env, $heartbeat);
         } catch (\RuntimeException $error) {
             fwrite(STDERR, $error->getMessage() . "\n");
             $code = $error->getCode() === ExitCode::TIMEOUT ? ExitCode::TIMEOUT : ExitCode::FAILURE;
@@ -144,10 +150,18 @@ final class Server
             }
             pcntl_async_signals($previousAsync);
         }
-        $diagnostics = @file_get_contents($this->directory . '/server.stderr.log');
-        // Shutdown can fail after PHP has already sent a successful HTTP response.
-        $reportedError = SanitizerReport::scan($this->directory . '/server.stderr.log') !== null
-            || ($diagnostics !== false && preg_match('/PHP (?:Fatal|Parse) error:|ERROR SUMMARY: [1-9][0-9,]* errors/', $diagnostics) === 1);
+        // Scan incrementally: long-lived servers can accumulate weeks of diagnostics.
+        $reportedError = SanitizerReport::scan($this->directory . '/server.stderr.log') !== null;
+        $diagnostics = @fopen($this->directory . '/server.stderr.log', 'r');
+        if ($diagnostics !== false) {
+            while (($line = fgets($diagnostics, 16384)) !== false) {
+                if (preg_match('/PHP (?:Fatal|Parse) error:|ERROR SUMMARY: [1-9][0-9,]* errors/', $line) === 1) {
+                    $reportedError = true;
+                    break;
+                }
+            }
+            fclose($diagnostics);
+        }
         $code = $this->failure ?: ($code ?: $shutdownCode);
         return $code === 0 && $reportedError ? ExitCode::FAILURE : $code;
     }
@@ -156,8 +170,9 @@ final class Server
      * @param list<string> $paths
      * @param list<string> $argv
      * @param array<string, string> $env
+     * @param (\Closure(string, string): bool)|null $heartbeat
      */
-    private function serve(array $paths, array $argv, array $env): int
+    private function serve(array $paths, array $argv, array $env, ?\Closure $heartbeat): int
     {
         $process = proc_open($argv, [
             0 => ['file', '/dev/null', 'r'],
@@ -197,6 +212,18 @@ final class Server
         $code = $this->batch(['ready']);
         if ($code !== 0) {
             return $code;
+        }
+        if ($heartbeat !== null) {
+            do {
+                $this->tick();
+                if ($this->failure !== 0 || $this->stopped !== 0) {
+                    return $this->failure ?: 128 + $this->stopped;
+                }
+                if (!$heartbeat($this->address, $this->token)) {
+                    return 0;
+                }
+                usleep(100000);
+            } while (true);
         }
         foreach (array_chunk($paths, max(1, $this->concurrency)) as $batch) {
             $code = $this->batch($batch);
@@ -344,8 +371,8 @@ final class Server
     private function forwardLog(): void
     {
         if (is_resource($this->log)) {
-            $chunk = stream_get_contents($this->log);
-            if ($chunk !== false && $chunk !== '') {
+            $chunk = stream_get_contents($this->log, 65536);
+            if ($this->forwardOutput && $chunk !== false && $chunk !== '') {
                 fwrite(STDERR, $chunk);
             }
         }
