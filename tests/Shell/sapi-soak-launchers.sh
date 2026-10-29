@@ -64,6 +64,11 @@ mapfile -d '' -t args < "$workspace/args"
 [[ ${args[0]} == client ]]
 contains --steps=100 "${args[@]}"
 contains --seconds=0.25 "${args[@]}"
+for mode in info list; do
+    (cd / && "$workspace/with spaces/local-scripts/sapi-saturate-client.sh" "$mode" --help) > "$workspace/args"
+    mapfile -d '' -t args < "$workspace/args"
+    [[ ${#args[@]} == 2 && ${args[0]} == "$mode" && ${args[1]} == --help ]]
+done
 status=0
 STUB_EXIT=23 "$workspace/with spaces/local-scripts/sapi-saturate-client.sh" --help > /dev/null || status=$?
 [[ $status == 23 ]]

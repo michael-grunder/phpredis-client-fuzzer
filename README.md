@@ -894,8 +894,10 @@ bin/redis-client-tester-sapi client --directory=/tmp/relay-soak -- \
     --steps=100 --keys=20 --seed=42
 ```
 
-The server chooses a loopback port and prints the client command, supervisor
-PID, full directory and a stable hashed ID such as `rct-sapi-1000-a1b2c3d4e5f6`.
+The server chooses a loopback port. Its TUI identifies the server with a compact
+12-character tag such as `a1b2c3d4e5f6`. The full ID
+`rct-sapi-1000-a1b2c3d4e5f6` remains accepted; plain/daemon output also prints the
+directory, supervisor PID and client command.
 Once ready, it writes the directory path to `/tmp/<id>` and atomically updates
 `/tmp/rct-sapi-<uid>-latest`. These per-user files contain paths, not credentials.
 If PHP uses a different temp directory, the pointers are written there instead;
@@ -927,9 +929,35 @@ TLS, hooks, differential/scenario settings, and invocation modes remain availabl
 Persistent connections are enabled automatically. `--forks`, `--script-log`, and
 workload `--help` are reserved; use `redis-client-tester --help` for workload help.
 
+Use `info` for extended details and `list` for all running servers discovered for
+the current user in the same temp directory:
+
+```bash
+bin/redis-client-tester-sapi info                 # Latest server, including stopped ones
+bin/redis-client-tester-sapi info a1b2c3d4e5f6    # Tag from the TUI
+bin/redis-client-tester-sapi list
+
+# The local client wrapper forwards these commands without starting a workload:
+./local-scripts/sapi-saturate-client.sh info
+./local-scripts/sapi-saturate-client.sh info a1b2c3d4e5f6
+./local-scripts/sapi-saturate-client.sh list
+```
+
+`info` also accepts `--server=ID` or `--directory=PATH`. Both inspection commands
+show the tag, full directory, HTTP address, supervisor PID, start time, worker
+count, PHP executable/startup arguments, startup seed, log locations and full
+client command. Running servers include a stop command. Authentication tokens
+are not printed. `list` skips stopped servers and missing/malformed metadata;
+it reports when none are running. Inspection checks the supervisor's open
+request journal in `/proc`, so stale/reused PIDs are excluded and busy workers
+do not make a running server disappear. No HTTP requests or Redis commands are
+sent, and no workload artifacts are created by inspection.
+
 On a terminal the server uses the same php-tui grid, bordered panels and table
-widgets as the harness. The header aligns uptime, request totals, completed and
-in-flight counts, average requests/second, directory and client command. The
+widgets as the harness. The compact header shows the server tag and aligns uptime, request totals,
+completed and in-flight counts, average requests/second, live forked workers
+versus configured workers, and whether the serving parent is up. With process
+wrappers, the worker count includes other tracked descendants. The
 request table shows running requests first, followed by the newest completed
 requests, with coloured status, worker PID, elapsed time, exit code, HTTP status
 and request path. php-tui sizes and clips the widgets to the terminal.
@@ -954,13 +982,20 @@ or replaced without recycling the server workers. Workload seeds are reproducibl
 worker scheduling, shared Redis state and concurrent interleaving are not.
 
 Ctrl+C or SIGTERM stops the server supervisor and all its workers. For a daemon,
-use the printed `kill -TERM PID` command. A worker death also stops the server;
-there is no automatic restart that could hide a defect. Stopping or timing out a
+use the printed `kill -TERM PID` command. By default, worker exits are recorded
+without stopping the supervisor or surviving processes. Even with no forked
+workers left, the PHP parent can keep serving. Parent exit always stops the
+supervisor and cleans up the remaining workers. To stop on the first worker
+exit (including code 0), pass `--stop-on-worker-exit`, for example:
+`local-scripts/sapi-saturate-serve.sh --stop-on-worker-exit`. There is no
+automatic restart that could hide a defect. Stopping or timing out a
 client closes its HTTP connection but does not cancel PHP already running on the
 server. Stop the server to terminate a stuck request. Server `--request-timeout`
 bounds readiness and shutdown, not the lifetime of the server. Exit codes follow
 the burst runner: 78 for configuration errors, 124 for client request timeouts,
-128+signal for interruption/observed process death, and 1 for other failures.
+128+signal for interruption or a process death that stops the supervisor, and 1
+for other failures. Worker exits that do not stop the supervisor remain recorded
+individually in the process history and final report.
 
 The fresh directory is private (0700). `connection.json` stores the local address,
 authentication token and startup settings; do not publish it. HTTP accepts only
@@ -968,6 +1003,38 @@ authenticated generated paths, never request-provided workload options, arbitrar
 files, or a second execution of an existing script. Do not expose the server or
 its directory publicly. The same Linux `/proc`, `setsid`, `pcntl` and `posix`
 requirements as the burst runner apply; no new dependency is required.
+
+After restoring the terminal, the supervisor prints its exit code, the initiating
+reason, live worker counts before cleanup, observed per-PID exit details, and
+report paths. On failure it also prints the last 8 KiB of server stderr. It ends
+with a guide to the exit report, process history, full PHP stdout/stderr logs,
+and request history, including their full paths. This
+makes normal exits, signals, and missing/reaped processes distinguishable even
+when the TUI itself disappears. A signal number does not establish its cause
+(for example, SIGKILL alone does not prove an OOM kill).
+
+`processes.jsonl` records observed PID starts/exits, raw wait status, exit code,
+signal and core-dump flag when available. Each observation identifies whether it
+occurred during normal operation or supervisor cleanup; requested SIGTERM/SIGKILL
+cleanup signals are separate events. Unknown statuses are `null`, never guessed
+to be successful exits or crashes. Because workers are grandchildren, a status
+already reaped before polling can be unavailable. `exit.json` retains the reason,
+before/after pool snapshots and stderr tail; full server logs remain intact.
+
+For machine-readable monitoring:
+
+```bash
+./local-scripts/sapi-saturate-serve.sh --json > sapi-events.jsonl
+```
+
+`--json` disables the TUI and emits JSON Lines with `type` values `ready`,
+`request`, `status`, and `exit`. Status events include live pool counts and
+per-process state; the final exit event includes the same report as `exit.json`.
+Server stderr stays in its own artifact log; CLI errors and the final diagnostic
+file guide go to stderr, keeping stdout valid JSON Lines. With
+`--daemon --json`, the launcher prints a `daemon` event and the detached
+supervisor writes its JSON events to `supervisor.log`, keeping supervisor errors
+separate in `supervisor.stderr.log`.
 
 Artifacts include `server-command.txt`, server stdout/stderr logs,
 `supervisor.pid`, `server.ready`, `requests.jsonl` (start/finish events), and final `exit.json`.
@@ -988,6 +1055,9 @@ The local saturation presets split server setup and workload generation:
 # In another terminal, select your disposable Redis target:
 ./local-scripts/sapi-saturate-client.sh -- --port=6390 --seed=42
 ```
+
+The wrapper also accepts `info [ID]` and `list` to inspect servers without
+generating requests.
 
 The server preset uses four workers, a 16 MiB LRU cache with an 80% eviction
 threshold and 16 sampled keys, and a 768 MiB PHP memory limit. It uses the current

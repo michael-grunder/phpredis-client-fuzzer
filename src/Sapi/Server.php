@@ -8,7 +8,11 @@ use Mgrunder\RedisClientTester\Cli\ExitCode;
 use Mgrunder\RedisClientTester\Harness\ReproStore;
 use Mgrunder\RedisClientTester\Harness\SanitizerReport;
 
-/** One server lifetime, including concurrent requests, idle periods and worker supervision. */
+/**
+ * One server lifetime, including concurrent requests, idle periods and worker supervision.
+ * @phpstan-type ProcessState array{pid: int, role: string, state: string, exit_code: ?int, signal: ?int, wait_status: ?int, core_dumped: ?bool, source: string, phase: string, observed_at: float}
+ * @phpstan-type PoolState array{workers_alive: int, workers_expected: int, parent_alive: bool, processes: list<ProcessState>, reason: ?string}
+ */
 final class Server
 {
     /** @var resource|null */
@@ -22,6 +26,12 @@ final class Server
     private int $stopped = 0;
     private string $address = '';
     private string $token;
+    /** @var array<int, ProcessState> */
+    private array $states = [];
+    private bool $shuttingDown = false;
+    private ?string $reason = null;
+    /** @var PoolState|null */
+    private ?array $beforeShutdown = null;
 
     public function __construct(
         private readonly string $directory,
@@ -30,6 +40,7 @@ final class Server
         private readonly int $idleMs,
         private readonly float $timeout,
         private readonly bool $forwardOutput = true,
+        private readonly bool $stopOnWorkerExit = true,
     ) {
         if ($workers < 2 || $workers > 128 || $concurrency < 1 || $concurrency > $workers
             || $idleMs < 0 || $idleMs > 60000 || !is_finite($timeout) || $timeout <= 0) {
@@ -141,6 +152,7 @@ final class Server
         try {
             $code = $this->serve($paths, $argv, $env, $heartbeat);
         } catch (\RuntimeException $error) {
+            $this->reason ??= $error->getMessage();
             fwrite(STDERR, $error->getMessage() . "\n");
             $code = $error->getCode() === ExitCode::TIMEOUT ? ExitCode::TIMEOUT : ExitCode::FAILURE;
         } finally {
@@ -163,6 +175,9 @@ final class Server
             fclose($diagnostics);
         }
         $code = $this->failure ?: ($code ?: $shutdownCode);
+        if ($reportedError && ($this->reason === null || $this->reason === 'run completed')) {
+            $this->reason = 'PHP fatal, sanitizer or Valgrind diagnostic in server.stderr.log';
+        }
         return $code === 0 && $reportedError ? ExitCode::FAILURE : $code;
     }
 
@@ -330,9 +345,6 @@ final class Server
             return;
         }
         $status = proc_get_status($this->process);
-        if (!$status['running']) {
-            $this->failure = $status['signaled'] ? 128 + $status['termsig'] : max(1, $status['exitcode']);
-        }
         $queue = [$this->pid];
         $changed = false;
         while ($queue !== []) {
@@ -348,24 +360,91 @@ final class Server
                 }
             }
         }
-        if ($changed) {
+        if ($changed && !$this->shuttingDown) {
             self::write($this->directory . '/pids.txt', implode("\n", array_keys($this->pids)) . "\n");
         }
         foreach ($this->pids as $pid => $_) {
-            $stat = @file_get_contents("/proc/{$pid}/stat");
-            if ($stat === false) {
-                $this->failure = $this->failure ?: ExitCode::FAILURE;
+            if (isset($this->states[$pid]) && $this->states[$pid]['state'] !== 'running') {
                 continue;
             }
+            $stat = @file_get_contents("/proc/{$pid}/stat");
             // comm can contain spaces and parentheses; fields after its final ')' start at field 3.
-            $fields = explode(' ', substr($stat, (int) strrpos($stat, ')') + 2));
-            if ($fields[0] === 'Z') {
-                $waitStatus = (int) ($fields[49] ?? 0);
-                $signal = $waitStatus & 127;
-                $this->failure = $signal > 0 ? 128 + $signal : max(1, $waitStatus >> 8);
-                fwrite(STDERR, "PHP server descendant {$pid} exited (wait status {$waitStatus})\n");
+            $fields = $stat === false ? [] : explode(' ', substr($stat, (int) strrpos($stat, ')') + 2));
+            if (($fields[0] ?? '') === 'Z' && isset($fields[49])) {
+                $wait = (int) $fields[49];
+                $signal = $wait & 127;
+                $this->observe($pid, 'exited', $signal === 0 ? $wait >> 8 : null,
+                    $signal === 0 ? null : $signal, $wait, ($wait & 128) !== 0, '/proc/stat');
+            } elseif ($pid === $this->pid && !$status['running']) {
+                $this->observe($pid, 'exited', $status['signaled'] || $status['exitcode'] < 0 ? null : $status['exitcode'],
+                    $status['signaled'] ? $status['termsig'] : null, null, null, 'proc_get_status');
+            } elseif ($stat === false) {
+                $this->observe($pid, 'missing', null, null, null, null, '/proc/stat unavailable');
+            } elseif (!isset($this->states[$pid])) {
+                $this->observe($pid, 'running', null, null, null, null, '/proc/stat');
             }
         }
+    }
+
+    private function observe(int $pid, string $state, ?int $exit, ?int $signal, ?int $wait, ?bool $core, string $source): void
+    {
+        $record = ['pid' => $pid, 'role' => $pid === $this->pid ? 'parent' : 'worker', 'state' => $state,
+            'exit_code' => $exit, 'signal' => $signal, 'wait_status' => $wait, 'core_dumped' => $core,
+            'source' => $source, 'phase' => $this->shuttingDown ? 'shutdown' : 'running', 'observed_at' => microtime(true)];
+        $this->states[$pid] = $record;
+        $this->event($record);
+        if ($state !== 'running' && !$this->shuttingDown && $this->failure === 0
+            && ($pid === $this->pid || $this->stopOnWorkerExit)) {
+            $this->failure = $signal !== null ? 128 + $signal : max(1, $exit ?? 1);
+            $outcome = $signal !== null ? 'signal ' . $signal
+                : ($exit !== null ? 'exit code ' . $exit : 'exit status unavailable (process disappeared or was reaped)');
+            $this->reason ??= "{$record['role']} PID {$pid}: {$outcome}; stopping the remaining pool";
+        }
+    }
+
+    /** @param array<string, mixed> $event */
+    private function event(array $event): void
+    {
+        $line = json_encode($event, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
+        if (file_put_contents($this->directory . '/processes.jsonl', $line, FILE_APPEND | LOCK_EX) !== strlen($line)) {
+            $this->reason ??= 'cannot record SAPI process event';
+            $this->failure = $this->failure ?: ExitCode::FAILURE;
+            fwrite(STDERR, "cannot record SAPI process event; see {$this->directory}\n");
+        }
+    }
+
+    /** @return PoolState */
+    public function snapshot(): array
+    {
+        $workers = 0;
+        $parent = false;
+        foreach ($this->states as $process) {
+            if ($process['state'] === 'running') {
+                if ($process['role'] === 'parent') {
+                    $parent = true;
+                } else {
+                    $workers++;
+                }
+            }
+        }
+        return ['workers_alive' => $workers, 'workers_expected' => $this->workers, 'parent_alive' => $parent,
+            'processes' => array_values($this->states), 'reason' => $this->reason];
+    }
+
+    /** @return array{pool: PoolState, before_shutdown: ?PoolState, stderr_tail: string} */
+    public function report(): array
+    {
+        $tail = '';
+        $log = @fopen($this->directory . '/server.stderr.log', 'r');
+        if ($log !== false) {
+            $size = fstat($log);
+            if ($size !== false) {
+                fseek($log, max(0, $size['size'] - 8192));
+                $tail = stream_get_contents($log, 8192) ?: '';
+            }
+            fclose($log);
+        }
+        return ['pool' => $this->snapshot(), 'before_shutdown' => $this->beforeShutdown, 'stderr_tail' => $tail];
     }
 
     private function forwardLog(): void
@@ -381,26 +460,48 @@ final class Server
     private function stop(): int
     {
         $code = 0;
-        if (is_resource($this->process)) {
+        $process = $this->process;
+        if (is_resource($process)) {
+            try {
+                $this->tick();
+            } catch (\RuntimeException $error) {
+                $this->reason ??= $error->getMessage();
+                $this->failure = $this->failure ?: ExitCode::FAILURE;
+            }
+            $this->beforeShutdown = $this->snapshot();
+            $this->reason ??= $this->stopped !== 0 ? 'supervisor received signal ' . $this->stopped : 'run completed';
+            $this->shuttingDown = true;
+            $this->event(['event' => 'shutdown_signal', 'signal' => SIGTERM, 'process_group' => $this->pid,
+                'observed_at' => microtime(true), 'reason' => $this->reason]);
             // The server owns its own session; wrappers and all PHP workers receive shutdown.
             if ($this->pid > 0) {
                 @posix_kill(-$this->pid, SIGTERM);
             }
-            proc_terminate($this->process, SIGTERM);
+            proc_terminate($process, SIGTERM);
             $deadline = microtime(true) + ($this->stopped === 0 ? $this->timeout : 0.5);
             do {
                 usleep(10000);
-                $status = proc_get_status($this->process);
+                $this->tick();
+                $status = proc_get_status($process);
             } while (($status['running'] || $this->hasLiveWorkers()) && microtime(true) < $deadline);
             $code = $status['running'] || $this->hasLiveWorkers() ? ExitCode::TIMEOUT : max(0, $status['exitcode']);
             if ($status['signaled'] && !in_array($status['termsig'], [SIGTERM, SIGKILL], true)) {
                 $code = 128 + $status['termsig'];
             }
+            if ($status['running'] || $this->hasLiveWorkers()) {
+                $this->event(['event' => 'shutdown_signal', 'signal' => SIGKILL, 'process_group' => $this->pid,
+                    'observed_at' => microtime(true)]);
+            }
             if ($this->pid > 0) {
                 @posix_kill(-$this->pid, SIGKILL);
             }
-            proc_terminate($this->process, SIGKILL);
-            proc_close($this->process);
+            proc_terminate($process, SIGKILL);
+            $deadline = microtime(true) + 0.5;
+            do {
+                usleep(10000);
+                $this->tick();
+            } while ($this->hasLiveWorkers() && microtime(true) < $deadline);
+            proc_close($process);
             $this->process = null;
         }
         $this->forwardLog();

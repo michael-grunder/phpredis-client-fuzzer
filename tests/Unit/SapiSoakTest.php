@@ -11,6 +11,7 @@ use Mgrunder\RedisClientTester\Sapi\Server;
 use Mgrunder\RedisClientTester\Sapi\ServerDiscovery;
 use Mgrunder\RedisClientTester\Sapi\SoakMonitor;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PhpTui\Tui\Display\Backend\DummyBackend;
 use PhpTui\Tui\DisplayBuilder;
 
@@ -85,19 +86,24 @@ final class SapiSoakTest extends TestCase
         try {
             $backend = new DummyBackend(120, 20);
             (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($backend)->build());
-            $monitor->render('client --server=test', true);
+            $monitor->render('a1b2c3d4e5f6', true, ['workers_alive' => 2, 'workers_expected' => 4,
+                'parent_alive' => true, 'processes' => [], 'reason' => null]);
             $screen = $backend->toString();
             file_put_contents($this->directory . '/dashboard.txt', $screen);
             foreach (['redis-client-tester-sapi', 'Uptime', 'Completed', 'In flight',
-                'Status', 'PID', 'Time', 'Exit', 'HTTP', 'RUN', 'OK', 'FAIL', '0.125s'] as $text) {
+                'Status', 'PID', 'Time', 'Exit', 'HTTP', 'RUN', 'OK', 'FAIL', '0.125s', 'Workers', '2/4', 'Parent'] as $text) {
                 self::assertStringContainsString($text, $screen);
             }
+            self::assertStringContainsString('a1b2c3d4e5f6', $screen);
+            self::assertStringNotContainsString($this->directory, $screen);
+            self::assertStringNotContainsString('Client:', $screen);
             self::assertStringNotContainsString('old.php', $screen);
             self::assertMatchesRegularExpression('/running\.php.*passed\.php.*failed\.php/s', $screen);
 
             $small = new DummyBackend(60, 12);
             (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($small)->build());
-            $monitor->render('client --server=test', true);
+            $monitor->render('a1b2c3d4e5f6', true, ['workers_alive' => 2, 'workers_expected' => 4,
+                'parent_alive' => true, 'processes' => [], 'reason' => null]);
             self::assertCount(12, $small->toLines());
             self::assertStringContainsString('redis-client-tester-sapi', $small->toString());
             foreach ($small->toLines() as $line) {
@@ -151,12 +157,70 @@ final class SapiSoakTest extends TestCase
         $id = $discovery->id($directory);
         self::assertSame($directory, $discovery->resolve());
         self::assertSame($directory, $discovery->resolve($id));
-        self::assertStringContainsString('SAPI ID: ' . $id, (string) file_get_contents($this->directory . '/server.out'));
+        self::assertStringContainsString('SAPI ID: ' . $discovery->tag($directory), (string) file_get_contents($this->directory . '/server.out'));
         self::assertSame(0, proc_close($this->client('latest', '')));
         self::assertSame(0, proc_close($this->client('id', $id)));
+        self::assertSame(0, proc_close($this->client('tag', $discovery->tag($directory))));
         $this->stopServer();
         self::assertSame(78, proc_close($this->client('stale', '')));
         self::assertStringContainsString('unavailable or stopped', (string) file_get_contents($this->directory . '/stale.err'));
+    }
+
+    public function testInfoAndListInspectMultipleServersWithoutSendingRequests(): void
+    {
+        $first = $this->startServer();
+        $secondDirectory = $this->directory . '/second-server';
+        $second = $this->launch('second-server', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'serve',
+            '--directory=' . $secondDirectory, '--workers=2', '--no-tui', '--request-timeout=3']);
+        try {
+            $this->waitForFile($secondDirectory . '/server.ready');
+            $discovery = new ServerDiscovery($this->directory);
+            $tag = $discovery->tag($this->directory . '/server');
+            foreach ([['info'], ['info', $tag], ['info', '--server=' . $discovery->id($this->directory . '/server')], ['list']] as $index => $args) {
+                $process = $this->launch('inspect-' . $index, [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', ...$args]);
+                self::assertSame(0, proc_close($process));
+                $output = (string) file_get_contents($this->directory . '/inspect-' . $index . '.out');
+                self::assertStringContainsString('(running)', $output);
+                self::assertStringContainsString('Client:', $output);
+                self::assertStringContainsString('PHP arguments:', $output);
+                self::assertStringNotContainsString($first['token'], $output);
+                self::assertStringNotContainsString('token', $output);
+                if ($index === 0 || $index === 3) {
+                    self::assertStringContainsString($secondDirectory, $output);
+                }
+                if ($index !== 0) {
+                    self::assertStringContainsString('Server: ' . $tag, $output);
+                    self::assertStringContainsString('--server=' . $tag, $output);
+                }
+            }
+            self::assertSame('', file_get_contents($this->directory . '/server/requests.jsonl'));
+            self::assertSame('', file_get_contents($secondDirectory . '/requests.jsonl'));
+            self::assertSame([], glob($this->directory . '/server/clients/*'));
+            $this->stopServer();
+            $process = $this->launch('list-after-stop', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'list']);
+            self::assertSame(0, proc_close($process));
+            $output = (string) file_get_contents($this->directory . '/list-after-stop.out');
+            self::assertStringNotContainsString('Server: ' . $tag, $output);
+            self::assertStringContainsString($secondDirectory, $output);
+            $process = $this->launch('info-stopped', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'info', $tag]);
+            self::assertSame(0, proc_close($process));
+            self::assertStringContainsString('(stopped)', (string) file_get_contents($this->directory . '/info-stopped.out'));
+        } finally {
+            proc_terminate($second);
+            proc_close($second);
+            Server::stopOrphans($secondDirectory, true);
+        }
+    }
+
+    public function testListIgnoresStalePointersWithAnUnrelatedLivePid(): void
+    {
+        $directory = $this->directory . '/stale';
+        mkdir($directory);
+        file_put_contents($directory . '/connection.json', json_encode(['pid' => getmypid(), 'address' => '127.0.0.1:1'], JSON_THROW_ON_ERROR));
+        (new ServerDiscovery($this->directory))->publish($directory);
+        $process = $this->launch('list-stale', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'list']);
+        self::assertSame(0, proc_close($process));
+        self::assertStringContainsString('No running SAPI servers', (string) file_get_contents($this->directory . '/list-stale.out'));
     }
 
     public function testRouterRejectsAuthenticationTraversalAndReplay(): void
@@ -193,7 +257,7 @@ final class SapiSoakTest extends TestCase
 
     public function testDaemonPublishesConnectionAndStopsWorkersOnTerm(): void
     {
-        $connection = $this->startServer(true);
+        $connection = $this->startServer(true, ['--json']);
         self::assertFileExists($this->directory . '/server/supervisor.log');
         self::assertSame($this->directory . '/server', (new ServerDiscovery($this->directory))->resolve());
         $this->daemon = $connection['pid'];
@@ -201,13 +265,58 @@ final class SapiSoakTest extends TestCase
         posix_kill($this->daemon, SIGTERM);
         $this->waitForFile($this->directory . '/server/exit.json');
         $this->daemon = 0;
-        self::assertStringContainsString('"exit":143', (string) file_get_contents($this->directory . '/server/exit.json'));
+        self::assertSame(143, $this->exitReport()['exit']);
+        $launch = json_decode((string) file_get_contents($this->directory . '/server.out'), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($launch);
+        self::assertSame('daemon', $launch['type']);
+        foreach (file($this->directory . '/server/supervisor.log', FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+            self::assertIsArray(json_decode($line, true, 512, JSON_THROW_ON_ERROR));
+        }
+        self::assertFileExists($this->directory . '/server/supervisor.stderr.log');
         $this->assertWorkersStopped();
     }
 
-    public function testIdleWorkerDeathStopsSupervisor(): void
+    public function testWorkerDeathsLeaveParentServingByDefault(): void
     {
-        $this->startServer();
+        $connection = $this->startServer(extra: ['--json']);
+        $pids = file($this->directory . '/server/pids.txt', FILE_IGNORE_NEW_LINES);
+        self::assertIsArray($pids);
+        self::assertCount(3, $pids);
+        foreach ([1, 2] as $index) {
+            self::assertTrue(posix_kill((int) $pids[$index], SIGKILL));
+            $deadline = microtime(true) + 5;
+            $observed = false;
+            do {
+                foreach (file($this->directory . '/server.out', FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+                    $event = json_decode($line, true);
+                    if (is_array($event) && ($event['type'] ?? '') === 'status' && is_array($event['pool'])
+                        && $event['pool']['workers_alive'] === 2 - $index && $event['pool']['parent_alive'] === true) {
+                        $observed = true;
+                    }
+                }
+                if (!$observed) {
+                    usleep(10000);
+                }
+            } while (!$observed && microtime(true) < $deadline);
+            self::assertTrue($observed, 'supervisor must keep reporting after a worker exits');
+            self::assertFileDoesNotExist($this->directory . '/server/exit.json');
+            self::assertStringContainsString('ready', $this->raw($connection, 'ready'));
+        }
+        self::assertTrue(posix_kill((int) $pids[0], SIGKILL));
+        $this->waitForFile($this->directory . '/server/exit.json');
+        self::assertIsResource($this->server);
+        self::assertSame(137, proc_close($this->server));
+        $this->server = null;
+        $report = $this->exitReport();
+        self::assertIsArray($report['pool']);
+        self::assertSame('parent PID ' . $pids[0] . ': signal 9; stopping the remaining pool', $report['pool']['reason']);
+        $this->assertDiagnosticGuidance();
+        $this->assertWorkersStopped();
+    }
+
+    public function testIdleWorkerDeathStopsSupervisorWhenOptedIn(): void
+    {
+        $this->startServer(extra: ['--stop-on-worker-exit']);
         $pids = file($this->directory . '/server/pids.txt', FILE_IGNORE_NEW_LINES);
         self::assertIsArray($pids);
         self::assertGreaterThanOrEqual(3, count($pids));
@@ -216,7 +325,86 @@ final class SapiSoakTest extends TestCase
         self::assertIsResource($this->server);
         self::assertSame(137, proc_close($this->server));
         $this->server = null;
+        $report = $this->exitReport();
+        self::assertIsArray($report['pool']);
+        self::assertIsString($report['pool']['reason']);
+        self::assertStringContainsString('signal 9', $report['pool']['reason']);
+        self::assertIsArray($report['before_shutdown']);
+        self::assertSame(1, $report['before_shutdown']['workers_alive']);
+        self::assertStringContainsString('SAPI stopped: exit 137', (string) file_get_contents($this->directory . '/server.err'));
+        self::assertStringContainsString('signal=9', (string) file_get_contents($this->directory . '/server.err'));
+        $this->assertDiagnosticGuidance();
         $this->assertWorkersStopped();
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function workerExits(): iterable
+    {
+        yield 'clean exit is still unexpected' => [0];
+        yield 'nonzero exit' => [23];
+    }
+
+    #[DataProvider('workerExits')]
+    public function testJsonReportsNormalWorkerExitAndCleanupSeparately(int $exit): void
+    {
+        $this->startServer(extra: ['--json', '--stop-on-worker-exit', '--server-prefix=' . PHP_BINARY,
+            '--server-prefix=' . dirname(__DIR__) . '/Fixtures/sapi-exit-wrapper.php',
+            '--server-prefix=' . $exit, '--server-prefix=' . $this->directory . '/server']);
+        $this->waitForFile($this->directory . '/server/exit.json');
+        self::assertIsResource($this->server);
+        self::assertSame(max(1, $exit), proc_close($this->server));
+        $this->server = null;
+        $report = $this->exitReport();
+        self::assertIsArray($report['pool']);
+        self::assertIsString($report['pool']['reason']);
+        self::assertStringContainsString('exit code ' . $exit, $report['pool']['reason']);
+        self::assertSame(0, $report['pool']['workers_alive']);
+        self::assertFalse($report['pool']['parent_alive']);
+        self::assertIsArray($report['pool']['processes']);
+        $unexpected = [];
+        foreach ($report['pool']['processes'] as $process) {
+            self::assertIsArray($process);
+            if ($process['phase'] === 'running') {
+                $unexpected[] = $process;
+            }
+        }
+        self::assertCount(1, $unexpected);
+        self::assertSame($exit, $unexpected[0]['exit_code']);
+        self::assertNull($unexpected[0]['signal']);
+        self::assertSame($exit << 8, $unexpected[0]['wait_status']);
+        self::assertFalse($unexpected[0]['core_dumped']);
+        self::assertIsString($report['stderr_tail']);
+        self::assertStringContainsString('fixture descendant exiting normally', $report['stderr_tail']);
+        $lines = file($this->directory . '/server.out', FILE_IGNORE_NEW_LINES) ?: [];
+        $types = [];
+        foreach ($lines as $line) {
+            $event = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($event);
+            $types[] = $event['type'];
+        }
+        self::assertContains('ready', $types);
+        self::assertContains('status', $types);
+        self::assertSame('exit', end($types));
+        self::assertStringContainsString('shutdown_signal', (string) file_get_contents($this->directory . '/server/processes.jsonl'));
+        $this->assertWorkersStopped();
+    }
+
+    private function assertDiagnosticGuidance(): void
+    {
+        $output = (string) file_get_contents($this->directory . '/server.err');
+        self::assertStringContainsString('Diagnostics retained in ' . $this->directory . '/server', $output);
+        foreach (['exit.json', 'processes.jsonl', 'server.stderr.log', 'server.stdout.log', 'requests.jsonl'] as $file) {
+            self::assertStringContainsString($this->directory . '/server/' . $file, $output);
+        }
+    }
+
+    /** @return array<array-key, mixed> */
+    private function exitReport(): array
+    {
+        $report = json_decode((string) file_get_contents($this->directory . '/server/exit.json'), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($report);
+        self::assertArrayHasKey('exit', $report);
+        return $report;
     }
 
     public function testClientWithoutArgumentsLooksForLatest(): void
@@ -235,12 +423,14 @@ final class SapiSoakTest extends TestCase
         self::assertFileDoesNotExist($this->directory . '/exit.json');
     }
 
-    /** @return array{address: string, token: string, pid: int} */
-    private function startServer(bool $daemon = false): array
+    /** @param list<string> $extra
+     * @return array{address: string, token: string, pid: int}
+     */
+    private function startServer(bool $daemon = false, array $extra = []): array
     {
         $process = $this->launch('server', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'serve',
             '--directory=' . $this->directory . '/server', '--workers=2', '--no-tui',
-            '--php-arg=-dprecision=12', '--request-timeout=3', ...($daemon ? ['--daemon'] : [])]);
+            '--php-arg=-dprecision=12', '--request-timeout=3', ...($daemon ? ['--daemon'] : []), ...$extra]);
         if ($daemon) {
             self::assertSame(0, proc_close($process));
         } else {

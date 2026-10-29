@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Show live SAPI workers and parent status; record per-process exit codes,
+  signals, raw wait statuses and cleanup phases in `processes.jsonl`. Preserve
+  the initiating failure, pre-cleanup counts and stderr tail in `exit.json`, and
+  print diagnostics after restoring the terminal. Add `serve --json` events.
+
+- Add SAPI `info [ID]` and `list` commands, also forwarded by the local client
+  wrapper, to show server directories, startup settings, logs and client commands
+  without issuing workloads. List live supervisors while excluding stale PIDs.
+
 - Publish hashed SAPI server IDs and per-user latest path pointers in the temp
   directory. Allow clients to select `--server=ID` or discover the latest ready
   server without a directory argument; reject stale pointers and unsafe files.
@@ -103,6 +112,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and reference settings for the standalone evilresp proxy.
 
 ### Changed
+
+- Keep long-running SAPI supervisors alive after worker exits by default; add
+  `serve --stop-on-worker-exit` to opt into stopping the remaining pool. Parent
+  exits still stop the supervisor. End shutdown output with a guide to retained
+  diagnostic files, also on stderr in JSON mode.
+
+- Compact the SAPI TUI header to metrics and a selectable 12-character server
+  tag. Accept short tags wherever a server ID is used; retain full-ID compatibility.
 
 - Use harness-style php-tui panels and tables for the long-lived SAPI server,
   with aligned summary metrics, running requests, newest-first completed history,

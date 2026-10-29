@@ -11,7 +11,6 @@ use PhpTui\Tui\Display\Display;
 use PhpTui\Tui\DisplayBuilder;
 use PhpTui\Tui\Extension\Core\Widget\BlockWidget;
 use PhpTui\Tui\Extension\Core\Widget\GridWidget;
-use PhpTui\Tui\Extension\Core\Widget\ParagraphWidget;
 use PhpTui\Tui\Extension\Core\Widget\TableWidget;
 use PhpTui\Tui\Extension\Core\Widget\Table\TableCell;
 use PhpTui\Tui\Extension\Core\Widget\Table\TableRow;
@@ -22,7 +21,10 @@ use PhpTui\Tui\Widget\Borders;
 use PhpTui\Tui\Widget\Direction;
 use PhpTui\Tui\Widget\Widget;
 
-/** Tail the server's request journal without retaining the full history in memory. */
+/**
+ * Tail the server's request journal without retaining the full history in memory.
+ * @phpstan-import-type PoolState from Server
+ */
 final class SoakMonitor
 {
     private ?Terminal $terminal = null;
@@ -37,8 +39,10 @@ final class SoakMonitor
     private int $completed = 0;
     private float $lastRender = 0;
     private readonly float $since;
+    /** @var PoolState|null */
+    private ?array $pool = null;
 
-    public function __construct(private readonly string $directory, private readonly int $history, bool $tui)
+    public function __construct(string $directory, private readonly int $history, bool $tui, private readonly bool $json = false)
     {
         $events = fopen($directory . '/requests.jsonl', 'x+');
         if ($events === false) {
@@ -53,8 +57,10 @@ final class SoakMonitor
         }
     }
 
-    public function render(string $connection, bool $force = false): void
+    /** @param PoolState|null $pool */
+    public function render(string $serverId, bool $force = false, ?array $pool = null): void
     {
+        $this->pool = $pool;
         fseek($this->events, 0, SEEK_CUR); // Clear EOF after another process appends.
         // Limit work per tick so a busy journal cannot starve worker supervision.
         for ($index = 0; $index < 1000; $index++) {
@@ -97,25 +103,35 @@ final class SoakMonitor
                     $exit, $event['status']);
                 $this->recent = array_slice($this->recent, -$this->history);
             }
-            if ($this->display === null) {
+            if ($this->json) {
+                echo json_encode(['type' => 'request'] + $event, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
+            } elseif ($this->display === null) {
                 echo $summary . "\n";
             }
         }
         $now = microtime(true);
-        if (!$force && $now - $this->lastRender < ($this->display === null ? 10 : 1)) {
+        if (!$force && $now - $this->lastRender < ($this->display === null && !$this->json ? 10 : 1)) {
             return;
         }
         $this->lastRender = $now;
         $summary = sprintf('SAPI uptime=%ds requests=%d completed=%d in-flight=%d', (int) ($now - $this->since),
             $this->started, $this->completed, $this->started - $this->completed);
-        if ($this->display !== null) {
-            $this->display->draw($this->build($connection, $now));
+        if ($this->pool !== null) {
+            $summary .= sprintf(' workers=%d/%d parent=%s', $this->pool['workers_alive'], $this->pool['workers_expected'],
+                $this->pool['parent_alive'] ? 'up' : 'down');
+        }
+        if ($this->json) {
+            echo json_encode(['type' => 'status', 'server' => $serverId, 'elapsed' => $now - $this->since,
+                'requests' => $this->started, 'completed' => $this->completed, 'pool' => $this->pool],
+                JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
+        } elseif ($this->display !== null) {
+            $this->display->draw($this->build($serverId, $now));
         } else {
             echo $summary . "\n";
         }
     }
 
-    private function build(string $connection, float $now): Widget
+    private function build(string $serverId, float $now): Widget
     {
         $elapsed = max(0, (int) ($now - $this->since));
         $metrics = TableWidget::default()
@@ -128,17 +144,14 @@ final class SoakMonitor
                     'In flight', number_format($this->started - $this->completed)),
                 TableRow::fromStrings('Requests/s', sprintf('%.1f', $this->completed / max(1, $now - $this->since)),
                     'History', (string) $this->history),
+                TableRow::fromStrings('Workers', $this->pool === null ? '-'
+                    : $this->pool['workers_alive'] . '/' . $this->pool['workers_expected'],
+                    'Parent', $this->pool === null ? '-' : ($this->pool['parent_alive'] ? 'up' : 'down')),
             );
         $header = BlockWidget::default()
             ->borders(Borders::ALL)
-            ->titles(Title::fromString(' redis-client-tester-sapi '))
-            ->widget(GridWidget::default()
-                ->direction(Direction::Vertical)
-                ->constraints(Constraint::length(3), Constraint::min(2))
-                ->widgets($metrics, ParagraphWidget::fromLines(
-                    Line::fromString('Directory: ' . $this->directory),
-                    Line::fromString('Client: ' . $connection),
-                )));
+            ->titles(Title::fromString(' redis-client-tester-sapi — ' . $serverId . ' '))
+            ->widget($metrics);
 
         $rows = [];
         foreach ($this->active as $pid => $request) {
@@ -153,7 +166,7 @@ final class SoakMonitor
 
         return GridWidget::default()
             ->direction(Direction::Vertical)
-            ->constraints(Constraint::length(9), Constraint::min(3))
+            ->constraints(Constraint::length(6), Constraint::min(3))
             ->widgets($header, BlockWidget::default()
                 ->borders(Borders::ALL)
                 ->titles(Title::fromString(' requests — running, then newest completed — Ctrl+C to stop '))

@@ -40,6 +40,8 @@ final class ServerDiscoveryTest extends TestCase
         $discovery->publish($second);
         self::assertSame($second, $discovery->resolve());
         self::assertSame($first, $discovery->resolve($id));
+        self::assertSame($first, $discovery->resolve($discovery->tag($first)));
+        self::assertEqualsCanonicalizing([$first, $second], $discovery->directories());
     }
 
     public function testMissingLatestExplainsHowToConnect(): void

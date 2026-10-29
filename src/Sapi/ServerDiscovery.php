@@ -18,7 +18,46 @@ final class ServerDiscovery
 
     public function id(string $directory): string
     {
-        return $this->prefix() . substr(hash('sha256', $directory), 0, 12);
+        return $this->prefix() . $this->tag($directory);
+    }
+
+    public function tag(string $directory): string
+    {
+        return substr(hash('sha256', $directory), 0, 12);
+    }
+
+    /** @return list<string> */
+    public function directories(): array
+    {
+        $directories = [];
+        foreach (glob($this->temporaryDirectory . '/' . $this->prefix() . '*') ?: [] as $path) {
+            if (preg_match('/\A' . $this->prefix() . '[a-f0-9]{12}\z/', basename($path)) !== 1) {
+                continue;
+            }
+            try {
+                $directory = $this->read($path);
+                if ($this->id($directory) === basename($path)) {
+                    $directories[] = $directory;
+                }
+            } catch (\RuntimeException) {
+                // Stale or unsafe pointers must not prevent listing other servers.
+            }
+        }
+        return $directories;
+    }
+
+    public function isRunning(string $directory, int $pid): bool
+    {
+        if ($pid <= 1 || is_file($directory . '/exit.json')) {
+            return false;
+        }
+        // The supervisor holds this journal open for its lifetime; a reused PID does not.
+        foreach (glob('/proc/' . $pid . '/fd/*') ?: [] as $descriptor) {
+            if (@readlink($descriptor) === $directory . '/requests.jsonl') {
+                return true;
+            }
+        }
+        return false;
     }
 
     public function latestPath(): string
@@ -42,6 +81,9 @@ final class ServerDiscovery
 
     public function resolve(?string $id = null): string
     {
+        if ($id !== null && preg_match('/\A[a-f0-9]{12}\z/', $id) === 1) {
+            $id = $this->prefix() . $id;
+        }
         if ($id !== null && preg_match('/\A' . $this->prefix() . '[a-f0-9]{12}\z/', $id) !== 1) {
             throw new \InvalidArgumentException('invalid SAPI server ID for this user');
         }

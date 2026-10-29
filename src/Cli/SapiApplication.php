@@ -20,7 +20,7 @@ final class SapiApplication
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
-        if (in_array($arguments[0] ?? '', ['serve', 'client'], true)) {
+        if (in_array($arguments[0] ?? '', ['serve', 'client', 'info', 'list'], true)) {
             return (new SapiSoakApplication($this->autoload))->run($arguments);
         }
         $started = false;
@@ -140,6 +140,8 @@ redis-client-tester-sapi - fuzz through persistent PHP built-in server workers
 Usage: redis-client-tester-sapi [server options] -- [redis-client-tester options]
        redis-client-tester-sapi serve --help    Long-lived server
        redis-client-tester-sapi client --help   Continuous request generator
+       redis-client-tester-sapi info [ID]       Server details (default: latest)
+       redis-client-tester-sapi list            Running servers
 
   --workers N            PHP_CLI_SERVER_WORKERS (2..128, default: 4)
   --concurrency N        Requests per batch (1..workers, default: 2)
