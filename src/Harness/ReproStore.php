@@ -33,6 +33,9 @@ final class ReproStore
 
     private readonly int $pid;
 
+    /** @var (\Closure(): void)|null */
+    private ?\Closure $heartbeat = null;
+
     /**
      * Where the next allocation starts looking, per destination directory;
      * never revisits a taken name.
@@ -47,11 +50,18 @@ final class ReproStore
         private readonly string $coreSearchDir,
         private readonly ?string $phpIni = null,
         ?int $pid = null,
+        private readonly string $php = PHP_BINARY,
     ) {
         $resolved = $pid ?? getmypid();
         $this->pid = $resolved === false ? 0 : $resolved;
 
         Fs::ensureDir($this->root);
+    }
+
+    /** @param (\Closure(): void)|null $heartbeat */
+    public function setHeartbeat(?\Closure $heartbeat): void
+    {
+        $this->heartbeat = $heartbeat;
     }
 
     /** The pid the capture directories of this campaign are named after. */
@@ -116,10 +126,8 @@ final class ReproStore
         if ($job->traceDir !== null && is_dir($job->traceDir)) {
             Fs::move($job->traceDir, $dir . '/rr-trace');
         }
-        if ($job->pid !== null) {
-            $this->collectCores($job->pid, $dir);
-        }
-        $this->collectSapi($job->workDir, $dir);
+        $cores = $job->pid === null ? [] : $this->collectCores($job->pid, $dir);
+        $cores = [...$cores, ...$this->collectSapi($job->workDir, $dir)];
 
         $ini = $job->phpIni ?? $this->phpIni;
         $this->copyIni($dir, $ini);
@@ -131,6 +139,9 @@ final class ReproStore
             json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
         );
 
+        foreach ($cores as $core) {
+            CoreBacktrace::start($core, $this->php)?->finish($this->heartbeat);
+        }
         return $dir;
     }
 
@@ -149,10 +160,8 @@ final class ReproStore
         if ($outcome->traceDir !== null && $traceProblem === null) {
             Fs::move($outcome->traceDir, $sub . '/rr-trace');
         }
-        if ($outcome->pid !== null) {
-            $this->collectCores($outcome->pid, $sub);
-        }
-        $this->collectSapi($outcome->workDir, $sub);
+        $cores = $outcome->pid === null ? [] : $this->collectCores($outcome->pid, $sub);
+        $cores = [...$cores, ...$this->collectSapi($outcome->workDir, $sub)];
         $generatedIni = $outcome->workDir . '/php.ini';
         $this->copyIni($sub, is_file($generatedIni) ? $generatedIni : $this->phpIni);
 
@@ -175,6 +184,9 @@ final class ReproStore
             'duration_seconds' => round($outcome->duration, 3),
             'captured_at' => date('c'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        foreach ($cores as $core) {
+            CoreBacktrace::start($core, $this->php)?->finish($this->heartbeat);
+        }
     }
 
     /**
@@ -224,9 +236,10 @@ final class ReproStore
         );
     }
 
-    private function collectCores(int $pid, string $destination): int
+    /** @return list<string> */
+    private function collectCores(int $pid, string $destination): array
     {
-        $found = 0;
+        $found = [];
         foreach ($this->core->globsForPid($pid, $this->coreSearchDir) as $pattern) {
             $matches = glob($pattern);
             if ($matches === false) {
@@ -237,7 +250,7 @@ final class ReproStore
                     continue;
                 }
                 if (Fs::move($path, $destination . '/' . basename($path))) {
-                    $found++;
+                    $found[] = $destination . '/' . basename($path);
                 }
             }
         }
@@ -245,21 +258,24 @@ final class ReproStore
         return $found;
     }
 
-    private function collectSapi(string $workDir, string $destination): void
+    /** @return list<string> */
+    private function collectSapi(string $workDir, string $destination): array
     {
         $sapi = $workDir . '/sapi';
         if (!is_dir($sapi)) {
-            return;
+            return [];
         }
+        $cores = [];
         $pids = @file($sapi . '/pids.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         foreach ($pids === false ? [] : $pids as $pid) {
             if (ctype_digit($pid) && (int) $pid > 0) {
-                $this->collectCores((int) $pid, $destination);
+                $cores = [...$cores, ...$this->collectCores((int) $pid, $destination)];
             }
         }
         if (!Fs::move($sapi, $destination . '/sapi')) {
             throw new \RuntimeException('cannot preserve SAPI artifacts: ' . $sapi);
         }
+        return $cores;
     }
 
     /**

@@ -122,7 +122,7 @@ final class HarnessApplication
         $outputDir = $this->absolute($options->output);
         Fs::ensureDir($outputDir);
 
-        $store = new ReproStore($outputDir, $core, $baseDir, $phpIni);
+        $store = new ReproStore($outputDir, $core, $baseDir, $phpIni, php: $php);
 
         // Opened before anything is spawned so an unwritable path is a startup
         // error, not a campaign that logs nothing.

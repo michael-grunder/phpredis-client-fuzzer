@@ -42,7 +42,7 @@ final class SoakMonitor
     /** @var PoolState|null */
     private ?array $pool = null;
 
-    public function __construct(string $directory, private readonly int $history, bool $tui, private readonly bool $json = false)
+    public function __construct(private readonly string $directory, private readonly int $history, bool $tui, private readonly bool $json = false, private readonly bool $keepWork = false)
     {
         $events = fopen($directory . '/requests.jsonl', 'x+');
         if ($events === false) {
@@ -102,6 +102,12 @@ final class SoakMonitor
                 $this->recent[] = $this->row($event['path'], $event['pid'], (float) $event['elapsed'],
                     $exit, $event['status']);
                 $this->recent = array_slice($this->recent, -$this->history);
+                if ($exit !== 0 || $event['status'] !== 200
+                    || in_array($event['error_type'] ?? null, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR], true)) {
+                    if (file_put_contents($this->directory . '/request-failures.jsonl', $line, FILE_APPEND | LOCK_EX) !== strlen($line)) {
+                        throw new \RuntimeException('cannot preserve failed request event');
+                    }
+                }
             }
             if ($this->json) {
                 echo json_encode(['type' => 'request'] + $event, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
@@ -109,6 +115,7 @@ final class SoakMonitor
                 echo $summary . "\n";
             }
         }
+        $this->compactJournal();
         $now = microtime(true);
         if (!$force && $now - $this->lastRender < ($this->display === null && !$this->json ? 10 : 1)) {
             return;
@@ -128,6 +135,26 @@ final class SoakMonitor
             $this->display->draw($this->build($serverId, $now));
         } else {
             echo $summary . "\n";
+        }
+    }
+
+    private function compactJournal(): void
+    {
+        $offset = ftell($this->events);
+        if ($this->keepWork || $offset === false || $offset < 1048576
+            || !flock($this->events, LOCK_EX | LOCK_NB)) {
+            return;
+        }
+        try {
+            // Writers append under the same lock: never drop an unread or partial event.
+            $stat = fstat($this->events);
+            if ($stat !== false && $stat['size'] === $offset) {
+                if (!ftruncate($this->events, 0) || !rewind($this->events)) {
+                    throw new \RuntimeException('cannot compact consumed request journal');
+                }
+            }
+        } finally {
+            flock($this->events, LOCK_UN);
         }
     }
 

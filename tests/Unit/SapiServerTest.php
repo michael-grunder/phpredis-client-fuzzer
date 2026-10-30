@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\RedisClientTester\Tests\Unit;
 
+use Mgrunder\RedisClientTester\Harness\CoreBacktrace;
 use Mgrunder\RedisClientTester\Harness\CorePattern;
 use Mgrunder\RedisClientTester\Harness\FailureClassifier;
 use Mgrunder\RedisClientTester\Harness\Fs;
@@ -59,7 +60,10 @@ final class SapiServerTest extends TestCase
         $destination = $this->directory . '/cores/123/core.php.123.1';
         self::assertSame('our dump', file_get_contents($destination));
         self::assertSame([$destination], $server->report()['cores']);
-        self::assertSame([$destination], glob($this->directory . '/cores/123/*'));
+        self::assertSame([$destination], glob($this->directory . '/cores/123/core.*'));
+        self::assertFileExists(CoreBacktrace::path($destination));
+        (new \ReflectionMethod($server, 'stop'))->invoke($server);
+        self::assertStringContainsString('[gdb:', (string) file_get_contents(CoreBacktrace::path($destination)));
         self::assertSame('our dump', file_get_contents($source . '/core.php.123.1'));
         self::assertSame('another run', file_get_contents($source . '/core.php.1234.1'));
         self::assertSame('old owner of PID', file_get_contents($source . '/core.php.123.2'));
@@ -118,6 +122,44 @@ final class SapiServerTest extends TestCase
         self::assertTrue($alive->invoke($server));
         $pids->setValue($server, [-1 => true]);
         self::assertFalse($alive->invoke($server));
+    }
+
+    /** @return iterable<string, array{bool, bool, int}> */
+    public static function burstRetention(): iterable
+    {
+        yield 'successful standalone' => [false, false, 0];
+        yield 'explicit keep-work' => [true, false, 0];
+        yield 'harness owns retention' => [false, true, 0];
+        yield 'failure retains evidence' => [false, false, 1];
+    }
+
+    #[DataProvider('burstRetention')]
+    public function testBurstCleanupHonorsOutcomeAndOwnership(bool $keep, bool $harness, int $exit): void
+    {
+        $autoload = $this->directory . '/autoload.php';
+        file_put_contents($autoload, '<?php namespace Mgrunder\\RedisClientTester\\Cli;'
+            . 'class Application { public function __construct($output, $error) {}'
+            . ' public function run(array $arguments): int { echo "fixture"; return ' . $exit . '; }}');
+        $env = getenv();
+        unset($env['REDIS_CLIENT_TESTER_WORK_DIR']);
+        if ($harness) {
+            $env['REDIS_CLIENT_TESTER_WORK_DIR'] = $this->directory;
+        }
+        $directory = $this->directory . ($harness ? '/sapi' : '/standalone');
+        $process = proc_open([PHP_BINARY, dirname(__DIR__) . '/Fixtures/sapi-burst.php', $autoload,
+            ...($harness ? [] : ['--directory=' . $directory]), ...($keep ? ['--keep-work'] : []),
+            '--workers=2', '--requests=2', '--idle-ms=0', '--', '--seed=42', '--steps=1'], [
+                1 => ['file', $this->directory . '/burst.out', 'w'],
+                2 => ['file', $this->directory . '/burst.err', 'w'],
+            ], $pipes, null, $env);
+        self::assertIsResource($process);
+        self::assertSame($exit, proc_close($process));
+        if ($keep || $harness || $exit !== 0) {
+            self::assertFileExists($directory . '/workload.json');
+            self::assertNotEmpty(glob($directory . '/request-*.php'));
+        } else {
+            self::assertDirectoryDoesNotExist($directory);
+        }
     }
 
     public function testSeededScriptsAreStableAndStartupErrorsPropagateWithoutRedis(): void

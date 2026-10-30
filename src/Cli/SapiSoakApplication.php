@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Mgrunder\RedisClientTester\Cli;
 
+use Mgrunder\RedisClientTester\Harness\CoreBacktrace;
 use Mgrunder\RedisClientTester\Harness\CorePattern;
+use Mgrunder\RedisClientTester\Harness\Fs;
 use Mgrunder\RedisClientTester\Harness\PhpStartupTemplate;
 use Mgrunder\RedisClientTester\Harness\ReproStore;
 use Mgrunder\RedisClientTester\Harness\RrTrace;
@@ -47,7 +49,7 @@ final class SapiSoakApplication
             }
             $options = Options::parse($arguments,
                 ['workers', 'directory', 'php-arg', 'php-ini', 'server-prefix', 'request-timeout', 'history', 'seed'],
-                ['help', 'daemon', 'no-tui', 'json', 'stop-on-worker-exit', 'rr', 'rr-chaos'], ['php-arg', 'server-prefix']);
+                ['help', 'daemon', 'no-tui', 'json', 'stop-on-worker-exit', 'rr', 'rr-chaos', 'keep-work'], ['php-arg', 'server-prefix']);
             if ($options->has('help')) {
                 echo self::HELP;
                 return 0;
@@ -102,11 +104,12 @@ final class SapiSoakApplication
             Server::write($directory . '/supervisor.pid', getmypid() . "\n");
             $phpArgs = $startup->render($seed, $directory)['args'];
             $tui = !$json && !$options->has('no-tui') && stream_isatty(STDOUT);
-            $monitor = new SoakMonitor($directory, $history, $tui, $json);
+            $monitor = new SoakMonitor($directory, $history, $tui, $json, $options->has('keep-work'));
             $discovery = new ServerDiscovery(sys_get_temp_dir());
             $connection = $this->clientCommand($directory);
             $tag = $discovery->tag($directory);
             $published = false;
+            $keepWork = $options->has('keep-work');
             $trace = $rr ? $directory . '/rr-trace' : null;
             $prefix = $options->repeated('server-prefix', splitCommas: false);
             if ($rrBinary) {
@@ -119,12 +122,12 @@ final class SapiSoakApplication
             try {
                 $code = $server->run(
                     [], $phpArgs, $prefix,
-                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, $discovery, $tag, $tui, $json, $server, $trace, &$published): bool {
+                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, $discovery, $tag, $tui, $json, $server, $trace, $keepWork, &$published): bool {
                         if (!$published) {
                             $metadata = json_encode([
                                 'address' => $address, 'token' => $token, 'pid' => getmypid(), 'workers' => $workers,
                                 'php' => PHP_BINARY, 'php_args' => $phpArgs, 'seed' => $seed, 'started' => date(DATE_ATOM),
-                                'rr_trace' => $trace,
+                                'rr_trace' => $trace, 'keep_work' => $keepWork,
                             ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
                             Server::write($directory . '/connection.json.tmp', $metadata);
                             if (!rename($directory . '/connection.json.tmp', $directory . '/connection.json')) {
@@ -174,7 +177,8 @@ final class SapiSoakApplication
             . "  Process history (exits and cleanup signals): {$directory}/processes.jsonl\n"
             . "  Full PHP stderr: {$directory}/server.stderr.log\n"
             . "  Full PHP stdout: {$directory}/server.stdout.log\n"
-            . "  Request history (when requests ran): {$directory}/requests.jsonl\n";
+            . "  Request history (recent; full with --keep-work): {$directory}/requests.jsonl\n"
+            . "  Failed request history (when failures occurred): {$directory}/request-failures.jsonl\n";
         if (($report['rr_trace'] ?? null) !== null) {
             $guidance .= '  rr record directory: ' . $report['rr_trace'] . "\n";
             $guidance .= ($report['rr_problem'] ?? null) !== null
@@ -183,6 +187,7 @@ final class SapiSoakApplication
         }
         foreach ($report['cores'] ?? [] as $core) {
             $guidance .= '  Core dump: ' . $core . "\n";
+            $guidance .= '  Full backtrace: ' . CoreBacktrace::path($core) . "\n";
         }
         if ($json) {
             echo json_encode(['type' => 'exit', 'directory' => $directory] + $report,
@@ -302,7 +307,7 @@ final class SapiSoakApplication
             echo 'Server: ' . $discovery->tag($directory) . ' (' . ($running ? 'running' : 'stopped') . ")\n";
             echo 'ID: ' . $discovery->id($directory) . "\nDirectory: {$directory}\n";
             echo 'Address: http://' . $metadata['address'] . "\nPID: " . $metadata['pid'] . "\n";
-            foreach (['started' => 'Started', 'workers' => 'Workers', 'php' => 'PHP', 'php_args' => 'PHP arguments', 'seed' => 'Startup seed'] as $key => $label) {
+            foreach (['started' => 'Started', 'workers' => 'Workers', 'php' => 'PHP', 'php_args' => 'PHP arguments', 'seed' => 'Startup seed', 'keep_work' => 'Keep successful requests'] as $key => $label) {
                 echo $label . ': ' . json_encode($metadata[$key] ?? null, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
             }
             if (is_string($metadata['rr_trace'] ?? null)) {
@@ -312,7 +317,7 @@ final class SapiSoakApplication
             }
             echo "Core dumps: {$directory}/cores (when collected)\n";
             echo "Logs: {$directory}/server.stdout.log, {$directory}/server.stderr.log\n";
-            echo "Requests: {$directory}/requests.jsonl\nProcesses: {$directory}/processes.jsonl\nExit report: {$directory}/exit.json\n";
+            echo "Requests: {$directory}/requests.jsonl\nFailed requests: {$directory}/request-failures.jsonl\nProcesses: {$directory}/processes.jsonl\nExit report: {$directory}/exit.json\n";
             if (is_file($directory . '/supervisor.log')) {
                 echo "Supervisor log: {$directory}/supervisor.log\n";
             }
@@ -336,7 +341,7 @@ final class SapiSoakApplication
     {
         $separator = array_search('--', $arguments, true);
         $options = Options::parse($separator === false ? $arguments : array_slice($arguments, 0, $separator),
-            ['directory', 'server', 'requests', 'idle-ms', 'request-timeout'], ['help']);
+            ['directory', 'server', 'requests', 'idle-ms', 'request-timeout'], ['help', 'keep-work']);
         if ($options->has('help')) {
             echo self::HELP;
             return 0;
@@ -371,6 +376,7 @@ final class SapiSoakApplication
         if (!is_array($connection) || !is_string($connection['address'] ?? null) || !is_string($connection['token'] ?? null)) {
             throw new \InvalidArgumentException('missing or invalid server connection.json');
         }
+        $keepWork = $options->has('keep-work') || ($connection['keep_work'] ?? false) === true;
         $http = new Request($connection['address'], $connection['token'], $timeout);
         $client = 'client-' . bin2hex(random_bytes(8));
         $clientDirectory = $directory . '/clients/' . $client;
@@ -379,7 +385,7 @@ final class SapiSoakApplication
         }
         Server::write($clientDirectory . '/workload.json', json_encode([
             'seed' => $seed, 'arguments' => $workload, 'requests' => $requests, 'idle_ms' => $idle,
-            'request_timeout' => $timeout, 'started' => date(DATE_ATOM),
+            'request_timeout' => $timeout, 'started' => date(DATE_ATOM), 'keep_work' => $keepWork,
         ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n");
         fwrite(STDERR, "SAPI client artifacts: {$clientDirectory}\nSeed: {$seed}\n");
         $stopped = 0;
@@ -396,6 +402,9 @@ final class SapiSoakApplication
             if ($code !== 0) {
                 return $code;
             }
+            if (!$keepWork && !unlink($clientDirectory . '/ready.http')) {
+                throw new \RuntimeException('cannot remove readiness response');
+            }
             $random = new Randomizer(new Mt19937($seed));
             for ($index = 0; $requests === 0 || $index < $requests; $index++) {
                 if ($stopped !== 0) {
@@ -404,7 +413,7 @@ final class SapiSoakApplication
                 $requestSeed = $index === 0 ? $seed : $random->getInt(0, mt_getrandmax());
                 $bucket = (string) intdiv($index, 1000);
                 $target = $clientDirectory . '/' . $bucket;
-                if ($index % 1000 === 0 && !mkdir($target, 0o700)) {
+                if (!is_dir($target) && !mkdir($target, 0o700)) {
                     throw new \RuntimeException('cannot create request directory');
                 }
                 $name = sprintf('request-%08d-seed-%d', $index + 1, $requestSeed);
@@ -418,6 +427,13 @@ final class SapiSoakApplication
                 $code = $http->run($path, $directory . '/' . $path . '.http', $signal);
                 if ($code !== 0) {
                     return $code;
+                }
+                if (@file_get_contents($directory . '/' . $path . '.executed') !== "0\n") {
+                    throw new \RuntimeException('request did not confirm clean shutdown; artifacts retained: ' . $path);
+                }
+                if (!$keepWork) {
+                    RequestScript::discard($directory . '/' . $path);
+                    @rmdir($target);
                 }
                 $until = microtime(true) + $idle / 1000;
                 while ($signal() === 0 && microtime(true) < $until) {
@@ -435,6 +451,9 @@ final class SapiSoakApplication
             }
             pcntl_async_signals($previousAsync);
             Server::write($clientDirectory . '/exit.json', json_encode(['exit' => $code, 'stopped' => date(DATE_ATOM)], JSON_THROW_ON_ERROR) . "\n");
+            if ($code === 0 && !$keepWork) {
+                Fs::removeTree($clientDirectory);
+            }
         }
     }
 
@@ -462,11 +481,13 @@ Server options:
   --daemon              Detach; write events and totals to supervisor.log
   --json                JSON Lines: ready/request/status/exit events, no TUI
   --stop-on-worker-exit  Stop the remaining pool on the first worker exit (off)
+  --keep-work           Retain successful client artifacts and full request journal
 
 Client options (before --):
   --directory PATH      Explicit server directory (mutually exclusive with --server)
   --server ID           Short tag or full server ID; default: latest ready server
   --requests N          Request limit, 0 runs until interrupted (0)
+  --keep-work           Retain successful requests (also inherited from serve)
   --idle-ms N           Delay between requests, 0..60000 (100)
   --request-timeout N   Wall-clock deadline per HTTP request in seconds (30)
   --help                Show this help (also available on serve)
@@ -508,11 +529,19 @@ and recording problems, if any. Shutdown lets rr finalise before killing it.
 File core_pattern must contain %p (e.g. /tmp/core.%e.%p.%t). Worker dumps are
 copied into cores/PID/ without removing originals; piped handlers cannot be
 collected. Core capture events and errors appear in processes.jsonl.
+Captured cores get backtrace.<core filename>.txt using gdb from PATH (all threads
+and locals). Gdb runs in the background with a 120-second deadline; shutdown
+waits for pending reports. Missing gdb or failures leave diagnostic reports.
 
-Scripts, concrete .calls.php logs, raw .http responses, request events, startup
-settings and server logs are retained, including failures and partial responses.
-Client capture and server monitoring use bounded memory; disk use grows with
-traffic. Monitor free space for long runs. No automatic pruning or server restart hides evidence of a defect.
+Successful requests discard their scripts, .calls.php logs, .http responses and
+replay markers after HTTP completion. Failed, timed-out and interrupted requests
+remain intact. Successful finite clients remove their own directory. --keep-work
+(on serve or client) retains every request for diagnosing delayed/idle defects.
+The default request journal is compacted after consumption at 1 MiB; failed
+completion events are also retained in request-failures.jsonl. --keep-work on
+serve disables compaction. Server logs, daemon/JSON output, rr traces and failure
+artifacts still grow; use disk-backed --directory storage for long recordings.
+No existing run directories or captured failures are swept automatically.
 
 HELP;
 }

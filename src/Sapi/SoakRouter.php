@@ -34,14 +34,24 @@ $record = static function (array $row): void {
 };
 $record($event + ['event' => 'start']);
 register_shutdown_function(static function () use ($event, $started, $record): void {
-    $exit = null;
-    foreach (headers_list() as $header) {
-        if (preg_match('/^X-Fuzzer-Exit: ([0-9]+)$/i', $header, $match)) {
-            $exit = (int) $match[1];
+    // Confirm only after the workload's already registered shutdown callbacks.
+    register_shutdown_function(static function () use ($event, $started, $record): void {
+        $exit = null;
+        foreach (headers_list() as $header) {
+            if (preg_match('/^X-Fuzzer-Exit: ([0-9]+)$/i', $header, $match)) {
+                $exit = (int) $match[1];
+            }
         }
-    }
-    $record($event + ['event' => 'finish', 'elapsed' => microtime(true) - $started,
-        'status' => http_response_code(), 'exit' => $exit, 'error_type' => error_get_last()['type'] ?? null]);
+        $error = error_get_last()['type'] ?? null;
+        $record($event + ['event' => 'finish', 'elapsed' => microtime(true) - $started,
+            'status' => http_response_code(), 'exit' => $exit, 'error_type' => $error]);
+        if ($exit === 0 && http_response_code() === 200
+            && !in_array($error, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR], true)) {
+            if (file_put_contents(__DIR__ . $event['path'] . '.executed', "0\n", LOCK_EX) !== 2) {
+                throw new RuntimeException('cannot confirm request completion');
+            }
+        }
+    });
 });
 require __DIR__ . $path;
 PHP;

@@ -878,6 +878,21 @@ runs only. `Cli\SubscribeApplication` accepts an optional `clientFactory`
 closure taking a `ClientConfiguration`, plus `output` and `error` streams, for
 callers supplying their own client construction and output destinations.
 
+### Temporary artifacts and retention
+
+| Run mode | Default retention |
+| --- | --- |
+| Harness, including rr/ASAN/SAPI bursts | Completed uncaptured runs and discarded reduction trials are removed, including their rr traces. Captured failures are moved into reproducer directories. `--keep-work` retains temporary work; interrupted/unfinished captures preserve partial evidence. |
+| Standalone SAPI burst | Successful run directories are removed; failures and interruptions are retained. `--keep-work` retains successes. |
+| SAPI serve/client | Successful requests are removed as they finish; failures and partial requests remain. Server metadata, diagnostics, cores and rr recordings remain. `--keep-work` preserves full request history. |
+| Tester/coercive, killer, subscribe, embedded/HTTP workloads | No automatic per-run scratch directories. Explicit script logs and caller-provided output streams belong to the caller. |
+| Differential fuzzer | Successful cases stay in memory; only findings/reproducers and the signature index are persisted. |
+| Coverage, command catalog/stats, reproducer viewer | No workload scratch directories; output is streamed or existing captures are read. |
+
+Local ASAN presets explicitly enable `--run-log`; those files, shell redirections,
+and captured reproducers are persistent output, not temporary work. Cleanup
+never scans old `/tmp` folders or another campaign's directories.
+
 ### Long-running PHP server testing
 
 Use `sapi serve` to keep one PHP server and its workers alive
@@ -917,6 +932,16 @@ successes and errors are recorded in `processes.jsonl`; `exit.json` lists the
 collected `cores`, and the exit report prints their paths. Core creation still
 depends on OS limits and runtime settings. Copies and rr traces consume extra
 disk space and are never pruned automatically.
+
+Each collected core also gets `backtrace.<core filename>.txt` beside it. When
+`gdb` is on `PATH`, the supervisor runs `thread apply all bt full` using the
+server's PHP executable, saving all threads, frame locals, and gdb diagnostics.
+Gdb runs in the background while worker supervision continues; shutdown waits
+for pending reports. Each gdb process has a 120-second deadline measured from
+launch. Missing gdb, failures, interruptions and timeouts leave diagnostics and
+any partial output in the report without discarding the core. Existing reports
+are never overwritten. Gdb startup scripts, auto-loading and debuginfod downloads
+are disabled so report generation does not wait for prompts or network downloads.
 
 The server chooses a loopback port. Its TUI identifies the server with a compact
 12-character tag such as `a1b2c3d4e5f6`. The full ID
@@ -985,7 +1010,7 @@ wrappers, the worker count includes other tracked descendants. The
 request table shows running requests first, followed by the newest completed
 requests, with coloured status, worker PID, elapsed time, exit code, HTTP status
 and request path. php-tui sizes and clips the widgets to the terminal.
-`--history=N` bounds retained completed requests (default 10, range 1..1000);
+`--history=N` bounds completed rows retained in the TUI (default 10, range 1..1000);
 it is independent of how many rows fit on screen. `--no-tui`, or redirected stdout, emits
 request events and periodic totals instead. To detach the supervisor and write
 its output to `supervisor.log`, add `--daemon` to `serve`. Startup waits for a
@@ -995,8 +1020,8 @@ configure the **server**. Repeatable `--server-prefix` supports wrappers such as
 Valgrind. Server `--seed` (default 0) controls startup-template substitutions.
 
 Client options before `--` are `--directory`, `--server`, `--requests=N` (0 means
-unlimited, the default), `--idle-ms=N` (100, range 0..60000), and `--request-timeout=N` (30
-seconds). The workload `--steps` and `--seconds` budgets apply to **each request**.
+unlimited, the default), `--idle-ms=N` (100, range 0..60000), `--request-timeout=N` (30
+seconds), and `--keep-work` (retain successful request artifacts). The workload `--steps` and `--seconds` budgets apply to **each request**.
 The first request uses the workload seed (0..2147483647); subsequent seeds come
 from a private deterministic generator. Omitting it selects and records a seed.
 Every request gets a fresh PHP script with fixed arguments, executed through the
@@ -1066,16 +1091,41 @@ supervisor writes its JSON events to `supervisor.log`, keeping supervisor errors
 separate in `supervisor.stderr.log`.
 
 Artifacts include `server-command.txt`, server stdout/stderr logs,
-`supervisor.pid`, `server.ready`, `requests.jsonl` (start/finish events), and final `exit.json`.
-Each client gets `clients/client-*/workload.json`, its own final `exit.json`, and
-subdirectories of at most 1,000 requests containing PHP scripts, executable
-`.calls.php` concrete call logs, raw `.php.http` responses (including partial
-responses), and `.executed` markers preventing replay. Client stdout can be
-redirected to a separate file. The monitor and HTTP reader use bounded memory;
-**disk use grows with traffic**. Provision and monitor storage for days/weeks of
-traffic. Artifacts are never automatically pruned or overwritten. A partial
-response without a finish event can indicate a worker died during a request;
-consult `server.stderr.log` and the concrete call log.
+`supervisor.pid`, `server.ready`, `requests.jsonl` (recent start/finish events),
+`request-failures.jsonl` (failed completion events, when any), and final `exit.json`.
+Each client initially gets `clients/client-*/workload.json`, request scripts,
+executable `.calls.php` concrete call logs, raw `.php.http` responses and
+`.executed` markers preventing replay. **After each successful HTTP request,
+the client removes that request's files before sending the next request.**
+Cleanup also requires the router's completion marker after its PHP shutdown
+callbacks; success headers alone do not authorize deletion. Restart existing
+`serve` processes after updating so their routers supply this marker.
+Empty request buckets are removed, and successful finite clients remove their
+own directory. Failed, timed-out and interrupted requests retain their scripts,
+call logs, partial responses and client metadata.
+
+Use `sapi client --keep-work` to retain successful requests too, or set
+`serve --keep-work` to apply it to all clients. This matters for delayed crashes
+and idle-worker defects that need earlier successful calls for reproduction.
+The driver scripts are small, but `.calls.php` files embed concrete arguments
+and can be megabytes each; HTTP responses can also be large. Default cleanup
+bounds their accumulation to active or unsuccessful requests, rather than the
+server's entire request history.
+
+The supervisor compacts `requests.jsonl` after consuming at least 1 MiB and
+reaching its end. Writers and compaction share a lock, so unread and partial
+records are preserved. Counters and TUI history survive compaction; failed
+completion events are saved separately before compaction. `serve --keep-work`
+disables it. The server directory remains available to `info` after shutdown.
+
+Server diagnostic logs, daemon output, redirected client/JSON output, rr
+recordings, core dumps and retained failures can still grow. Continuous rr
+recordings cannot be pruned while preserving replay: use a fresh **disk-backed**
+`--directory`, or finite harness-managed bursts for long recording campaigns.
+User-selected log files are never truncated automatically. Existing run
+folders and crash evidence are not swept by cleanup. A partial response without
+a finish event can indicate a worker died during a request; consult
+`server.stderr.log` and the retained concrete call log.
 
 The local saturation presets split server setup and workload generation:
 
@@ -1194,9 +1244,11 @@ This includes detached workers and the optional failover helper, even after
 their parents exit. Cleanup uses Linux `/proc` and affects only that campaign;
 logs and reproducers are retained. SIGKILL of the wrapper itself cannot run traps.
 
-Standalone runs retain everything in a fresh private temporary directory printed
-on stderr; `--directory=PATH` selects another fresh directory and refuses to
-reuse an existing one. It contains `workload.json`, request scripts, concrete
+Standalone bursts use a fresh private temporary directory printed on stderr;
+`--directory=PATH` selects another fresh directory and refuses to reuse an
+existing one. Successful bursts remove that directory unless `--keep-work` is
+set. Failures and interrupted bursts retain it. Harness-owned bursts leave
+retention to the harness, including its `--keep-work` setting. It contains `workload.json`, request scripts, concrete
 call logs, raw `.http` responses (including worker PID headers), server stdout
 and stderr, the exact server command, and recorded process IDs. Interrupted
 requests may have partial call logs or responses. Startup options for the server
@@ -1397,7 +1449,8 @@ becomes `<output>/<kind>/<harness-pid>.<nnnnn>/` — for example
 `reproducers/crash/48213.00001/` — grouped by the classified failure kind:
 `crash`, `sanitizer`, `memory`, `leak`, `timeout`, or `failure`. Existing captures are left
 in place. Each capture directory holds
-`command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump,
+`command.txt`, `meta.json`, `stdout.log`, `stderr.log`, any matching core dump
+and its `backtrace.<core filename>.txt` report,
 the `php.ini` copy when `--php-ini` was used,
 and — under `--rr` — the finalised `rr-trace/` (the harness waits for rr's
 `incomplete` sentinel to clear, up to `--trace-timeout`). The seed, run number,
@@ -1505,6 +1558,17 @@ trace finalization, and process termination waits. Reduction remains sequential:
 other runs can continue executing, but their results are collected and new runs
 are launched after the current capture and reduction finish. The reducing run
 retains its slot and port until then.
+
+Core capture automatically runs `gdb` (when available on `PATH`) with
+`thread apply all bt full`, using the workload's `--php` executable. Reports are
+saved beside each original, minimized, or SAPI descendant core as
+`backtrace.<core filename>.txt`, with stdout, stderr and completion status.
+Reproducer metadata and artifacts are saved before gdb starts. The harness keeps
+its UI and shutdown controls responsive during the wait, bounded to 120 seconds
+per core. Failed, missing, interrupted or timed-out gdb runs preserve the core
+and partial report; existing reports are never overwritten. Gdb startup scripts,
+auto-loading and debuginfod downloads are disabled. No backtrace is generated
+for failures that produced no core.
 
 The kernel `core_pattern` must contain `%p` so a core produced by one concurrent
 run can be matched to it by PID; the harness aborts at startup otherwise. Pass

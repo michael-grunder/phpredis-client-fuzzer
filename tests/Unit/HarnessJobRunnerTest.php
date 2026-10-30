@@ -228,6 +228,30 @@ PHP);
         self::assertFileExists($job->workDir . '/rr-trace/incomplete');
     }
 
+    /** @return iterable<string, array{bool, int}> */
+    public static function uncapturedRecordings(): iterable
+    {
+        yield 'successful recording' => [false, 0];
+        yield 'unselected failure' => [false, 3];
+        yield 'explicit keep-work' => [true, 0];
+    }
+
+    #[DataProvider('uncapturedRecordings')]
+    public function testUncapturedRrWorkIsRemovedUnlessExplicitlyKept(bool $keep, int $exit): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, ['--rr', '--capture=crashes', ...($keep ? ['--keep-work'] : [])],
+            $this->child($exit), $this->fakeRr('ok'));
+        $job = $this->await($runner, $runner->spawn(0, null, 42));
+        self::assertNull($job->reproDir);
+        if ($keep) {
+            self::assertDirectoryExists($job->workDir . '/rr-trace');
+            self::assertFileExists($job->workDir . '/stdout.log');
+        } else {
+            self::assertDirectoryDoesNotExist($job->workDir);
+        }
+    }
+
     public function testAFinalisedTraceIsCapturedAsAnOrdinaryReproducer(): void
     {
         $root = $this->workspace();

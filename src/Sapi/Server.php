@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\RedisClientTester\Sapi;
 
 use Mgrunder\RedisClientTester\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Harness\CoreBacktrace;
 use Mgrunder\RedisClientTester\Harness\CorePattern;
 use Mgrunder\RedisClientTester\Harness\ReproStore;
 use Mgrunder\RedisClientTester\Harness\RrTrace;
@@ -39,6 +40,8 @@ final class Server
     private array $coreDirectories = [];
     /** @var list<string> */
     private array $cores = [];
+    /** @var array<int, CoreBacktrace> */
+    private array $backtraces = [];
 
     public function __construct(
         private readonly string $directory,
@@ -353,6 +356,11 @@ final class Server
 
     private function tick(): void
     {
+        foreach ($this->backtraces as $index => $backtrace) {
+            if ($backtrace->poll()) {
+                unset($this->backtraces[$index]);
+            }
+        }
         $this->forwardLog();
         if (!is_resource($this->process)) {
             return;
@@ -459,6 +467,10 @@ final class Server
                     'pid' => $pid, 'source' => $source, 'path' => $path, 'observed_at' => microtime(true)]);
                 if ($copied) {
                     $this->cores[] = $path;
+                    $backtrace = CoreBacktrace::start($path, PHP_BINARY);
+                    if ($backtrace !== null) {
+                        $this->backtraces[] = $backtrace;
+                    }
                 } else {
                     fwrite(STDERR, "cannot collect core {$source}; original retained; destination {$path} may be partial or already exist\n");
                 }
@@ -575,6 +587,10 @@ final class Server
             fclose($this->log);
             $this->log = null;
         }
+        foreach ($this->backtraces as $backtrace) {
+            $backtrace->finish();
+        }
+        $this->backtraces = [];
         return $code;
     }
 

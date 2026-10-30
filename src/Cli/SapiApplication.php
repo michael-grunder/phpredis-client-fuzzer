@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\RedisClientTester\Cli;
 
+use Mgrunder\RedisClientTester\Harness\Fs;
 use Mgrunder\RedisClientTester\Harness\PhpStartupTemplate;
 use Mgrunder\RedisClientTester\Sapi\Server;
 use Mgrunder\RedisClientTester\Sapi\RequestScript;
@@ -29,7 +30,7 @@ final class SapiApplication
             $options = Options::parse(
                 $separator === false ? $arguments : array_slice($arguments, 0, $separator),
                 ['workers', 'concurrency', 'requests', 'idle-ms', 'step-jitter', 'request-timeout', 'directory', 'php-arg', 'php-ini', 'server-prefix'],
-                ['help'],
+                ['help', 'keep-work'],
                 ['php-arg', 'server-prefix'],
             );
             if ($options->has('help')) {
@@ -125,9 +126,14 @@ final class SapiApplication
             ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n");
             fwrite(STDERR, "SAPI artifacts: {$directory}\n");
             $started = true;
-            return (new Server($directory, $workers, $concurrency, $idle, $timeout))->run(
+            $code = (new Server($directory, $workers, $concurrency, $idle, $timeout))->run(
                 $paths, $startup['args'], $options->repeated('server-prefix', splitCommas: false),
             );
+            if ($code === 0 && $root === false && !$options->has('keep-work')) {
+                Fs::removeTree($directory);
+                fwrite(STDERR, "Successful SAPI run cleaned: {$directory}\n");
+            }
+            return $code;
         } catch (\Throwable $error) {
             fwrite(STDERR, 'sapi: ' . $error->getMessage() . "\n");
             return $started ? ExitCode::FAILURE : ExitCode::STARTUP;
@@ -153,6 +159,7 @@ Usage: sapi [server options] -- [tester options]
   --php-arg ARG          One PHP startup token; repeat for multiple tokens
   --php-ini FILE         Server PHP ini file
   --server-prefix ARG    One wrapper token; e.g. valgrind, then --trace-children=yes
+  --keep-work            Retain successful standalone runs (failures always retained)
   --help                 Show this help
 
 Linux, /proc, setsid, pcntl and posix are required. HTTP binds only 127.0.0.1
@@ -167,8 +174,9 @@ unchanged, and harness step reduction reuses the same per-request scales.
 
 Each request gets a deterministic script, seed, concrete call log and HTTP
 response. Workers survive requests and idle between batches. Scheduling and
-worker assignment are intentionally nondeterministic. All standalone artifacts
-are retained. The harness supplies its work directory and PHP startup arguments;
+worker assignment are intentionally nondeterministic. Successful standalone runs
+are removed unless --keep-work is set; failures and interruptions are retained.
+The harness owns retention of its runs and supplies PHP startup arguments;
 rr / ASAN wrap the whole process tree. Include failures and timeouts in the
 harness --capture list to retain HTTP failures and request timeouts.
 

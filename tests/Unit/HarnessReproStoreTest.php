@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\RedisClientTester\Tests\Unit;
 
+use Mgrunder\RedisClientTester\Harness\CoreBacktrace;
 use Mgrunder\RedisClientTester\Harness\CorePattern;
 use Mgrunder\RedisClientTester\Harness\FailureClassifier;
 use Mgrunder\RedisClientTester\Harness\Fs;
@@ -11,6 +12,7 @@ use Mgrunder\RedisClientTester\Harness\Job;
 use Mgrunder\RedisClientTester\Harness\JobOutcome;
 use Mgrunder\RedisClientTester\Harness\ReproStore;
 use Mgrunder\RedisClientTester\Harness\RrTrace;
+use Mgrunder\RedisClientTester\Harness\ShutdownRequested;
 use PHPUnit\Framework\TestCase;
 
 final class HarnessReproStoreTest extends TestCase
@@ -29,6 +31,7 @@ final class HarnessReproStoreTest extends TestCase
         file_put_contents($root . '/core.php.98765', 'unrelated core');
         $dir = $this->store($root, null)->capture($job, ['kind' => 'crash']);
         self::assertSame('worker core', file_get_contents($dir . '/core.php.12346'));
+        self::assertFileExists(CoreBacktrace::path($dir . '/core.php.12346'));
         self::assertFileExists($root . '/core.php.98765');
         self::assertFileExists($dir . '/sapi/request-1.php');
         self::assertSame('partial response', file_get_contents($dir . '/sapi/request-1.php.http'));
@@ -141,6 +144,60 @@ final class HarnessReproStoreTest extends TestCase
         $meta = json_decode((string) file_get_contents($dir . '/minimized/meta.json'), true);
         self::assertIsArray($meta);
         self::assertNull($meta['trace_failure']);
+    }
+
+    public function testInterruptingGdbPreservesTheAlreadySavedReproducer(): void
+    {
+        $root = $this->workspace();
+        file_put_contents($root . '/gdb', "#!/bin/sh\nexec " . escapeshellarg(PHP_BINARY)
+            . ' ' . escapeshellarg(dirname(__DIR__) . '/Fixtures/core-gdb.php') . ' "$@"' . "\n");
+        chmod($root . '/gdb', 0o700);
+        $oldPath = getenv('PATH');
+        putenv('PATH=' . $root);
+        putenv('RCT_GDB_TEST_MODE=hang');
+        try {
+            $store = $this->store($root, null);
+            $job = $this->job($root, ['php', 'fuzz']);
+            $job->pid = 123;
+            file_put_contents($root . '/core.php.123', 'original core');
+            $store->setHeartbeat(static function (): void { throw new ShutdownRequested(); });
+            try {
+                $store->capture($job, ['kind' => 'crash']);
+                self::fail('expected capture interruption');
+            } catch (ShutdownRequested) {
+                $dir = $root . '/out/crash/4242.00001';
+                self::assertFileExists($dir . '/meta.json');
+                self::assertFileExists($dir . '/command.txt');
+                self::assertSame('original core', file_get_contents($dir . '/core.php.123'));
+                self::assertStringContainsString('interrupted; partial output retained',
+                    (string) file_get_contents(CoreBacktrace::path($dir . '/core.php.123')));
+            }
+        } finally {
+            putenv($oldPath === false ? 'PATH' : 'PATH=' . $oldPath);
+            putenv('RCT_GDB_TEST_MODE');
+        }
+    }
+
+    public function testOriginalAndMinimizedCoresGetReportsUsingTheWorkloadPhp(): void
+    {
+        $root = $this->workspace();
+        $store = new ReproStore($root . '/out', new CorePattern('core.%e.%p', false), $root,
+            php: '/workload/php-binary');
+        $job = $this->job($root, ['php', 'fuzz']);
+        $job->pid = 123;
+        file_put_contents($root . '/core.php.123', 'original core');
+        $dir = $store->capture($job, ['kind' => 'crash']);
+        file_put_contents($root . '/core.php.456', 'minimized core');
+        $outcome = $this->outcome($root, incomplete: false);
+        $store->addMinimized($dir, new JobOutcome($outcome->verdict, $outcome->workDir,
+            $outcome->traceDir, $outcome->duration, 456), 12);
+        foreach ([$dir . '/core.php.123', $dir . '/minimized/core.php.456'] as $core) {
+            self::assertFileExists($core);
+            $report = (string) file_get_contents(CoreBacktrace::path($core));
+            self::assertStringContainsString('--se=/workload/php-binary', $report);
+            self::assertStringContainsString('thread apply all bt full', $report);
+            self::assertStringContainsString('[gdb:', $report);
+        }
     }
 
     private function outcome(string $root, bool $incomplete): JobOutcome

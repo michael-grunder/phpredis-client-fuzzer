@@ -66,6 +66,7 @@ final class JobRunner
     public function setHeartbeat(?\Closure $heartbeat): void
     {
         $this->heartbeat = $heartbeat;
+        $this->store->setHeartbeat($heartbeat);
     }
 
     public function spawn(int $slot, ?int $port, int $seed): Job

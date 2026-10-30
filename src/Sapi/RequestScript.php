@@ -7,6 +7,17 @@ namespace Mgrunder\RedisClientTester\Sapi;
 /** The same workload and concrete call logging in burst and long-lived requests. */
 final class RequestScript
 {
+    /** Remove only the files owned by a successfully completed request. */
+    public static function discard(string $script): void
+    {
+        // Remove the executable first, so dropping the claim cannot make it replayable.
+        foreach ([$script, substr($script, 0, -4) . '.calls.php', $script . '.http', $script . '.executed'] as $path) {
+            if ((file_exists($path) || is_link($path)) && !unlink($path)) {
+                throw new \RuntimeException("cannot remove successful request artifact: {$path}");
+            }
+        }
+    }
+
     /** @param list<string> $arguments */
     public static function source(string $autoload, array $arguments, string $name): string
     {

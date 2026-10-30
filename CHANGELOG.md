@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Save full all-thread gdb backtraces beside captured harness, minimized and SAPI
+  worker cores. Keep SAPI supervision and harness shutdown responsive while gdb
+  runs; retain diagnostics and partial reports on failure or timeout, and never
+  overwrite existing reports.
+
 - Add `sapi serve --rr` and `--rr-chaos`, retain recordings in the server's
   `rr-trace` directory, let rr finalise during shutdown, and report trace paths
   and recording failures through exit diagnostics, JSON reports and `sapi info`.
@@ -122,6 +127,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and reference settings for the standalone evilresp proxy.
 
 ### Changed
+
+- Clean successful SAPI request scripts, concrete call logs, HTTP captures and
+  replay markers by default, and remove successful standalone burst directories.
+  Add `--keep-work` to retain successes; preserve failed/incomplete requests and
+  harness-owned evidence. Compact consumed request journals at 1 MiB while
+  preserving failed events separately. Document retention across all run modes
+  and verify uncaptured harness rr runs are removed.
 
 - Rename `bin/redis-client-tester` to `bin/tester` and drop the
   `redis-client-tester-` prefix from companion binaries. Update Composer entries,

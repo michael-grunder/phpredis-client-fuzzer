@@ -132,7 +132,7 @@ final class SapiSoakTest extends TestCase
 
     public function testTwoClientsReuseServerAndPreserveSeededWorkloadOptions(): void
     {
-        $connection = $this->startServer();
+        $connection = $this->startServer(extra: ['--keep-work']);
         $before = file_get_contents($this->directory . '/server/pids.txt');
         $first = $this->client('first');
         $second = $this->client('second');
@@ -163,6 +163,110 @@ final class SapiSoakTest extends TestCase
         self::assertStringContainsString('END pid=', (string) file_get_contents($this->directory . '/server.out'));
         self::assertTrue(posix_kill($connection['pid'], 0));
         $this->stopServer();
+    }
+
+    public function testSuccessfulRequestsAreCleanedBeforeTheNextRequest(): void
+    {
+        $this->environment['SAPI_TEST_OUTCOME'] = 'large';
+        $this->startServer();
+        $client = $this->client('large', extra: ['--requests=12']);
+        self::assertSame(0, proc_close($client));
+        self::assertSame([], glob($this->directory . '/server/clients/*'));
+        $output = (string) file_get_contents($this->directory . '/large.out');
+        self::assertSame(12, substr_count($output, 'previous-calls=0'));
+        self::assertStringNotContainsString('previous-calls=1', $output);
+        $this->stopServer();
+    }
+
+    public function testClientCanExplicitlyRetainSuccessfulRequests(): void
+    {
+        $this->startServer();
+        self::assertSame(0, proc_close($this->client('keep', extra: ['--keep-work'])));
+        self::assertCount(3, glob($this->directory . '/server/clients/*/0/*.calls.php') ?: []);
+        self::assertCount(3, glob($this->directory . '/server/clients/*/0/*.php.http') ?: []);
+        $this->stopServer();
+    }
+
+    /** @return iterable<string, array{string, int, bool}> */
+    public static function retainedRequests(): iterable
+    {
+        yield 'failure after a successful request' => ['fail-second', 1, false];
+        yield 'configuration error' => ['startup', 78, false];
+        yield 'fatal despite success headers' => ['fatal-after-headers', 1, false];
+        yield 'keep-work still detects a shutdown fatal' => ['fatal-after-headers', 1, true];
+        yield 'timeout with a partial reply' => ['timeout', 124, false];
+    }
+
+    #[DataProvider('retainedRequests')]
+    public function testUnsuccessfulRequestsKeepTheirEvidence(string $mode, int $code, bool $keep): void
+    {
+        $this->environment['SAPI_TEST_OUTCOME'] = $mode;
+        $this->startServer();
+        self::assertSame($code, proc_close($this->client('failed', extra: ['--request-timeout=0.3', ...($keep ? ['--keep-work'] : [])])));
+        self::assertCount(1, glob($this->directory . '/server/clients/*/0/*.calls.php') ?: []);
+        $responses = glob($this->directory . '/server/clients/*/0/*.php.http') ?: [];
+        self::assertCount(1, $responses);
+        self::assertFileExists(substr($responses[0], 0, -5));
+        self::assertFileExists(substr($responses[0], 0, -5) . '.executed');
+        if ($code === 124) {
+            self::assertStringContainsString('partial reply', (string) file_get_contents($responses[0]));
+        }
+        $this->stopServer();
+    }
+
+    public function testConsumedJournalIsCompactedWithoutLosingFailuresOrPartialLines(): void
+    {
+        $monitor = new SoakMonitor($this->directory, 2, false);
+        $path = $this->directory . '/requests.jsonl';
+        $rows = [];
+        for ($index = 0; $index < 600; $index++) {
+            $event = ['path' => '/request-' . $index . '.php', 'pid' => 12, 'started' => microtime(true),
+                'padding' => str_repeat('x', 1024)];
+            $rows[] = json_encode($event + ['event' => 'start'], JSON_THROW_ON_ERROR);
+            $rows[] = json_encode($event + ['event' => 'finish', 'elapsed' => 0.1,
+                'exit' => $index === 5 ? 1 : 0, 'status' => 200], JSON_THROW_ON_ERROR);
+        }
+        $partial = json_encode(['path' => '/pending.php', 'pid' => 12, 'started' => microtime(true), 'event' => 'start'], JSON_THROW_ON_ERROR);
+        file_put_contents($path, implode("\n", $rows) . "\n" . $partial, FILE_APPEND);
+        ob_start();
+        try {
+            $monitor->render('fixture', true);
+            $monitor->render('fixture', true);
+            clearstatcache();
+            self::assertGreaterThan(1048576, filesize($path), 'unread partial event must prevent compaction');
+            file_put_contents($path, "\n", FILE_APPEND);
+            $monitor->render('fixture', true);
+            clearstatcache();
+            self::assertSame(0, filesize($path));
+            self::assertStringContainsString('requests=601 completed=600', (string) ob_get_contents());
+            $failures = file($this->directory . '/request-failures.jsonl');
+            self::assertIsArray($failures);
+            self::assertCount(1, $failures);
+            self::assertStringContainsString('request-5.php', $failures[0]);
+            file_put_contents($path, $partial . "\n", FILE_APPEND);
+            $monitor->render('fixture', true);
+            self::assertStringContainsString('requests=602 completed=600', (string) ob_get_contents());
+        } finally {
+            ob_end_clean();
+            $monitor->stop();
+        }
+    }
+
+    public function testKeepWorkPreservesTheConsumedJournal(): void
+    {
+        $monitor = new SoakMonitor($this->directory, 2, false, keepWork: true);
+        $line = json_encode(['path' => '/request.php', 'pid' => 12, 'started' => microtime(true),
+            'event' => 'start', 'padding' => str_repeat('x', 4000)], JSON_THROW_ON_ERROR) . "\n";
+        $path = $this->directory . '/requests.jsonl';
+        file_put_contents($path, str_repeat($line, 300), FILE_APPEND);
+        ob_start();
+        try {
+            $monitor->render('fixture', true);
+            self::assertSame(str_repeat($line, 300), file_get_contents($path));
+        } finally {
+            ob_end_clean();
+            $monitor->stop();
+        }
     }
 
     public function testClientsDiscoverLatestAndExplicitIdAndRejectStoppedServer(): void
@@ -563,8 +667,10 @@ final class SapiSoakTest extends TestCase
         return ['address' => $data['address'], 'token' => $data['token'], 'pid' => $data['pid']];
     }
 
-    /** @return resource */
-    private function client(string $name, ?string $selector = null)
+    /** @param list<string> $extra
+     *  @return resource
+     */
+    private function client(string $name, ?string $selector = null, array $extra = [])
     {
         $autoload = $this->directory . '/' . $name . '-autoload.php';
         file_put_contents($autoload, <<<'SOURCE'
@@ -573,21 +679,45 @@ namespace Mgrunder\RedisClientTester\Cli;
 class Application {
     public function __construct($output, $error) {}
     public function run(array $arguments): int {
+        $requestSeed = '';
         foreach ($arguments as $arg) {
-            if (str_starts_with($arg, '--script-log=')) {
-                file_put_contents(substr($arg, 13), '<?php // fixture calls');
+            if (str_starts_with($arg, '--seed=')) {
+                $requestSeed = $arg;
             }
+            if (str_starts_with($arg, '--script-log=')) {
+                echo 'previous-calls=' . count(glob(dirname(substr($arg, 13)) . '/*.calls.php')) . "\n";
+                file_put_contents(substr($arg, 13), getenv('SAPI_TEST_OUTCOME') === 'large'
+                    ? str_repeat('x', 2097152) : '<?php // fixture calls');
+            }
+        }
+        if (getenv('SAPI_TEST_OUTCOME') === 'fatal-after-headers') {
+            register_shutdown_function(static function (): void {
+                trigger_error('fixture fatal after headers', E_USER_ERROR);
+            });
+        }
+        if (getenv('SAPI_TEST_OUTCOME') === 'timeout') {
+            while (ob_get_level() > 0) { ob_end_flush(); }
+            echo 'partial reply';
+            flush();
+            usleep(900000);
+        }
+        if (getenv('SAPI_TEST_OUTCOME') === 'large') {
+            echo str_repeat('y', 131072);
         }
         usleep(150000);
         echo PHP_SAPI . ':' . ini_get('precision') . ':' . json_encode($arguments);
-        return 0;
+        return match (getenv('SAPI_TEST_OUTCOME')) {
+            'fail-second' => $requestSeed === '--seed=42' ? 0 : 1,
+            'startup' => 78,
+            default => 0,
+        };
     }
 }
 SOURCE);
         return $this->launch($name, [dirname(__DIR__) . '/Fixtures/sapi-soak-client.php', $autoload,
             ...($selector === null ? ['--directory=' . $this->directory . '/server']
                 : ($selector === '' ? [] : ['--server=' . $selector])),
-            '--requests=3', '--idle-ms=0', '--',
+            '--requests=3', '--idle-ms=0', ...$extra, '--',
             '--seed=42', '--commands=get,set', '--weight=get:3', '--include-blocking']);
     }
 
