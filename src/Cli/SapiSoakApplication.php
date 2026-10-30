@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Mgrunder\RedisClientTester\Cli;
 
+use Mgrunder\RedisClientTester\Harness\CorePattern;
 use Mgrunder\RedisClientTester\Harness\PhpStartupTemplate;
 use Mgrunder\RedisClientTester\Harness\ReproStore;
+use Mgrunder\RedisClientTester\Harness\RrTrace;
 use Mgrunder\RedisClientTester\Sapi\Request;
 use Mgrunder\RedisClientTester\Sapi\RequestScript;
 use Mgrunder\RedisClientTester\Sapi\Server;
@@ -45,7 +47,7 @@ final class SapiSoakApplication
             }
             $options = Options::parse($arguments,
                 ['workers', 'directory', 'php-arg', 'php-ini', 'server-prefix', 'request-timeout', 'history', 'seed'],
-                ['help', 'daemon', 'no-tui', 'json', 'stop-on-worker-exit'], ['php-arg', 'server-prefix']);
+                ['help', 'daemon', 'no-tui', 'json', 'stop-on-worker-exit', 'rr', 'rr-chaos'], ['php-arg', 'server-prefix']);
             if ($options->has('help')) {
                 echo self::HELP;
                 return 0;
@@ -58,6 +60,26 @@ final class SapiSoakApplication
             if ($workers < 2 || $workers > 128 || $history < 1 || $history > 1000
                 || !is_finite($timeout) || $timeout <= 0) {
                 throw new \InvalidArgumentException('require workers 2..128, history 1..1000 and positive finite request-timeout');
+            }
+            $core = CorePattern::fromSystem();
+            if ($core === null || (!$core->isPiped() && !$core->isolatesByPid())) {
+                throw new \RuntimeException('core_pattern must contain %p to isolate SAPI worker dumps (e.g. /tmp/core.%e.%p.%t)');
+            }
+            if ($core->isPiped()) {
+                fwrite(STDERR, "warning: core_pattern pipes to a handler; core files cannot be collected automatically\n");
+            }
+            $rr = $options->has('rr') || $options->has('rr-chaos');
+            $rrBinary = null;
+            if ($rr) {
+                foreach (explode(PATH_SEPARATOR, getenv('PATH') ?: '') as $path) {
+                    if ($path !== '' && is_file($path . '/rr') && is_executable($path . '/rr')) {
+                        $rrBinary = realpath($path . '/rr');
+                        break;
+                    }
+                }
+                if (!$rrBinary) {
+                    throw new \RuntimeException('--rr requires the rr binary on PATH');
+                }
             }
             $seed = $options->integer('seed', 0);
             $startup = new PhpStartupTemplate($options->repeated('php-arg', splitCommas: false), $options->nullableString('php-ini'));
@@ -85,17 +107,24 @@ final class SapiSoakApplication
             $connection = $this->clientCommand($directory);
             $tag = $discovery->tag($directory);
             $published = false;
+            $trace = $rr ? $directory . '/rr-trace' : null;
+            $prefix = $options->repeated('server-prefix', splitCommas: false);
+            if ($rrBinary) {
+                $prefix = [$rrBinary, 'record', '--output-trace-dir=' . $trace,
+                    ...($options->has('rr-chaos') ? ['--chaos'] : []), ...$prefix];
+            }
             $started = true;
             $server = new Server($directory, $workers, 1, 0, $timeout, !$tui && !$json,
-                stopOnWorkerExit: $options->has('stop-on-worker-exit'));
+                stopOnWorkerExit: $options->has('stop-on-worker-exit'), corePattern: $core, rrTrace: $trace);
             try {
                 $code = $server->run(
-                    [], $phpArgs, $options->repeated('server-prefix', splitCommas: false),
-                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, $discovery, $tag, $tui, $json, $server, &$published): bool {
+                    [], $phpArgs, $prefix,
+                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, $discovery, $tag, $tui, $json, $server, $trace, &$published): bool {
                         if (!$published) {
                             $metadata = json_encode([
                                 'address' => $address, 'token' => $token, 'pid' => getmypid(), 'workers' => $workers,
                                 'php' => PHP_BINARY, 'php_args' => $phpArgs, 'seed' => $seed, 'started' => date(DATE_ATOM),
+                                'rr_trace' => $trace,
                             ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
                             Server::write($directory . '/connection.json.tmp', $metadata);
                             if (!rename($directory . '/connection.json.tmp', $directory . '/connection.json')) {
@@ -105,7 +134,7 @@ final class SapiSoakApplication
                             Server::write($directory . '/server.ready', $discovery->id($directory) . "\n");
                             if ($json) {
                                 echo json_encode(['type' => 'ready', 'server' => $tag, 'directory' => $directory,
-                                    'pid' => getmypid(), 'workers' => $workers, 'client' => $connection], JSON_THROW_ON_ERROR) . "\n";
+                                    'pid' => getmypid(), 'workers' => $workers, 'client' => $connection, 'rr_trace' => $trace], JSON_THROW_ON_ERROR) . "\n";
                             } elseif (!$tui) {
                                 echo "SAPI ID: {$tag}\nLatest: " . $discovery->latestPath() . "\n";
                                 echo "SAPI artifacts: {$directory}\nClient: {$connection}\nStop: kill -TERM " . getmypid() . "\n";
@@ -146,6 +175,15 @@ final class SapiSoakApplication
             . "  Full PHP stderr: {$directory}/server.stderr.log\n"
             . "  Full PHP stdout: {$directory}/server.stdout.log\n"
             . "  Request history (when requests ran): {$directory}/requests.jsonl\n";
+        if (($report['rr_trace'] ?? null) !== null) {
+            $guidance .= '  rr record directory: ' . $report['rr_trace'] . "\n";
+            $guidance .= ($report['rr_problem'] ?? null) !== null
+                ? '  rr recording problem: ' . $report['rr_problem'] . "\n"
+                : '  Replay: ' . ReproStore::formatCommand(['rr', 'replay', $report['rr_trace']]) . "\n";
+        }
+        foreach ($report['cores'] ?? [] as $core) {
+            $guidance .= '  Core dump: ' . $core . "\n";
+        }
         if ($json) {
             echo json_encode(['type' => 'exit', 'directory' => $directory] + $report,
                 JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE) . "\n";
@@ -267,6 +305,12 @@ final class SapiSoakApplication
             foreach (['started' => 'Started', 'workers' => 'Workers', 'php' => 'PHP', 'php_args' => 'PHP arguments', 'seed' => 'Startup seed'] as $key => $label) {
                 echo $label . ': ' . json_encode($metadata[$key] ?? null, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
             }
+            if (is_string($metadata['rr_trace'] ?? null)) {
+                echo 'rr record directory: ' . $metadata['rr_trace'] . "\n";
+                echo 'rr recording: ' . ($running ? 'recording' : (RrTrace::fatalError($directory . '/server.stderr.log')
+                    ?? RrTrace::problem($metadata['rr_trace']) ?? 'complete')) . "\n";
+            }
+            echo "Core dumps: {$directory}/cores (when collected)\n";
             echo "Logs: {$directory}/server.stdout.log, {$directory}/server.stderr.log\n";
             echo "Requests: {$directory}/requests.jsonl\nProcesses: {$directory}/processes.jsonl\nExit report: {$directory}/exit.json\n";
             if (is_file($directory . '/supervisor.log')) {
@@ -409,6 +453,8 @@ Server options:
   --php-arg ARG         Repeatable PHP startup token, e.g. -drelay.maxmemory=128m
   --php-ini FILE        Server PHP ini file
   --server-prefix ARG   Repeatable wrapper token, e.g. valgrind
+  --rr                  Record the PHP server process tree in DIRECTORY/rr-trace
+  --rr-chaos            Enable rr chaos scheduling (implies --rr)
   --seed N              Seed for server startup templates (0)
   --request-timeout N   Readiness/shutdown deadline in seconds (30)
   --history N           Recent completed requests in the TUI, 1..1000 (10)
@@ -457,6 +503,11 @@ reason, before/after worker states and the last 8 KiB of server stderr. Unknown
 exit statuses stay null; a missing/reaped process is not labelled a crash.
 A final report is printed after leaving the TUI. --json writes it as an exit event.
 On exit, stderr explains where to find the retained reports and full server logs.
+--rr requires rr on PATH. Exit reports and info include the rr record directory
+and recording problems, if any. Shutdown lets rr finalise before killing it.
+File core_pattern must contain %p (e.g. /tmp/core.%e.%p.%t). Worker dumps are
+copied into cores/PID/ without removing originals; piped handlers cannot be
+collected. Core capture events and errors appear in processes.jsonl.
 
 Scripts, concrete .calls.php logs, raw .http responses, request events, startup
 settings and server logs are retained, including failures and partial responses.

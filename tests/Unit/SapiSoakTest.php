@@ -21,6 +21,8 @@ final class SapiSoakTest extends TestCase
     /** @var resource|null */
     private $server = null;
     private int $daemon = 0;
+    /** @var array<string, string> */
+    private array $environment = [];
 
     protected function setUp(): void
     {
@@ -290,6 +292,108 @@ final class SapiSoakTest extends TestCase
         $this->assertWorkersStopped();
     }
 
+    /** @return iterable<string, array{bool, bool}> */
+    public static function recordings(): iterable
+    {
+        yield 'foreground shutdown' => [false, false];
+        yield 'daemon worker death' => [true, true];
+    }
+
+    #[DataProvider('recordings')]
+    public function testRrTraceIsFinalisedAndReported(bool $daemon, bool $workerDeath): void
+    {
+        $this->fakeRr();
+        $connection = $this->startServer($daemon, ['--rr-chaos', '--json', '--stop-on-worker-exit']);
+        if ($daemon) {
+            $this->daemon = $connection['pid'];
+        }
+        $directory = $this->directory . '/server';
+        $trace = $directory . '/rr-trace';
+        self::assertFileExists($trace . '/incomplete');
+        $metadata = json_decode((string) file_get_contents($directory . '/connection.json'), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($metadata);
+        self::assertSame($trace, $metadata['rr_trace']);
+        $arguments = json_decode((string) file_get_contents($trace . '/argv.json'), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($arguments);
+        self::assertSame(['record', '--output-trace-dir=' . $trace, '--chaos'], array_slice($arguments, 0, 3));
+        $process = $this->launch('rr-info', [dirname(__DIR__, 2) . '/bin/sapi', 'info']);
+        self::assertSame(0, proc_close($process));
+        self::assertStringContainsString('rr record directory: ' . $trace, (string) file_get_contents($this->directory . '/rr-info.out'));
+        if ($workerDeath) {
+            $pids = file($directory . '/pids.txt', FILE_IGNORE_NEW_LINES);
+            self::assertIsArray($pids);
+            self::assertGreaterThanOrEqual(4, count($pids));
+            self::assertTrue(posix_kill((int) $pids[2], SIGKILL));
+        } else {
+            $this->stopServer();
+        }
+        $this->waitForFile($directory . '/exit.json');
+        $this->daemon = 0;
+        self::assertFileDoesNotExist($trace . '/incomplete');
+        $report = $this->exitReport();
+        self::assertSame($workerDeath ? 137 : 143, $report['exit']);
+        self::assertSame($trace, $report['rr_trace']);
+        self::assertNull($report['rr_problem']);
+        $diagnostics = (string) file_get_contents($daemon ? $directory . '/supervisor.stderr.log' : $this->directory . '/server.err');
+        self::assertStringContainsString('rr record directory: ' . $trace, $diagnostics);
+        self::assertStringContainsString('rr replay ' . $trace, $diagnostics);
+        $events = file($daemon ? $directory . '/supervisor.log' : $this->directory . '/server.out', FILE_IGNORE_NEW_LINES);
+        self::assertIsArray($events);
+        $exit = json_decode((string) end($events), true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($exit);
+        self::assertSame('exit', $exit['type']);
+        self::assertSame($trace, $exit['rr_trace']);
+        $process = $this->launch('rr-info-stopped', [dirname(__DIR__, 2) . '/bin/sapi', 'info']);
+        self::assertSame(0, proc_close($process));
+        $info = (string) file_get_contents($this->directory . '/rr-info-stopped.out');
+        self::assertStringContainsString('rr record directory: ' . $trace, $info);
+        self::assertStringContainsString('rr recording: complete', $info);
+        $this->assertWorkersStopped();
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function recordingFailures(): iterable
+    {
+        yield 'missing' => ['missing', 'rr wrote no trace directory'];
+        yield 'incomplete' => ['incomplete', 'rr trace never finalised (incomplete)'];
+        yield 'fatal' => ['fatal', 'rr: recorder failed'];
+    }
+
+    #[DataProvider('recordingFailures')]
+    public function testRrStartupFailureStillReportsTheTracePathAndProblem(string $failure, string $problem): void
+    {
+        $this->fakeRr();
+        $this->environment['SAPI_TEST_RR_FAILURE'] = $failure;
+        $process = $this->launch('rr-failure', [dirname(__DIR__, 2) . '/bin/sapi', 'serve',
+            '--directory=' . $this->directory . '/server', '--rr', '--json',
+            '--request-timeout=1']);
+        self::assertSame(23, proc_close($process));
+        $report = $this->exitReport();
+        self::assertSame($this->directory . '/server/rr-trace', $report['rr_trace']);
+        self::assertSame($problem, $report['rr_problem']);
+        self::assertStringContainsString('rr record directory:', (string) file_get_contents($this->directory . '/rr-failure.err'));
+        self::assertStringContainsString($problem, (string) file_get_contents($this->directory . '/rr-failure.err'));
+    }
+
+    public function testMissingRrIsRejectedBeforeClaimingTheRunDirectory(): void
+    {
+        $this->environment['PATH'] = $this->directory;
+        $process = $this->launch('no-rr', [dirname(__DIR__, 2) . '/bin/sapi', 'serve',
+            '--rr', '--directory=' . $this->directory . '/server']);
+        self::assertSame(78, proc_close($process));
+        self::assertDirectoryDoesNotExist($this->directory . '/server');
+        self::assertStringContainsString('--rr requires the rr binary on PATH',
+            (string) file_get_contents($this->directory . '/no-rr.err'));
+    }
+
+    private function fakeRr(): void
+    {
+        file_put_contents($this->directory . '/rr', "#!/bin/sh\nexec " . escapeshellarg(PHP_BINARY)
+            . ' ' . escapeshellarg(dirname(__DIR__) . '/Fixtures/sapi-rr.php') . ' "$@"' . "\n");
+        chmod($this->directory . '/rr', 0o700);
+        $this->environment['PATH'] = $this->directory . PATH_SEPARATOR . (getenv('PATH') ?: '');
+    }
+
     public function testWorkerDeathsLeaveParentServingByDefault(): void
     {
         $connection = $this->startServer(extra: ['--json']);
@@ -517,7 +621,7 @@ SOURCE);
             0 => ['file', '/dev/null', 'r'],
             1 => ['file', $this->directory . '/' . $name . '.out', 'w'],
             2 => ['file', $this->directory . '/' . $name . '.err', 'w'],
-        ], $pipes, null, array_merge(getenv(), ['TMPDIR' => $this->directory]));
+        ], $pipes, null, array_merge(getenv(), ['TMPDIR' => $this->directory], $this->environment));
         self::assertIsResource($process);
         return $process;
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mgrunder\RedisClientTester\Tests\Unit;
 
+use Mgrunder\RedisClientTester\Harness\CorePattern;
 use Mgrunder\RedisClientTester\Harness\FailureClassifier;
 use Mgrunder\RedisClientTester\Harness\Fs;
 use Mgrunder\RedisClientTester\Sapi\Server;
@@ -31,6 +32,50 @@ final class SapiServerTest extends TestCase
         if ($this->directory !== '') {
             Fs::removeTree($this->directory);
         }
+    }
+
+    /** @return iterable<string, array{?int}> */
+    public static function coreExits(): iterable
+    {
+        yield 'crashing signal' => [11];
+        yield 'reaped before polling' => [null];
+    }
+
+    #[DataProvider('coreExits')]
+    public function testCoreCollectionIsolatesPidAndPreservesOriginals(?int $signal): void
+    {
+        $source = $this->directory . '/source';
+        mkdir($source);
+        $server = new Server($this->directory, 2, 1, 0, 1,
+            corePattern: new CorePattern($source . '/core.%e.%p.%t', false));
+        (new \ReflectionProperty($server, 'startedAt'))->setValue($server, time() - 1);
+        file_put_contents($source . '/core.php.123.1', 'our dump');
+        file_put_contents($source . '/core.php.1234.1', 'another run');
+        file_put_contents($source . '/core.php.123.2', 'old owner of PID');
+        touch($source . '/core.php.123.2', time() - 60);
+        symlink($source . '/core.php.1234.1', $source . '/core.php.123.3');
+        (new \ReflectionMethod($server, 'observe'))->invoke($server, 123,
+            $signal === null ? 'missing' : 'exited', null, $signal, null, null, 'fixture');
+        $destination = $this->directory . '/cores/123/core.php.123.1';
+        self::assertSame('our dump', file_get_contents($destination));
+        self::assertSame([$destination], $server->report()['cores']);
+        self::assertSame([$destination], glob($this->directory . '/cores/123/*'));
+        self::assertSame('our dump', file_get_contents($source . '/core.php.123.1'));
+        self::assertSame('another run', file_get_contents($source . '/core.php.1234.1'));
+        self::assertSame('old owner of PID', file_get_contents($source . '/core.php.123.2'));
+        self::assertStringContainsString('core_collected', (string) file_get_contents($this->directory . '/processes.jsonl'));
+        file_put_contents($destination, 'retained evidence');
+        (new \ReflectionMethod($server, 'collectCores'))->invoke($server, 123);
+        self::assertSame('retained evidence', file_get_contents($destination));
+        self::assertSame('our dump', file_get_contents($source . '/core.php.123.1'));
+        self::assertStringContainsString('core_collection_failed', (string) file_get_contents($this->directory . '/processes.jsonl'));
+    }
+
+    public function testCoreCollectionRejectsPatternsWithoutPid(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('core_pattern must contain %p');
+        new Server($this->directory, 2, 1, 0, 1, corePattern: new CorePattern('/tmp/core.%e', false));
     }
 
     public function testConcurrentRequestsReuseWorkersAndHonorStartupArguments(): void

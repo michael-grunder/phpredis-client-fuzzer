@@ -895,6 +895,29 @@ bin/sapi client --directory=/tmp/relay-soak -- \
     --steps=100 --keys=20 --seed=42
 ```
 
+Add `serve --rr` to record the PHP server and its descendants, or `--rr-chaos`
+to also enable rr chaos scheduling. This requires `rr` on `PATH` and works with
+`--daemon`, `--json` and `--server-prefix`. The recording stays at
+`<server directory>/rr-trace`; `sapi info` prints that path during and after the
+run. On exit, the supervisor prints the path and a replay command, or explains
+why the recording is missing, incomplete, or failed inside rr. `connection.json`
+and the ready event include `rr_trace`; `exit.json` and the exit event also
+include `rr_problem`. Shutdown signals the tracees first and gives rr the
+`--request-timeout` grace period to finalise; forced shutdown can leave an
+incomplete recording, which is still retained.
+
+`serve` requires file-based `core_pattern` values to contain `%p`, such as
+`/tmp/core.%e.%p.%t`. When a tracked process exits, it searches that pattern for
+the PID and copies matching dumps into `<server directory>/cores/<pid>/`, even
+if the process was reaped before its exit status could be read. Older dumps and
+symlinks are excluded; existing captures and original dumps are preserved.
+Relative patterns use the process's last observed working directory. Piped core
+handlers are allowed with a warning, but require manual core retrieval. Capture
+successes and errors are recorded in `processes.jsonl`; `exit.json` lists the
+collected `cores`, and the exit report prints their paths. Core creation still
+depends on OS limits and runtime settings. Copies and rr traces consume extra
+disk space and are never pruned automatically.
+
 The server chooses a loopback port. Its TUI identifies the server with a compact
 12-character tag such as `a1b2c3d4e5f6`. The full ID
 `rct-sapi-1000-a1b2c3d4e5f6` remains accepted; plain/daemon output also prints the

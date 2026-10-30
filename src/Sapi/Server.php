@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Mgrunder\RedisClientTester\Sapi;
 
 use Mgrunder\RedisClientTester\Cli\ExitCode;
+use Mgrunder\RedisClientTester\Harness\CorePattern;
 use Mgrunder\RedisClientTester\Harness\ReproStore;
+use Mgrunder\RedisClientTester\Harness\RrTrace;
 use Mgrunder\RedisClientTester\Harness\SanitizerReport;
 
 /**
@@ -32,6 +34,11 @@ final class Server
     private ?string $reason = null;
     /** @var PoolState|null */
     private ?array $beforeShutdown = null;
+    private int $startedAt = 0;
+    /** @var array<int, string> */
+    private array $coreDirectories = [];
+    /** @var list<string> */
+    private array $cores = [];
 
     public function __construct(
         private readonly string $directory,
@@ -41,10 +48,15 @@ final class Server
         private readonly float $timeout,
         private readonly bool $forwardOutput = true,
         private readonly bool $stopOnWorkerExit = true,
+        private readonly ?CorePattern $corePattern = null,
+        private readonly ?string $rrTrace = null,
     ) {
         if ($workers < 2 || $workers > 128 || $concurrency < 1 || $concurrency > $workers
             || $idleMs < 0 || $idleMs > 60000 || !is_finite($timeout) || $timeout <= 0) {
             throw new \InvalidArgumentException('invalid SAPI server limits');
+        }
+        if ($corePattern !== null && !$corePattern->isPiped() && !$corePattern->isolatesByPid()) {
+            throw new \InvalidArgumentException('core_pattern must contain %p');
         }
         $this->token = hash('sha256', $directory);
     }
@@ -189,6 +201,7 @@ final class Server
      */
     private function serve(array $paths, array $argv, array $env, ?\Closure $heartbeat): int
     {
+        $this->startedAt = time();
         $process = proc_open($argv, [
             0 => ['file', '/dev/null', 'r'],
             1 => ['file', $this->directory . '/server.stdout.log', 'w'],
@@ -367,6 +380,12 @@ final class Server
             if (isset($this->states[$pid]) && $this->states[$pid]['state'] !== 'running') {
                 continue;
             }
+            if ($this->corePattern !== null) {
+                $cwd = @readlink("/proc/{$pid}/cwd");
+                if ($cwd !== false) {
+                    $this->coreDirectories[$pid] = $cwd;
+                }
+            }
             $stat = @file_get_contents("/proc/{$pid}/stat");
             // comm can contain spaces and parentheses; fields after its final ')' start at field 3.
             $fields = $stat === false ? [] : explode(' ', substr($stat, (int) strrpos($stat, ')') + 2));
@@ -393,12 +412,57 @@ final class Server
             'source' => $source, 'phase' => $this->shuttingDown ? 'shutdown' : 'running', 'observed_at' => microtime(true)];
         $this->states[$pid] = $record;
         $this->event($record);
+        if ($state !== 'running') {
+            // A reaped worker may have left a dump even when its wait status is unavailable.
+            $this->collectCores($pid);
+        }
         if ($state !== 'running' && !$this->shuttingDown && $this->failure === 0
             && ($pid === $this->pid || $this->stopOnWorkerExit)) {
             $this->failure = $signal !== null ? 128 + $signal : max(1, $exit ?? 1);
             $outcome = $signal !== null ? 'signal ' . $signal
                 : ($exit !== null ? 'exit code ' . $exit : 'exit status unavailable (process disappeared or was reaped)');
             $this->reason ??= "{$record['role']} PID {$pid}: {$outcome}; stopping the remaining pool";
+        }
+    }
+
+    private function collectCores(int $pid): void
+    {
+        if ($this->corePattern === null) {
+            return;
+        }
+        foreach ($this->corePattern->globsForPid($pid, $this->coreDirectories[$pid] ?? (getcwd() ?: $this->directory)) as $pattern) {
+            foreach (glob($pattern) ?: [] as $source) {
+                // Exclude stale dumps from a previous owner of this PID and symbolic links.
+                if (!is_file($source) || is_link($source) || filemtime($source) < $this->startedAt) {
+                    continue;
+                }
+                $directory = $this->directory . '/cores/' . $pid;
+                $path = $directory . '/' . basename($source);
+                $input = @fopen($source, 'rb');
+                $output = false;
+                if ($input !== false && (is_dir($directory) || @mkdir($directory, 0o700, true))) {
+                    $output = @fopen($path, 'xb');
+                }
+                $copied = false;
+                if ($input !== false && $output !== false) {
+                    $stat = fstat($input);
+                    $bytes = stream_copy_to_stream($input, $output);
+                    $copied = $stat !== false && $bytes === $stat['size'] && fflush($output);
+                }
+                if ($input !== false) {
+                    fclose($input);
+                }
+                if ($output !== false) {
+                    $copied = fclose($output) && $copied;
+                }
+                $this->event(['event' => $copied ? 'core_collected' : 'core_collection_failed',
+                    'pid' => $pid, 'source' => $source, 'path' => $path, 'observed_at' => microtime(true)]);
+                if ($copied) {
+                    $this->cores[] = $path;
+                } else {
+                    fwrite(STDERR, "cannot collect core {$source}; original retained; destination {$path} may be partial or already exist\n");
+                }
+            }
         }
     }
 
@@ -431,7 +495,7 @@ final class Server
             'processes' => array_values($this->states), 'reason' => $this->reason];
     }
 
-    /** @return array{pool: PoolState, before_shutdown: ?PoolState, stderr_tail: string} */
+    /** @return array{pool: PoolState, before_shutdown: ?PoolState, stderr_tail: string, rr_trace: ?string, rr_problem: ?string, cores: list<string>} */
     public function report(): array
     {
         $tail = '';
@@ -444,7 +508,10 @@ final class Server
             }
             fclose($log);
         }
-        return ['pool' => $this->snapshot(), 'before_shutdown' => $this->beforeShutdown, 'stderr_tail' => $tail];
+        return ['pool' => $this->snapshot(), 'before_shutdown' => $this->beforeShutdown, 'stderr_tail' => $tail,
+            'rr_trace' => $this->rrTrace, 'rr_problem' => $this->rrTrace === null ? null
+                : (RrTrace::fatalError($this->directory . '/server.stderr.log') ?? RrTrace::problem($this->rrTrace)),
+            'cores' => $this->cores];
     }
 
     private function forwardLog(): void
@@ -473,12 +540,9 @@ final class Server
             $this->shuttingDown = true;
             $this->event(['event' => 'shutdown_signal', 'signal' => SIGTERM, 'process_group' => $this->pid,
                 'observed_at' => microtime(true), 'reason' => $this->reason]);
-            // The server owns its own session; wrappers and all PHP workers receive shutdown.
-            if ($this->pid > 0) {
-                @posix_kill(-$this->pid, SIGTERM);
-            }
-            proc_terminate($process, SIGTERM);
-            $deadline = microtime(true) + ($this->stopped === 0 ? $this->timeout : 0.5);
+            // Leave the recorder alive to finalise after its tracees exit.
+            $this->signalServer(SIGTERM);
+            $deadline = microtime(true) + ($this->stopped === 0 || $this->rrTrace !== null ? $this->timeout : 0.5);
             do {
                 usleep(10000);
                 $this->tick();
@@ -492,15 +556,17 @@ final class Server
                 $this->event(['event' => 'shutdown_signal', 'signal' => SIGKILL, 'process_group' => $this->pid,
                     'observed_at' => microtime(true)]);
             }
-            if ($this->pid > 0) {
-                @posix_kill(-$this->pid, SIGKILL);
-            }
-            proc_terminate($process, SIGKILL);
-            $deadline = microtime(true) + 0.5;
+            $this->signalServer(SIGKILL);
+            $deadline = microtime(true) + ($this->rrTrace !== null ? $this->timeout : 0.5);
             do {
                 usleep(10000);
                 $this->tick();
             } while ($this->hasLiveWorkers() && microtime(true) < $deadline);
+            if ($this->rrTrace !== null && proc_get_status($process)['running']) {
+                // A stuck recorder must not leave the supervisor hanging indefinitely.
+                @posix_kill(-$this->pid, SIGKILL);
+                proc_terminate($process, SIGKILL);
+            }
             proc_close($process);
             $this->process = null;
         }
@@ -510,6 +576,22 @@ final class Server
             $this->log = null;
         }
         return $code;
+    }
+
+    private function signalServer(int $signal): void
+    {
+        if ($this->rrTrace !== null) {
+            foreach ($this->states as $pid => $state) {
+                if ($pid !== $this->pid && $state['state'] === 'running') {
+                    @posix_kill($pid, $signal);
+                }
+            }
+        } elseif ($this->pid > 0) {
+            @posix_kill(-$this->pid, $signal);
+            if (is_resource($this->process)) {
+                proc_terminate($this->process, $signal);
+            }
+        }
     }
 
     private function hasLiveWorkers(): bool

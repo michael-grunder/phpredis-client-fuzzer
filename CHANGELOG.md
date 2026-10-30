@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `sapi serve --rr` and `--rr-chaos`, retain recordings in the server's
+  `rr-trace` directory, let rr finalise during shutdown, and report trace paths
+  and recording failures through exit diagnostics, JSON reports and `sapi info`.
+- Collect SAPI worker core dumps by PID into `cores/<pid>/`, preserving original
+  files and existing captures. Require `%p` in file core patterns, exclude stale
+  dumps and symlinks, and report capture results in the process journal.
+
 - Add a SAPI TUI worker pane between the summary and requests, showing each
   worker and serving parent's PID, state, exit code and terminating signal.
 
