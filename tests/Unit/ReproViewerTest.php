@@ -197,7 +197,7 @@ TXT;
         file_put_contents($dir . '/meta.json', json_encode($meta));
         file_put_contents($dir . '/stderr.log', $stderr);
         file_put_contents($dir . '/stdout.log', '');
-        file_put_contents($dir . '/command.txt', "php bin/redis-client-tester --steps 5000\n\n# cwd:   /work\n");
+        file_put_contents($dir . '/command.txt', "php bin/tester --steps 5000\n\n# cwd:   /work\n");
         if ($minimized !== null) {
             Fs::ensureDir($dir . '/minimized');
             file_put_contents($dir . '/minimized/meta.json', json_encode(['steps' => $minimized, 'kind' => $meta['kind']]));

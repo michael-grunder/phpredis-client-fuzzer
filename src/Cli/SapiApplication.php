@@ -129,19 +129,19 @@ final class SapiApplication
                 $paths, $startup['args'], $options->repeated('server-prefix', splitCommas: false),
             );
         } catch (\Throwable $error) {
-            fwrite(STDERR, 'redis-client-tester-sapi: ' . $error->getMessage() . "\n");
+            fwrite(STDERR, 'sapi: ' . $error->getMessage() . "\n");
             return $started ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester-sapi - fuzz through persistent PHP built-in server workers
+sapi - fuzz through persistent PHP built-in server workers
 
-Usage: redis-client-tester-sapi [server options] -- [redis-client-tester options]
-       redis-client-tester-sapi serve --help    Long-lived server
-       redis-client-tester-sapi client --help   Continuous request generator
-       redis-client-tester-sapi info [ID]       Server details (default: latest)
-       redis-client-tester-sapi list            Running servers
+Usage: sapi [server options] -- [tester options]
+       sapi serve --help    Long-lived server
+       sapi client --help   Continuous request generator
+       sapi info [ID]       Server details (default: latest)
+       sapi list            Running servers
 
   --workers N            PHP_CLI_SERVER_WORKERS (2..128, default: 4)
   --concurrency N        Requests per batch (1..workers, default: 2)
@@ -173,7 +173,7 @@ rr / ASAN wrap the whole process tree. Include failures and timeouts in the
 harness --capture list to retain HTTP failures and request timeouts.
 
 Example (only against your disposable Redis target):
-  redis-client-tester-sapi --workers 4 --requests 30 -- \
+  sapi --workers 4 --requests 30 -- \
     --client=relay --port=6390 --commands=get,set,del --steps=100 --seed=42
 
 HELP;

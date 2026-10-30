@@ -133,7 +133,7 @@ final class ClientKillerApplicationTest extends TestCase
         self::assertSame([['10.0.0.1:6379', [7, 11]]], $killed);
         self::assertSame([], $random);
         self::assertSame(
-            "redis-client-tester-killer: targeting 1 Redis node(s): 10.0.0.1:6379\n"
+            "killer: targeting 1 Redis node(s): 10.0.0.1:6379\n"
             . "[00:00:00] Killing client 7 on 10.0.0.1:6379\n"
             . "[00:00:00] Not killing client 9 on 10.0.0.1:6379 (rate roll)\n"
             . "[00:00:00] Killing client 11 on 10.0.0.1:6379\n"
@@ -189,7 +189,7 @@ final class ClientKillerApplicationTest extends TestCase
         self::assertSame([], $killed);
         self::assertSame([], $random);
         self::assertSame(
-            "redis-client-tester-killer: targeting 1 Redis node(s): 127.0.0.1:6379\n"
+            "killer: targeting 1 Redis node(s): 127.0.0.1:6379\n"
             . "[00:00:00] Sending SIGINT to 5\n"
             . "[00:00:00] Not killing client 3 on 127.0.0.1:6379 (rate roll)\n"
             . "[00:00:00] Sleeping for 500000us\n",
@@ -303,7 +303,7 @@ final class ClientKillerApplicationTest extends TestCase
         $status = (new ClientKillerApplication($output))->run(['--help']);
 
         self::assertSame(0, $status);
-        self::assertStringContainsString('redis-client-tester-killer', self::contents($output));
+        self::assertStringContainsString('killer', self::contents($output));
         self::assertStringContainsString('--sleep=MIN-MAX', self::contents($output));
     }
 

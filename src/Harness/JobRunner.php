@@ -622,7 +622,7 @@ final class JobRunner
         ];
 
         // Run from the directory the harness was launched in so relative command
-        // paths (bin/redis-client-tester-*) and relative core patterns resolve the way
+        // paths (bin/*) and relative core patterns resolve the way
         // the operator expects; per-run isolation of cores comes from the
         // mandated %p in core_pattern, not from a private working directory.
         $env = $this->childEnv();

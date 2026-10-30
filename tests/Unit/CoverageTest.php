@@ -220,7 +220,7 @@ final class CoverageTest extends TestCase
         $status = (new CoverageApplication($stream))->run(['--help']);
 
         self::assertSame(0, $status);
-        self::assertStringContainsString('redis-client-tester-coverage', self::contents($stream));
+        self::assertStringContainsString('coverage', self::contents($stream));
     }
 
     /** @return resource */

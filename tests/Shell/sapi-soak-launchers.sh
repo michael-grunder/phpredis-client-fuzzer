@@ -12,12 +12,12 @@ workspace=$(mktemp -d)
 trap 'rm -rf -- "$workspace"' EXIT
 mkdir -p "$workspace/with spaces/bin" "$workspace/with spaces/local-scripts"
 cp "$root/local-scripts/sapi-saturate-serve.sh" "$root/local-scripts/sapi-saturate-client.sh" "$workspace/with spaces/local-scripts/"
-cat > "$workspace/with spaces/bin/redis-client-tester-sapi" <<'STUB'
+cat > "$workspace/with spaces/bin/sapi" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\0' "$@"
 exit "${STUB_EXIT:-0}"
 STUB
-chmod +x "$workspace/with spaces/bin/redis-client-tester-sapi"
+chmod +x "$workspace/with spaces/bin/sapi"
 
 contains() {
     local wanted=$1 item

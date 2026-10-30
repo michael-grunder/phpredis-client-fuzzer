@@ -23,7 +23,7 @@ use Mgrunder\RedisClientTester\Harness\TuiView;
 use Mgrunder\RedisClientTester\Harness\View;
 
 /**
- * Entry point for `bin/redis-client-tester-harness`: validates the environment,
+ * Entry point for `bin/harness`: validates the environment,
  * wires the campaign components together, and hands control to the
  * {@see Scheduler}.
  *
@@ -62,7 +62,7 @@ final class HarnessApplication
 
             return $this->execute($options);
         } catch (\Throwable $throwable) {
-            $this->write('redis-client-tester-harness: ' . $throwable->getMessage() . "\n", true);
+            $this->write('harness: ' . $throwable->getMessage() . "\n", true);
             return 1;
         }
     }
@@ -471,14 +471,14 @@ final class HarnessApplication
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester-harness - run many redis-client-tester workers in parallel with a live
+harness - run many tester workers in parallel with a live
 dashboard, capturing crashes, timeouts, memory leaks, and non-zero exits as
 reproducers.
 
 Usage:
-  redis-client-tester-harness [harness options] -- <fuzzer command template...>
+  harness [harness options] -- <fuzzer command template...>
 
-The template is a normal redis-client-tester* command line. These placeholders are
+The template is a normal fuzzer command line. These placeholders are
 substituted per run:
   {port}   a port chosen from --port
   {steps}  the current step budget (see --steps / --reduce)
@@ -564,14 +564,14 @@ way, the harness stops the campaign and prints the fuzzer's own error message
 along with the command it was given.
 
 Example:
-  redis-client-tester-harness \
+  harness \
       --jobs 4 --reduce steps --rr --rr-chaos \
       --capture crashes,leaks,timeouts --run-timeout 120 \
       --php "$(farmroot)/sapi/cli/php" \
       --php-ini "$(farmroot)/php.ini" --php-args -drelay.maxmemory=1g \
       --port 7000 7001 7002 7003 --isolate-ports \
       -- \
-      bin/redis-client-tester-coercive \
+      bin/coercive \
           --client=relay-cluster --seconds 2 --steps {steps} \
           --host=127.0.0.1 --port={port}
 

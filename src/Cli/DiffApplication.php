@@ -16,7 +16,7 @@ use Mgrunder\RedisClientTester\Differential\SignatureIndex;
 use Mgrunder\RedisClientTester\Differential\TestCase;
 
 /**
- * Entry point for `bin/redis-client-tester-diff`: the stateful differential fuzzer
+ * Entry point for `bin/diff`: the stateful differential fuzzer
  * that runs identical command sequences through PhpRedis and Relay from
  * identical Redis state and reports any difference in replies or resulting
  * state.
@@ -24,7 +24,7 @@ use Mgrunder\RedisClientTester\Differential\TestCase;
  * Exit status: 0 when no divergence was found, 1 when one was (or the run
  * failed, including an unreachable target), and {@see ExitCode::STARTUP} when
  * the command line or the loaded extensions are unusable, which is what
- * `redis-client-tester-harness` expects.
+ * `harness` expects.
  *
  * @phpstan-import-type Server from DiffRuntime
  */
@@ -82,14 +82,14 @@ final class DiffApplication
             }
             $config = $this->configure($options);
         } catch (\Throwable $throwable) {
-            fwrite($this->error, 'redis-client-tester-diff: ' . $throwable->getMessage() . "\n");
+            fwrite($this->error, 'diff: ' . $throwable->getMessage() . "\n");
             return ExitCode::STARTUP;
         }
 
         try {
             return $this->execute($options, ...$config);
         } catch (\Throwable $throwable) {
-            fwrite($this->error, 'redis-client-tester-diff: ' . get_class($throwable) . ': ' . $throwable->getMessage() . "\n");
+            fwrite($this->error, 'diff: ' . get_class($throwable) . ': ' . $throwable->getMessage() . "\n");
             return ExitCode::FAILURE;
         }
     }
@@ -289,7 +289,7 @@ final class DiffApplication
         $known = new SignatureIndex($writer->root() . '/signatures.txt', !$options->has('no-dedupe'));
 
         fwrite($this->output, sprintf(
-            "redis-client-tester-diff seed=%d steps=%d keys=%d target=%s:%d php=%s redis=%s relay=%s%s\n",
+            "diff seed=%d steps=%d keys=%d target=%s:%d php=%s redis=%s relay=%s%s\n",
             $seed,
             $generatorOptions->steps,
             $generatorOptions->keys,
@@ -555,7 +555,7 @@ final class DiffApplication
             'ttl_tolerance_ms' => $server['ttl_tolerance_ms'],
             'strict_messages' => $server['strict_messages'],
             'generator' => $generatorOptions->toArray(),
-            'rerun' => sprintf('redis-client-tester-diff --seed=%d --steps=%d --cases=%d ...', $seed, $generatorOptions->steps, $case->index + 1),
+            'rerun' => sprintf('diff --seed=%d --steps=%d --cases=%d ...', $seed, $generatorOptions->steps, $case->index + 1),
         ];
     }
 
@@ -570,7 +570,7 @@ final class DiffApplication
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester-diff - differential stateful fuzzer: find behavior differences
+diff - differential stateful fuzzer: find behavior differences
 between PhpRedis and Relay
 
 Every case is generated from a seed as explicit data: raw setup commands and a
@@ -582,7 +582,7 @@ canonicalization) and the resulting Redis state. A confirmed divergence is
 saved as case.json, metadata.json, and a standalone reproduce.php.
 
 Usage:
-  redis-client-tester-diff [options]
+  diff [options]
 
 Connection:
   --tls                     Encrypt client and neutral RESP connections
@@ -601,7 +601,7 @@ Run:
   --seconds=N                 Stop after N seconds; 0 disables (default: 0)
   --steps=N                   Test operations per case (default: 20). A smaller
                               value yields a prefix of the same sequence, so
-                              redis-client-tester-harness --reduce steps works
+                              harness --reduce steps works
   --keep-going                Keep fuzzing after a divergence (default: stop)
   --self-check-every=N        Every Nth passing case, run it twice through one
                               client to check self-consistency; 0 disables
@@ -616,7 +616,7 @@ Run:
                               by this or any earlier or concurrent run, is
                               counted as a duplicate and neither saved nor
                               treated as a failure. Use --no-dedupe together
-                              with redis-client-tester-harness --reduce steps, whose
+                              with harness --reduce steps, whose
                               re-runs would otherwise be skipped as duplicates
   --no-minimize               Save the unminimized case only
   --minimize-seconds=N        Time budget for minimizing one divergence
@@ -661,9 +661,9 @@ Redis. Exit status: 0 no divergence, 1 divergence or failure (including an
 unreachable target), 78 rejected command line or missing extension.
 
 Examples:
-  redis-client-tester-diff --port 6379 --cases 500 --verbose
-  redis-client-tester-harness --jobs 8 --capture failures --reduce steps \
-      --port 6379 -- bin/redis-client-tester-diff --port={port} --steps={steps} \
+  diff --port 6379 --cases 500 --verbose
+  harness --jobs 8 --capture failures --reduce steps \
+      --port 6379 -- bin/diff --port={port} --steps={steps} \
       --no-minimize --cases 200
   php reproducers/differential/1a2b3c4d/reproduce.php
 

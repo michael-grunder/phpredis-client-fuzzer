@@ -21,9 +21,9 @@ try {
         ['help'],
     );
     if ($options->has('help')) {
-        echo "Usage: redis-client-tester-asan [--php PATH] [--asan-runtime FILE] -- <PHP arguments...>\n"
+        echo "Usage: asan [--php PATH] [--asan-runtime FILE] -- <PHP arguments...>\n"
             . "Run PHP with ASAN (Linux; GCC runtime by default). Example:\n"
-            . "  redis-client-tester-asan -- -n -dextension=/path/redis.so bin/redis-client-tester --help\n"
+            . "  asan -- -n -dextension=/path/redis.so bin/tester --help\n"
             . "ASAN_OPTIONS may override detect_leaks=0; reports always go to stderr.\n";
         exit(0);
     }
@@ -31,7 +31,7 @@ try {
         throw new InvalidArgumentException('expected -- followed by PHP arguments; see --help');
     }
     if (!function_exists('pcntl_exec')) {
-        throw new RuntimeException('redis-client-tester-asan requires ext-pcntl in the launcher PHP');
+        throw new RuntimeException('asan requires ext-pcntl in the launcher PHP');
     }
     $runtime = AsanRuntime::create($options->has('asan-runtime') ? $options->string('asan-runtime', '') : null);
     $command = $runtime->command([
@@ -41,6 +41,6 @@ try {
     pcntl_exec($command[0], array_slice($command, 1));
     throw new RuntimeException('could not execute the ASAN PHP process');
 } catch (Throwable $error) {
-    fwrite(STDERR, 'redis-client-tester-asan: ' . $error->getMessage() . "\n");
+    fwrite(STDERR, 'asan: ' . $error->getMessage() . "\n");
     exit(78);
 }

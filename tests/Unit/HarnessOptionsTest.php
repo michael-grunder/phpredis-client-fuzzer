@@ -16,7 +16,7 @@ final class HarnessOptionsTest extends TestCase
             '--port', '7000', '7001', '7002',
             '--rr-chaos',
             '--',
-            'bin/redis-client-tester-coercive', '--steps', '{steps}', '--port={port}',
+            'bin/coercive', '--steps', '{steps}', '--port={port}',
         ]);
 
         self::assertSame(4, $options->jobs);
@@ -24,7 +24,7 @@ final class HarnessOptionsTest extends TestCase
         self::assertTrue($options->rr, 'rr-chaos implies rr');
         self::assertTrue($options->rrChaos);
         self::assertSame(
-            ['bin/redis-client-tester-coercive', '--steps', '{steps}', '--port={port}'],
+            ['bin/coercive', '--steps', '{steps}', '--port={port}'],
             $options->command,
         );
     }
@@ -54,7 +54,7 @@ final class HarnessOptionsTest extends TestCase
 
     public function testDefaultsAreApplied(): void
     {
-        $options = HarnessOptions::parse(['--', 'bin/redis-client-tester']);
+        $options = HarnessOptions::parse(['--', 'bin/tester']);
 
         self::assertSame(1, $options->jobs);
         self::assertSame(5000, $options->steps);

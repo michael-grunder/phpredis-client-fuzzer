@@ -23,7 +23,7 @@ declare(strict_types=1);
  *
  * Load it alongside the workload's own timeout flags:
  *
- *     bin/redis-client-tester --include=local --read-timeout=1.0 \
+ *     bin/tester --include=local --read-timeout=1.0 \
  *         --hook=hooks/clamp-read-timeout.php
  *
  * Relay\Cluster::OPT_NODE_READ_TIMEOUT is deliberately not covered: the catalog

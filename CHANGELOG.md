@@ -116,6 +116,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Rename `bin/redis-client-tester` to `bin/tester` and drop the
+  `redis-client-tester-` prefix from companion binaries. Update Composer entries,
+  CLI output, process discovery, documentation, tests, and local shell launchers.
+
 - Keep long-running SAPI supervisors alive after worker exits by default; add
   `serve --stop-on-worker-exit` to opt into stopping the remaining pool. Parent
   exits still stop the supervisor. End shutdown output with a guide to retained

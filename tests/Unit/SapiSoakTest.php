@@ -99,7 +99,7 @@ final class SapiSoakTest extends TestCase
             $monitor->render('a1b2c3d4e5f6', true, $pool);
             $screen = $backend->toString();
             file_put_contents($this->directory . '/dashboard.txt', $screen);
-            foreach (['redis-client-tester-sapi', 'Uptime', 'Completed', 'In flight',
+            foreach (['sapi', 'Uptime', 'Completed', 'In flight',
                 'Status', 'PID', 'Time', 'Exit', 'HTTP', 'RUN', 'OK', 'FAIL', '0.125s', 'Workers', '1/4', 'Parent'] as $text) {
                 self::assertStringContainsString($text, $screen);
             }
@@ -119,7 +119,7 @@ final class SapiSoakTest extends TestCase
             (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($small)->build());
             $monitor->render('a1b2c3d4e5f6', true, $pool);
             self::assertCount(12, $small->toLines());
-            self::assertStringContainsString('redis-client-tester-sapi', $small->toString());
+            self::assertStringContainsString('sapi', $small->toString());
             foreach ($small->toLines() as $line) {
                 self::assertSame(60, mb_strlen($line));
             }
@@ -184,14 +184,14 @@ final class SapiSoakTest extends TestCase
     {
         $first = $this->startServer();
         $secondDirectory = $this->directory . '/second-server';
-        $second = $this->launch('second-server', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'serve',
+        $second = $this->launch('second-server', [dirname(__DIR__, 2) . '/bin/sapi', 'serve',
             '--directory=' . $secondDirectory, '--workers=2', '--no-tui', '--request-timeout=3']);
         try {
             $this->waitForFile($secondDirectory . '/server.ready');
             $discovery = new ServerDiscovery($this->directory);
             $tag = $discovery->tag($this->directory . '/server');
             foreach ([['info'], ['info', $tag], ['info', '--server=' . $discovery->id($this->directory . '/server')], ['list']] as $index => $args) {
-                $process = $this->launch('inspect-' . $index, [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', ...$args]);
+                $process = $this->launch('inspect-' . $index, [dirname(__DIR__, 2) . '/bin/sapi', ...$args]);
                 self::assertSame(0, proc_close($process));
                 $output = (string) file_get_contents($this->directory . '/inspect-' . $index . '.out');
                 self::assertStringContainsString('(running)', $output);
@@ -211,12 +211,12 @@ final class SapiSoakTest extends TestCase
             self::assertSame('', file_get_contents($secondDirectory . '/requests.jsonl'));
             self::assertSame([], glob($this->directory . '/server/clients/*'));
             $this->stopServer();
-            $process = $this->launch('list-after-stop', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'list']);
+            $process = $this->launch('list-after-stop', [dirname(__DIR__, 2) . '/bin/sapi', 'list']);
             self::assertSame(0, proc_close($process));
             $output = (string) file_get_contents($this->directory . '/list-after-stop.out');
             self::assertStringNotContainsString('Server: ' . $tag, $output);
             self::assertStringContainsString($secondDirectory, $output);
-            $process = $this->launch('info-stopped', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'info', $tag]);
+            $process = $this->launch('info-stopped', [dirname(__DIR__, 2) . '/bin/sapi', 'info', $tag]);
             self::assertSame(0, proc_close($process));
             self::assertStringContainsString('(stopped)', (string) file_get_contents($this->directory . '/info-stopped.out'));
         } finally {
@@ -232,7 +232,7 @@ final class SapiSoakTest extends TestCase
         mkdir($directory);
         file_put_contents($directory . '/connection.json', json_encode(['pid' => getmypid(), 'address' => '127.0.0.1:1'], JSON_THROW_ON_ERROR));
         (new ServerDiscovery($this->directory))->publish($directory);
-        $process = $this->launch('list-stale', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'list']);
+        $process = $this->launch('list-stale', [dirname(__DIR__, 2) . '/bin/sapi', 'list']);
         self::assertSame(0, proc_close($process));
         self::assertStringContainsString('No running SAPI servers', (string) file_get_contents($this->directory . '/list-stale.out'));
     }
@@ -423,7 +423,7 @@ final class SapiSoakTest extends TestCase
 
     public function testClientWithoutArgumentsLooksForLatest(): void
     {
-        $process = $this->launch('missing-latest', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'client']);
+        $process = $this->launch('missing-latest', [dirname(__DIR__, 2) . '/bin/sapi', 'client']);
         self::assertSame(78, proc_close($process));
         self::assertStringContainsString('no SAPI server pointer', (string) file_get_contents($this->directory . '/missing-latest.err'));
     }
@@ -431,7 +431,7 @@ final class SapiSoakTest extends TestCase
     public function testExistingDirectoryIsNeverModified(): void
     {
         file_put_contents($this->directory . '/evidence', 'keep');
-        $process = $this->launch('existing', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'serve', '--directory=' . $this->directory]);
+        $process = $this->launch('existing', [dirname(__DIR__, 2) . '/bin/sapi', 'serve', '--directory=' . $this->directory]);
         self::assertSame(78, proc_close($process));
         self::assertSame('keep', file_get_contents($this->directory . '/evidence'));
         self::assertFileDoesNotExist($this->directory . '/exit.json');
@@ -442,7 +442,7 @@ final class SapiSoakTest extends TestCase
      */
     private function startServer(bool $daemon = false, array $extra = []): array
     {
-        $process = $this->launch('server', [dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi', 'serve',
+        $process = $this->launch('server', [dirname(__DIR__, 2) . '/bin/sapi', 'serve',
             '--directory=' . $this->directory . '/server', '--workers=2', '--no-tui',
             '--php-arg=-dprecision=12', '--request-timeout=3', ...($daemon ? ['--daemon'] : []), ...$extra]);
         if ($daemon) {

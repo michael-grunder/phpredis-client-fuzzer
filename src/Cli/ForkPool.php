@@ -310,6 +310,6 @@ final class ForkPool
 
     private function report(string $message): void
     {
-        fwrite($this->error, 'redis-client-tester: ' . $message . "\n");
+        fwrite($this->error, 'tester: ' . $message . "\n");
     }
 }

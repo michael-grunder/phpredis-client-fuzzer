@@ -20,7 +20,7 @@ final class HarnessReproStoreTest extends TestCase
     public function testSapiScriptsResponsesAndWorkerCoresAreRetained(): void
     {
         $root = $this->workspace();
-        $job = $this->job($root, ['php', 'bin/redis-client-tester-sapi', '--', '--seed=5']);
+        $job = $this->job($root, ['php', 'bin/sapi', '--', '--seed=5']);
         mkdir($job->workDir . '/sapi');
         file_put_contents($job->workDir . '/sapi/pids.txt', "12345\n12346\n");
         file_put_contents($job->workDir . '/sapi/request-1.php', '<?php echo "workload";');

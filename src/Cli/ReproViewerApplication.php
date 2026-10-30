@@ -101,7 +101,7 @@ final class ReproViewerApplication
 
             return $this->interactive();
         } catch (\InvalidArgumentException $error) {
-            fwrite(STDERR, 'redis-client-tester-repros: ' . $error->getMessage() . "\n");
+            fwrite(STDERR, 'repros: ' . $error->getMessage() . "\n");
 
             return ExitCode::STARTUP;
         }
@@ -406,7 +406,7 @@ final class ReproViewerApplication
             ->direction(Direction::Vertical)
             ->constraints(Constraint::length(count($header) + 2), Constraint::min(3), Constraint::length(1))
             ->widgets(
-                BlockWidget::default()->borders(Borders::ALL)->titles(Title::fromString(' redis-client-tester-repros '))
+                BlockWidget::default()->borders(Borders::ALL)->titles(Title::fromString(' repros '))
                     ->widget(ParagraphWidget::fromLines(...$header)),
                 BlockWidget::default()->borders(Borders::ALL)
                     ->titles(Title::fromString(' ' . ($this->kind ?? 'all') . ($this->grouped ? ': grouped by signature, most frequent first ' : ': captures, newest first ')))
@@ -506,7 +506,7 @@ final class ReproViewerApplication
     private static function usage(): string
     {
         return <<<'TXT'
-Usage: redis-client-tester-repros [DIR] [options]
+Usage: repros [DIR] [options]
 
 Browse harness reproducers under DIR (default: reproducers). DIR may be an
 --output root, one kind directory, or a single capture. Read-only.

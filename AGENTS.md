@@ -36,16 +36,16 @@ required compatibility API; Relay is optional for package consumers.
 - `src/ClientFactory.php` and `src/ClientConfiguration.php` are optional client
   construction helpers; embedded callers should be able to pass existing clients.
 - `src/Http/TesterEndpoint.php` is the framework-neutral HTTP adapter.
-- `src/Cli/Application.php` and `bin/redis-client-tester` provide the Composer binary.
+- `src/Cli/Application.php` and `bin/tester` provide the Composer binary.
 - `src/Cli/Options.php` is the long-option parser shared by both binaries.
-- `src/Coverage/` and `bin/redis-client-tester-coverage` report which server commands the
+- `src/Coverage/` and `bin/coverage` report which server commands the
   catalog does not yet exercise; `data/coverage-ignore.txt` holds the default
   ignore patterns.
 - `src/Differential/`, `src/Cli/DiffApplication.php`, and
-  `bin/redis-client-tester-diff` implement the PhpRedis-vs-Relay differential fuzzer.
+  `bin/diff` implement the PhpRedis-vs-Relay differential fuzzer.
   `DiffRuntime` is embedded verbatim in generated `reproduce.php` files, so it
   must stay self-contained (no imports, no other package classes).
-- `src/Viewer/`, `src/Cli/ReproViewerApplication.php`, and `bin/redis-client-tester-repros`
+- `src/Viewer/`, `src/Cli/ReproViewerApplication.php`, and `bin/repros`
   browse harness reproducer directories read-only.
 - `src/Data/` and `data/` contain geo and stream workload fixtures.
 - `tests/` contains server-free PHPUnit unit tests.
@@ -121,8 +121,8 @@ For every PHP change, run syntax checks on changed files. Before handoff run:
 find src tests bin -type f -exec php -l {} +
 vendor/bin/phpstan analyse --debug --no-progress
 vendor/bin/phpunit
-bin/redis-client-tester --help
-bin/redis-client-tester-coverage --help
+bin/tester --help
+bin/coverage --help
 ```
 
 PHPStan must remain clean at level `max`; do not add a baseline or ignored

@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Lifecycle hook example.
  *
- *     bin/redis-client-tester --include=local --steps=50 \
+ *     bin/tester --include=local --steps=50 \
  *         --hook=hooks/lifecycle-example.php
  *
  * Lifecycle hooks only observe: unlike an invocation hook they cannot reject

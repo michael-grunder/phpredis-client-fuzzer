@@ -150,7 +150,7 @@ final class SoakMonitor
             );
         $header = BlockWidget::default()
             ->borders(Borders::ALL)
-            ->titles(Title::fromString(' redis-client-tester-sapi — ' . $serverId . ' '))
+            ->titles(Title::fromString(' sapi — ' . $serverId . ' '))
             ->widget($metrics);
 
         $workers = [];

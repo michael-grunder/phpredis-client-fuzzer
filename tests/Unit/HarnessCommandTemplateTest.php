@@ -12,7 +12,7 @@ final class HarnessCommandTemplateTest extends TestCase
     public function testReportsAndSubstitutesVariables(): void
     {
         $template = new CommandTemplate([
-            'bin/redis-client-tester-coercive', '--steps', '{steps}', '--host=127.0.0.1', '--port={port}',
+            'bin/coercive', '--steps', '{steps}', '--host=127.0.0.1', '--port={port}',
         ]);
 
         self::assertEqualsCanonicalizing(['steps', 'port'], $template->variables());
@@ -20,14 +20,14 @@ final class HarnessCommandTemplateTest extends TestCase
         self::assertFalse($template->uses('seed'));
 
         self::assertSame(
-            ['bin/redis-client-tester-coercive', '--steps', '2500', '--host=127.0.0.1', '--port=7003'],
+            ['bin/coercive', '--steps', '2500', '--host=127.0.0.1', '--port=7003'],
             $template->render(['steps' => 2500, 'port' => 7003, 'seed' => 1, 'job' => 0, 'run' => 9]),
         );
     }
 
     public function testRejectsUnknownVariable(): void
     {
-        $template = new CommandTemplate(['bin/redis-client-tester', '--keys={keys}']);
+        $template = new CommandTemplate(['bin/tester', '--keys={keys}']);
 
         $this->expectException(\InvalidArgumentException::class);
         $template->validate();
@@ -35,7 +35,7 @@ final class HarnessCommandTemplateTest extends TestCase
 
     public function testDetectsExplicitOption(): void
     {
-        $template = new CommandTemplate(['bin/redis-client-tester', '--seed=42', '--steps', '{steps}']);
+        $template = new CommandTemplate(['bin/tester', '--seed=42', '--steps', '{steps}']);
 
         self::assertTrue($template->hasOption('seed'));
         self::assertTrue($template->hasOption('steps'));

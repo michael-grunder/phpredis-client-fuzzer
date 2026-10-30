@@ -384,7 +384,7 @@ final class Application
                 },
             );
         } catch (\Throwable $throwable) {
-            $this->write('redis-client-tester: ' . $throwable->getMessage() . "\n", true);
+            $this->write('tester: ' . $throwable->getMessage() . "\n", true);
             return $configured ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
     }
@@ -517,10 +517,10 @@ final class Application
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester - fuzz PhpRedis-compatible clients against a disposable Redis target
+tester - fuzz PhpRedis-compatible clients against a disposable Redis target
 
 Usage:
-  redis-client-tester [options]
+  tester [options]
 
 Clients and connection:
   --client=TYPE[:COUNT],...  redis, redis-cluster, relay, relay-cluster (default: redis)
@@ -703,7 +703,7 @@ Exit status:
   0   the run finished and nothing was caught
   1   a caught diagnostic, a differential divergence, or a failed scenario
   78  startup failure: the command line was rejected or describes an unusable
-      configuration, and no command was executed. redis-client-tester-harness stops a
+      configuration, and no command was executed. harness stops a
       campaign when a run exits this way.
 
 The target is mutated. Use only an explicitly selected disposable Redis instance.

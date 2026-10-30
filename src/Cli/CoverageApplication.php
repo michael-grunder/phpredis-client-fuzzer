@@ -83,7 +83,7 @@ final class CoverageApplication
 
             return 0;
         } catch (\Throwable $throwable) {
-            $this->write('redis-client-tester-coverage: ' . $throwable->getMessage() . "\n", true);
+            $this->write('coverage: ' . $throwable->getMessage() . "\n", true);
             return 1;
         }
     }
@@ -227,17 +227,17 @@ final class CoverageApplication
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester-coverage - report Redis commands the fuzzer catalog does not cover
+coverage - report Redis commands the fuzzer catalog does not cover
 
 Usage:
-  redis-client-tester-coverage [options]
+  coverage [options]
 
 The server command table comes from COMMAND, uncovered commands are matched
 against the ignore patterns, and what remains is split by method_exists() on
 the selected client class. Container subcommands ("config|get") are folded into
 their parent because the catalog has one class per top-level command.
 
-Only COMMAND is issued, so unlike redis-client-tester this binary does not mutate the
+Only COMMAND is issued, so unlike tester this binary does not mutate the
 target.
 
 Client and connection:
@@ -266,7 +266,7 @@ Output:
   --help                     Show this help without connecting
 
 Examples:
-  redis-client-tester-coverage --client redis --port 6379
-  redis-client-tester-coverage --client relay --ignore 'ft.*,json.*' --json
+  coverage --client redis --port 6379
+  coverage --client relay --ignore 'ft.*,json.*' --json
 HELP;
 }

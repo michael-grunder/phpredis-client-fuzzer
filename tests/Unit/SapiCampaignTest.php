@@ -34,7 +34,7 @@ final class SapiCampaignTest extends TestCase
         mkdir($root . '/local-scripts');
         copy($source, $root . '/local-scripts/' . $script);
         copy(dirname(__DIR__, 2) . '/scripts/sapi-campaign.sh', $root . '/scripts/sapi-campaign.sh');
-        file_put_contents($root . '/bin/redis-client-tester-harness', '#!' . PHP_BINARY . "\n" . <<<'PHP'
+        file_put_contents($root . '/bin/harness', '#!' . PHP_BINARY . "\n" . <<<'PHP'
 <?php
 pcntl_async_signals(true);
 $mode = getenv('TEST_MODE');
@@ -70,7 +70,7 @@ while (true) {
     usleep(10000);
 }
 PHP);
-        chmod($root . '/bin/redis-client-tester-harness', 0o700);
+        chmod($root . '/bin/harness', 0o700);
         $env = getenv();
         unset($env['FAILOVER']);
         $env['TEST_MODE'] = $mode;

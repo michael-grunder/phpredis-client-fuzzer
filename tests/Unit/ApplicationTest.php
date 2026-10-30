@@ -242,7 +242,7 @@ final class ApplicationTest extends TestCase
             . "Warning: --relay-distribute only applies to --client=relay-cluster, ignoring\n"
             . "Warning: --relay-node-read-timeout only applies to --client=relay-cluster, ignoring\n"
             . "Warning: --relay-multikey-reordering only applies to --client=relay-cluster, ignoring\n"
-            . "redis-client-tester: Port must be between 1 and 65535\n",
+            . "tester: Port must be between 1 and 65535\n",
             self::contents($error),
         );
     }
@@ -260,7 +260,7 @@ final class ApplicationTest extends TestCase
         self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame('', self::contents($output));
         self::assertSame(
-            'redis-client-tester: Unknown failover mode "unsupported"; expected one of '
+            'tester: Unknown failover mode "unsupported"; expected one of '
             . "none, primary, random_replica, replicas, all\n",
             self::contents($error),
         );
@@ -304,7 +304,7 @@ final class ApplicationTest extends TestCase
         self::assertSame(ExitCode::STARTUP, $status);
         self::assertSame(
             "Warning: --slave-failover only applies to cluster clients, ignoring\n"
-            . "redis-client-tester: Port must be between 1 and 65535\n",
+            . "tester: Port must be between 1 and 65535\n",
             self::contents($error),
         );
     }
@@ -382,7 +382,7 @@ final class ApplicationTest extends TestCase
         ]);
 
         self::assertSame(ExitCode::FAILURE, $status);
-        self::assertStringContainsString('redis-client-tester: ', self::contents($error));
+        self::assertStringContainsString('tester: ', self::contents($error));
     }
 
     /** @return resource */

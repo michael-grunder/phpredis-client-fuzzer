@@ -20,7 +20,7 @@ useful stress features:
 - Multiple client instances, strict and coercive invocation, wrong-type input,
   deliberate cross-slot input, command weighting, and safety flags.
 - Random `CLIENT KILL` across cluster primaries and replicas, plus worker signal
-  injection through `redis-client-tester-killer`.
+  injection through `killer`.
 - Relay cluster failover, distribution, node-read-timeout, and multikey
   reordering options.
 - Differential cache observations, cache saturation, Relay statistics, and a
@@ -55,7 +55,7 @@ specific interval such as:
 
 ### Disruption is not reproducibly tied to client state
 
-`redis-client-tester-killer` chooses actions with `random_int()`, has no schedule seed,
+`killer` chooses actions with `random_int()`, has no schedule seed,
 and discovers ordinary client IDs independently from the command stream. Its log
 can show that a client was killed near a command, but cannot prove which client
 object, node, command phase, transaction state, or cache state was affected.

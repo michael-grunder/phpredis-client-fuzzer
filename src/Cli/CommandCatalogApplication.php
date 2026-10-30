@@ -58,7 +58,7 @@ final class CommandCatalogApplication
             $this->write($this->table($registry));
             return 0;
         } catch (\Throwable $throwable) {
-            $this->write('redis-client-tester-commands: ' . $throwable->getMessage() . "\n", true);
+            $this->write('commands: ' . $throwable->getMessage() . "\n", true);
             return 1;
         }
     }
@@ -142,10 +142,10 @@ final class CommandCatalogApplication
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester-commands - list commands covered by the fuzzer catalog
+commands - list commands covered by the fuzzer catalog
 
 Usage:
-  redis-client-tester-commands [options]
+  commands [options]
 
 Options:
   --commands=PATTERN,...  Include/exclude command names, globs, or @categories

@@ -14,18 +14,18 @@
         }
     },
     "bin": [
-        "bin/redis-client-tester",
-        "bin/redis-client-tester-coercive",
-        "bin/redis-client-tester-killer",
-        "bin/redis-client-tester-harness",
-        "bin/redis-client-tester-sapi",
-        "bin/redis-client-tester-asan",
-        "bin/redis-client-tester-repros",
-        "bin/redis-client-tester-diff",
-        "bin/redis-client-tester-commands",
-        "bin/redis-client-tester-coverage",
-        "bin/redis-client-tester-subscribe",
-        "bin/redis-client-tester-commandstats"
+        "bin/tester",
+        "bin/coercive",
+        "bin/killer",
+        "bin/harness",
+        "bin/sapi",
+        "bin/asan",
+        "bin/repros",
+        "bin/diff",
+        "bin/commands",
+        "bin/coverage",
+        "bin/subscribe",
+        "bin/commandstats"
     ],
     "authors": [
         {
@@ -40,8 +40,8 @@
         "php-tui/php-tui": "^0.2.1"
     },
     "suggest": {
-        "ext-posix": "Required by redis-client-tester-killer and redis-client-tester-sapi process supervision",
-        "ext-pcntl": "Required by redis-client-tester --forks and redis-client-tester-sapi; also lets redis-client-tester-harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
+        "ext-posix": "Required by killer and sapi process supervision",
+        "ext-pcntl": "Required by tester --forks and sapi; also lets harness stop cleanly on SIGINT/SIGTERM in plain-output mode",
         "ext-relay": "Required to fuzz Relay\\Relay or Relay\\Cluster clients"
     },
     "require-dev": {

@@ -65,7 +65,7 @@ final class SapiServerTest extends TestCase
     {
         foreach (['first', 'second'] as $name) {
             $process = proc_open([
-                PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi',
+                PHP_BINARY, dirname(__DIR__, 2) . '/bin/sapi',
                 '--directory=' . $this->directory . '/' . $name,
                 '--requests=3', '--workers=2', '--idle-ms=0', '--',
                 '--seed=42', '--client=invalid-client', '--commands=get,set', '--weight=get:2',
@@ -158,7 +158,7 @@ final class SapiServerTest extends TestCase
     private function runApplication(string $name, array $arguments): int
     {
         $process = proc_open([
-            PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi',
+            PHP_BINARY, dirname(__DIR__, 2) . '/bin/sapi',
             '--directory=' . $this->directory . '/' . $name,
             '--workers=2', '--idle-ms=0', ...$arguments,
         ], [

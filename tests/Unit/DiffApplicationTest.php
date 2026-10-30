@@ -27,7 +27,7 @@ final class DiffApplicationTest extends TestCase
         foreach ([['--bogus'], ['--steps=0'], ['--order=sideways'], ['--commands=@nope'], ['--relay-cache=maybe'], ['--wrongtype-chance=2']] as $arguments) {
             [$status, , $error] = self::invoke($arguments);
             self::assertSame(ExitCode::STARTUP, $status, implode(' ', $arguments) . ': ' . $error);
-            self::assertStringStartsWith('redis-client-tester-diff: ', $error);
+            self::assertStringStartsWith('diff: ', $error);
         }
     }
 

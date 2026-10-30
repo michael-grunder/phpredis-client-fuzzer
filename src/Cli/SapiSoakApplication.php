@@ -126,7 +126,7 @@ final class SapiSoakApplication
             $this->finish($directory, $code, $server, $json);
             return $code;
         } catch (\Throwable $error) {
-            fwrite(STDERR, 'redis-client-tester-sapi: ' . $error->getMessage() . "\n");
+            fwrite(STDERR, 'sapi: ' . $error->getMessage() . "\n");
             $code = $started ? ExitCode::FAILURE : ExitCode::STARTUP;
             if (!$detached && $directory !== null && !is_file($directory . '/exit.json')) {
                 $this->finish($directory, $code, $server, $json, $error->getMessage());
@@ -217,7 +217,7 @@ final class SapiSoakApplication
 
     private function clientCommand(string $directory): string
     {
-        return ReproStore::formatCommand([PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-sapi',
+        return ReproStore::formatCommand([PHP_BINARY, dirname(__DIR__, 2) . '/bin/sapi',
             'client', '--server=' . (new ServerDiscovery(sys_get_temp_dir()))->tag($directory), '--']) . ' [workload options]';
     }
 
@@ -395,13 +395,13 @@ final class SapiSoakApplication
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester-sapi - long-lived PHP server and continuous request clients
+sapi - long-lived PHP server and continuous request clients
 
 Usage:
-  redis-client-tester-sapi serve [server options]
-  redis-client-tester-sapi client [client options] [-- workload options]
-  redis-client-tester-sapi info [ID | --server ID | --directory PATH]
-  redis-client-tester-sapi list
+  sapi serve [server options]
+  sapi client [client options] [-- workload options]
+  sapi info [ID | --server ID | --directory PATH]
+  sapi list
 
 Server options:
   --workers N           PHP_CLI_SERVER_WORKERS, 2..128 (4; PHP also serves in parent)

@@ -7,7 +7,7 @@ namespace Mgrunder\RedisClientTester\Harness;
 /**
  * Parses the harness command line, which has the shape:
  *
- *   redis-client-tester-harness [harness options] -- <fuzzer command template...>
+ *   harness [harness options] -- <fuzzer command template...>
  *
  * Everything before the first bare `--` configures the harness; everything
  * after is the child command, with `{port}` / `{steps}` / `{seed}` style
@@ -198,7 +198,7 @@ final class HarnessOptions
         $help = isset($flags['help']);
         if (!$help && $separator === false) {
             throw new \InvalidArgumentException(
-                'expected -- followed by the fuzzer command, e.g.  -- bin/redis-client-tester --steps {steps}',
+                'expected -- followed by the fuzzer command, e.g.  -- bin/tester --steps {steps}',
             );
         }
         if (!$help && $command === []) {

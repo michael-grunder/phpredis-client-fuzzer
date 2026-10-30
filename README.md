@@ -26,7 +26,7 @@ methods and raw-protocol variants where an implementation provides both.
 - PHP 8.4 or newer
 - PhpRedis (`ext-redis`)
 - Relay (`ext-relay`) only when fuzzing Relay clients
-- `ext-pcntl` for forked concurrent runs (`redis-client-tester --forks`) and SAPI server supervision
+- `ext-pcntl` for forked concurrent runs (`tester --forks`) and SAPI server supervision
 
 ```bash
 composer require mgrunder/redis-client-tester
@@ -48,9 +48,10 @@ and the `Mgrunder\PhpredisCommandFuzzer` namespace with
 `TestResult`, `Http\FuzzerEndpoint` to `Http\TesterEndpoint`, and
 `Cli\FuzzKillerApplication` to `Cli\ClientKillerApplication` in your code.
 
-The main binary is now `redis-client-tester`. All companion binaries use that
-prefix: `-coercive`, `-killer`, `-harness`, `-asan`, `-repros`, `-diff`,
-`-commands`, `-coverage`, `-subscribe`, and `-commandstats`. Update shell
+The main binary is now `bin/tester`. Companion binaries drop the
+`redis-client-tester-` prefix: `bin/coercive`, `bin/killer`, `bin/harness`,
+`bin/sapi`, `bin/asan`, `bin/repros`, `bin/diff`, `bin/commands`,
+`bin/coverage`, `bin/subscribe`, and `bin/commandstats`. Update shell
 scripts and process-manager commands, then run `composer install` to refresh
 autoloading. The old package names, classes, and binary names have no aliases.
 Fuzz-specific command interfaces such as `FuzzInterface` keep their names.
@@ -144,7 +145,7 @@ the arguments. Load one or more files explicitly with repeatable `--hook`
 options:
 
 ```bash
-bin/redis-client-tester \
+bin/tester \
     --include=local \
     --hook=hooks/no-msgpack.php \
     --steps=100000
@@ -270,7 +271,7 @@ or loaded automatically; only load files you trust.
 Load `hooks/adaptive.php` to enable Relay's adaptive count-min-sketch cache:
 
 ```bash
-bin/redis-client-tester --client=relay --hook=hooks/adaptive.php \
+bin/tester --client=relay --hook=hooks/adaptive.php \
     --hook-arg adaptive.width=12288 --hook-arg adaptive.depth=6
 ```
 
@@ -427,13 +428,13 @@ fuzzer uses:
 
 ```bash
 evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
-bin/redis-client-tester --port=6390 --seed=123 --hook=hooks/evilresp.php
+bin/tester --port=6390 --seed=123 --hook=hooks/evilresp.php
 ```
 
 For the simpler server-side `DEBUG CHAOS` preset:
 
 ```bash
-bin/redis-client-tester-coercive --port=6390 --seed=123 \
+bin/coercive --port=6390 --seed=123 \
     --hook hooks/evilresp.php \
     --hook-arg evilresp.mode=chaos \
     --hook-arg evilresp.chaos_min=5 \
@@ -578,7 +579,7 @@ For example, target only a nested length header through your disposable proxy:
 EVILRESP_MODES=MUTATE EVILRESP_PROBABILITY=0 EVILRESP_TOPOLOGY=0 \
 EVILRESP_MUTATIONS=ONE EVILRESP_FRAMING=LENGTH \
 EVILRESP_FRAMING_TARGET=root.0 EVILRESP_FRAMING_KIND=LONGER \
-bin/redis-client-tester --port=6390 --seed=123 --commands=mget --hook=hooks/evilresp.php
+bin/tester --port=6390 --seed=123 --commands=mget --hook=hooks/evilresp.php
 ```
 
 To exercise EOF and fragmentation independently of RESP mutation:
@@ -586,7 +587,7 @@ To exercise EOF and fragmentation independently of RESP mutation:
 ```bash
 EVILRESP_MODES=OFF EVILRESP_TOPOLOGY=0 EVILRESP_TRANSPORT_TRUNCATE=RANDOM \
 EVILRESP_TRANSPORT_CHUNKS=1,3,4 EVILRESP_TRANSPORT_PROBABILITY=5-20 \
-bin/redis-client-tester --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
+bin/tester --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
 ```
 
 To exercise connection failures with valid upstream replies:
@@ -594,7 +595,7 @@ To exercise connection failures with valid upstream replies:
 ```bash
 EVILRESP_MODES=OFF EVILRESP_TOPOLOGY=0 EVILRESP_FRAMING=OFF \
 EVILRESP_TRANSPORT_FAULT=CLOSE,RESET EVILRESP_TRANSPORT_PROBABILITY=1-5 \
-bin/redis-client-tester --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
+bin/tester --port=6390 --seed=123 --commands=get --hook=hooks/evilresp.php
 ```
 
 To explicitly test timeouts, use `EVILRESP_TRANSPORT_FAULT=STALL
@@ -612,14 +613,14 @@ PhpRedis runs replay exactly.
 
 ## CLI
 
-Composer installs `vendor/bin/redis-client-tester`,
-`vendor/bin/redis-client-tester-coercive`, `vendor/bin/redis-client-tester-killer`,
-`vendor/bin/redis-client-tester-harness`, `vendor/bin/redis-client-tester-sapi`,
-`vendor/bin/redis-client-tester-diff`,
-`vendor/bin/redis-client-tester-asan`, `vendor/bin/redis-client-tester-repros`,
-`vendor/bin/redis-client-tester-subscribe`,
-`vendor/bin/redis-client-tester-commands`,
-`vendor/bin/redis-client-tester-coverage`, and `vendor/bin/redis-client-tester-commandstats`.
+Composer installs `vendor/bin/tester`,
+`vendor/bin/coercive`, `vendor/bin/killer`,
+`vendor/bin/harness`, `vendor/bin/sapi`,
+`vendor/bin/diff`,
+`vendor/bin/asan`, `vendor/bin/repros`,
+`vendor/bin/subscribe`,
+`vendor/bin/commands`,
+`vendor/bin/coverage`, and `vendor/bin/commandstats`.
 The fuzzer's generic `--client` option selects one or more concrete client
 types. Append `:COUNT` to create multiple instances of a type; the count
 defaults to one and the total is limited to 10,000 clients. Each step selects
@@ -631,14 +632,14 @@ Add `--pick-client` to a mixed standalone/cluster `--client` list to detect the
 topology at `--host`/`--port` before creating workload clients. For example:
 
 ```bash
-bin/redis-client-tester-coercive --client=relay,relay-cluster --pick-client \
+bin/coercive --client=relay,relay-cluster --pick-client \
     --host=127.0.0.1 --port=7000 --steps=500 --seed=123456
 ```
 
 This keeps every matching client in its original order, preserving `:COUNT`.
 A list containing only standalone or only cluster clients is used unchanged,
 without probing, so deliberate topology mismatches remain possible. The flag is
-off by default and works with both `redis-client-tester` and `redis-client-tester-coercive`.
+off by default and works with both `tester` and `coercive`.
 The probe uses a separate PhpRedis connection with the supplied credentials and
 timeouts, reads `INFO cluster`, and closes before workload hooks or forks run.
 If detection fails, the invocation fails rather than guessing a topology.
@@ -648,7 +649,7 @@ harness, use `--port={port}` and omit `--seeds` so it defaults to that same targ
 
 ```bash
 # Standalone PhpRedis, fixed seed and focused command set
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=redis \
     --host=127.0.0.1 \
     --port=6379 \
@@ -657,21 +658,21 @@ vendor/bin/redis-client-tester \
     --commands='get*,set,h*'
 
 # Run the same workload across PhpRedis and Relay
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=redis,relay \
     --host=127.0.0.1 \
     --steps=500 \
     --seed=123456
 
 # Exercise client-count-sensitive paths with eight PhpRedis connections
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=redis:8 \
     --host=127.0.0.1 \
     --steps=5000 \
     --seed=123456
 
 # PhpRedis cluster
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=redis-cluster \
     --seeds=127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002 \
     --steps=500 \
@@ -699,7 +700,7 @@ reproduction scripts.
 
 ```bash
 # Eight concurrent PhpRedis workloads against a disposable target
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=redis \
     --forks=8 \
     --steps=10000 \
@@ -725,28 +726,28 @@ catalog. The subset is derived from the workload seed, so a reported seed
 reproduces the selection. Explicit names may be combined with `random` to add
 those scenarios to a random subset of the named choices.
 
-Use `vendor/bin/redis-client-tester --help` for all connection and run options. The
+Use `vendor/bin/tester --help` for all connection and run options. The
 help path does not connect to Redis.
 
-The fuzzer binaries (`redis-client-tester`, `redis-client-tester-coercive`, and
-`redis-client-tester-killer`) exit `0` when the run finished with nothing caught, `1`
+The fuzzer binaries (`tester`, `coercive`, and
+`killer`) exit `0` when the run finished with nothing caught, `1`
 when the run executed and something failed (a caught diagnostic, a differential
 divergence, or a failed scenario), and `78` for a *startup failure*: the command
 line was rejected, or it described an unusable configuration, so no command was
 executed. Only command-line handling produces `78` — a target that cannot be
 reached is a normal `1`, because the same invocation may well work against a
-reachable server. Supervisors, and `redis-client-tester-harness` in particular, use
+reachable server. Supervisors, and `harness` in particular, use
 that distinction to tell "this invocation is broken" from "this run found
 something".
 
 To inspect the command catalog without connecting to Redis, run
-`vendor/bin/redis-client-tester-commands`. It prints each command's type, category flags,
+`vendor/bin/commands`. It prints each command's type, category flags,
 and available client, raw-protocol, and proxy-sampling surfaces. Its optional
 `--commands` argument uses the same case-insensitive names, globs, flag filters,
 and exclusions as the fuzzer:
 
 ```bash
-vendor/bin/redis-client-tester-commands --commands='get*,-getex,@crossslot'
+vendor/bin/commands --commands='get*,-getex,@crossslot'
 ```
 
 The catalog listing includes every safety category so filters such as
@@ -764,14 +765,14 @@ Use `--invocation-mode=coercive` to exercise PHP's coercive scalar argument
 handling in the client extensions:
 
 ```bash
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --invocation-mode=coercive \
     --client=redis \
     --steps=1000 \
     --seed=123456
 ```
 
-`vendor/bin/redis-client-tester-coercive` is a convenience entrypoint with the same
+`vendor/bin/coercive` is a convenience entrypoint with the same
 coercive default; it accepts all normal fuzzer options. Passing
 `--invocation-mode=strict` overrides that default. The selected mode is stored
 in `TestResult::$configuration` and emitted as both metadata and the
@@ -779,10 +780,10 @@ in `TestResult::$configuration` and emitted as both metadata and the
 
 ### Disruption fuzzing
 
-`redis-client-tester-killer` repeatedly disrupts a running workload. `--mode` selects
+`killer` repeatedly disrupts a running workload. `--mode` selects
 what it disrupts each iteration:
 
-- `process` (default) discovers running `redis-client-tester` processes through Linux
+- `process` (default) discovers running `tester` processes through Linux
   `/proc` and sends each one a randomly chosen signal.
 - `client` connects to a Redis target and runs `CLIENT KILL` against its normal
   client connections.
@@ -790,13 +791,13 @@ what it disrupts each iteration:
 
 ```bash
 # Signal fuzzer workers (the default mode)
-vendor/bin/redis-client-tester-killer \
+vendor/bin/killer \
     --signals=SIGINT,SIGTERM,SIGQUIT \
     --sleep=0.8-1.2 \
     --rate=100.0
 
 # Kill clients on a disposable Redis (or cluster) target
-vendor/bin/redis-client-tester-killer \
+vendor/bin/killer \
     --mode=client \
     --host=127.0.0.1 \
     --port=6379 \
@@ -804,7 +805,7 @@ vendor/bin/redis-client-tester-killer \
     --sleep=0.5-1.0
 
 # Do both, signalling every worker but only killing a quarter of clients
-vendor/bin/redis-client-tester-killer \
+vendor/bin/killer \
     --mode=both \
     --host=127.0.0.1 --port=7000 \
     --rate=100 --client-rate=25
@@ -831,7 +832,7 @@ KILL` disconnects live connections.
 
 ### Subscription callback fuzzing
 
-`redis-client-tester-subscribe` exercises recursive subscriptions. With Relay, it also
+`subscribe` exercises recursive subscriptions. With Relay, it also
 runs the normal command catalog on the connection delivering the callback.
 `--no-fork` disables PhpRedis compatibility so Relay subscription confirmations
 (whose message is `null`) start the workload without a publisher process.
@@ -843,7 +844,7 @@ their callbacks.
 
 ```bash
 # Use only a disposable target.
-vendor/bin/redis-client-tester-subscribe --client=relay --no-fork \
+vendor/bin/subscribe --client=relay --no-fork \
     --host=127.0.0.1 --port=6379 --seed=42 --steps=100 \
     --commands=get,set,hget,hset --command-steps=3 --verbose \
     --script-log=/tmp/subscribe-42
@@ -879,17 +880,17 @@ callers supplying their own client construction and output destinations.
 
 ### Long-running PHP server testing
 
-Use `redis-client-tester-sapi serve` to keep one PHP server and its workers alive
+Use `sapi serve` to keep one PHP server and its workers alive
 across independent workload clients. Unlike the burst runner below, completing a
 client does not restart or stop the server. Both processes can run indefinitely.
 
 ```bash
 # Terminal 1: start the server; directory must not already exist.
-bin/redis-client-tester-sapi serve --directory=/tmp/relay-soak \
+bin/sapi serve --directory=/tmp/relay-soak \
     --workers=4 --php-ini=/path/to/php.ini --php-arg=-drelay.maxmemory=128m
 
 # Terminal 2: use only a disposable Redis target you have selected.
-bin/redis-client-tester-sapi client --directory=/tmp/relay-soak -- \
+bin/sapi client --directory=/tmp/relay-soak -- \
     --client=relay --port=6390 --commands=get,set,del --weight=get:3 \
     --steps=100 --keys=20 --seed=42
 ```
@@ -908,12 +909,12 @@ one explicitly by ID. `--directory` still works and cannot be combined with
 `--server`:
 
 ```bash
-bin/redis-client-tester-sapi client -- --client=relay --port=6390 --seed=42
-bin/redis-client-tester-sapi client --server=rct-sapi-1000-a1b2c3d4e5f6 -- \
+bin/sapi client -- --client=relay --port=6390 --seed=42
+bin/sapi client --server=rct-sapi-1000-a1b2c3d4e5f6 -- \
     --client=relay --port=6390 --seed=42
 ```
 
-With no workload options, even `redis-client-tester-sapi client` works (using
+With no workload options, even `sapi client` works (using
 the ordinary fuzzer defaults). Pointers remain after shutdown: stopped, missing
 or unresponsive servers fail instead of falling back to some other server.
 With multiple servers, latest means the last one to finish startup, not the
@@ -927,15 +928,15 @@ options and seeds. Each client sends one request at a time. All four client type
 engine: command and flag filters, weights, safety gates, serializers, compressors,
 TLS, hooks, differential/scenario settings, and invocation modes remain available.
 Persistent connections are enabled automatically. `--forks`, `--script-log`, and
-workload `--help` are reserved; use `redis-client-tester --help` for workload help.
+workload `--help` are reserved; use `tester --help` for workload help.
 
 Use `info` for extended details and `list` for all running servers discovered for
 the current user in the same temp directory:
 
 ```bash
-bin/redis-client-tester-sapi info                 # Latest server, including stopped ones
-bin/redis-client-tester-sapi info a1b2c3d4e5f6    # Tag from the TUI
-bin/redis-client-tester-sapi list
+bin/sapi info                 # Latest server, including stopped ones
+bin/sapi info a1b2c3d4e5f6    # Tag from the TUI
+bin/sapi list
 
 # The local client wrapper forwards these commands without starting a workload:
 ./local-scripts/sapi-saturate-client.sh info
@@ -1091,7 +1092,7 @@ These scripts live in the repository's ignored `local-scripts/` directory.
 
 ### PHP server workers and idle invalidations
 
-`redis-client-tester-sapi` runs workloads in real HTTP requests against a private
+`sapi` runs workloads in real HTTP requests against a private
 `PHP_CLI_SERVER_WORKERS=N php -S` server. Workers stay alive between requests,
 allowing Relay's RSHUTDOWN idle invalidation handler to run while other workers
 mutate the same Redis keys. This runner requires Linux, `/proc`, `/usr/bin/setsid`,
@@ -1099,7 +1100,7 @@ mutate the same Redis keys. This runner requires Linux, `/proc`, `/usr/bin/setsi
 
 ```bash
 # Use only a disposable Redis target you have selected.
-bin/redis-client-tester-sapi --workers=4 --concurrency=2 --requests=30 \
+bin/sapi --workers=4 --concurrency=2 --requests=30 \
     --idle-ms=100 --php-arg=-drelay.maxmemory=128m -- \
     --client=relay --port=6390 --commands=get,set,del --weight=get:3 \
     --steps=100 --keys=20 --seed=42
@@ -1183,10 +1184,10 @@ automatically.
 The existing harness can supervise whole server lifetimes:
 
 ```bash
-bin/redis-client-tester-harness --jobs=2 --runs=10 --steps=100 \
+bin/harness --jobs=2 --runs=10 --steps=100 \
     --php-args=-drelay.maxmemory=128m --port=6390 --run-timeout=120 \
     --capture=crashes,sanitizers,memory,timeouts,failures -- \
-    bin/redis-client-tester-sapi --workers=4 --requests=20 -- \
+    bin/sapi --workers=4 --requests=20 -- \
         --client=relay --port={port} --commands=get,set,del \
         --steps={steps} --seed={seed}
 ```
@@ -1214,14 +1215,14 @@ not reproduce, so retain the original capture and rr trace.
 
 ### Parallel fuzzing harness
 
-`redis-client-tester-harness` runs many `redis-client-tester*` workers in parallel behind an
+`harness` runs many fuzzer workers in parallel behind an
 AFL-style dashboard, and turns a crash, timeout, memory leak, or non-zero exit
 into a saved reproducer directory. It never interprets the workload itself — it
 launches the command you give it after `--`, substituting a few placeholders per
 run.
 
 ```bash
-vendor/bin/redis-client-tester-harness \
+vendor/bin/harness \
     --jobs 4 \
     --reduce steps \
     --rr --rr-chaos \
@@ -1231,7 +1232,7 @@ vendor/bin/redis-client-tester-harness \
     --php-ini "$(farmroot)/php.ini" --php-args -drelay.maxmemory=1g \
     --port 7000 7001 7002 7003 --isolate-ports \
     -- \
-    vendor/bin/redis-client-tester-coercive \
+    vendor/bin/coercive \
         --client=relay-cluster --seconds 2 --steps {steps} \
         --host=127.0.0.1 --port={port}
 ```
@@ -1280,9 +1281,9 @@ You can embed several expressions in a value, such as `{64-256}M`. Quote the
 option value to prevent your shell from expanding braces first:
 
 ```bash
-bin/redis-client-tester-harness --seed 123 \
+bin/harness --seed 123 \
     --php-args='-d relay.maxmemory={8m-128m} -d precision={10-17}' \
-    --php-ini fuzz.ini -- bin/redis-client-tester --steps '{steps}'
+    --php-ini fuzz.ini -- bin/tester --steps '{steps}'
 ```
 
 Expansion happens after argument splitting, so a chosen value is never parsed
@@ -1495,7 +1496,7 @@ extensions. At startup the harness checks that PHP starts cleanly under the
 preload, and skips the `core_pattern` check. `--asan` cannot be combined with
 `--rr`, and refuses a Valgrind `LD_PRELOAD`. `USE_TRACKED_ALLOC=1` keeps
 `memory_limit` enforced without Zend MM, so `memory` captures still work. `command.txt` holds the full `env` prefix, so it replays as-is.
-`bin/redis-client-tester-asan [--php PATH] [--asan-runtime FILE] -- <PHP args>` applies the
+`bin/asan [--php PATH] [--asan-runtime FILE] -- <PHP args>` applies the
 same environment to a single direct run.
 
 A run that exits `78` is treated as a startup failure rather than a finding: the
@@ -1566,7 +1567,7 @@ can exclude a known-problematic implementation while still varying the setting;
 for example, this selects every serializer except msgpack:
 
 ```bash
-vendor/bin/redis-client-tester --serializer=none,php,igbinary,json
+vendor/bin/tester --serializer=none,php,igbinary,json
 ```
 
 CSV subsets work for every option in the table. Unknown names and empty CSV
@@ -1579,10 +1580,10 @@ same `--seed` selects the same settings and the same command stream:
 
 ```bash
 # Reproducible: both runs pick the same serializer and compressor
-vendor/bin/redis-client-tester --serializer=random --compression=random --seed=123456
+vendor/bin/tester --serializer=random --compression=random --seed=123456
 
 # The generated seed is reported in the result; re-run with it to reproduce
-vendor/bin/redis-client-tester --serializer=random --steps=500
+vendor/bin/tester --serializer=random --steps=500
 ```
 
 The selected values are reported under `environment.clients[]` in the JSON
@@ -1635,7 +1636,7 @@ exits with a nonzero status.
 
 ### Browsing reproducers
 
-`bin/redis-client-tester-repros [DIR]` (default `reproducers`) is a read-only TUI over a
+`bin/repros [DIR]` (default `reproducers`) is a read-only TUI over a
 harness `--output` directory, one kind directory, or a single capture. It opens
 with a category page showing each captured flaw type (crash, failure, sanitizer,
 memory, leak, timeout) and its capture count. Enter opens the selected category;
@@ -1667,7 +1668,7 @@ written; gdb output is kept in memory.
 
 ### Differential stateful fuzzing: PhpRedis vs Relay
 
-`redis-client-tester-diff` hunts for behavioral differences rather than crashes. Its
+`diff` hunts for behavioral differences rather than crashes. Its
 invariant: given identical Redis state and an identical ordered sequence of
 client operations, PhpRedis and Relay should expose equivalent client-visible
 behavior and leave Redis in equivalent state. Both extensions must be loaded.
@@ -1779,7 +1780,7 @@ first version does not support cluster targets.
 
 ```bash
 # One worker, direct
-vendor/bin/redis-client-tester-diff --port 6379 --cases 1000 --keep-going \
+vendor/bin/diff --port 6379 --cases 1000 --keep-going \
     --serializer random --compression random --relay-cache random
 
 # Many workers under the harness. The harness appends --seed, and {steps} is
@@ -1787,8 +1788,8 @@ vendor/bin/redis-client-tester-diff --port 6379 --cases 1000 --keep-going \
 # the same case, so --reduce steps works. Either use the harness reducer
 # (with --no-dedupe, or its re-runs are skipped as duplicates) or the fuzzer's
 # own minimizer.
-vendor/bin/redis-client-tester-harness --jobs 8 --capture failures --steps 30 \
-    --port 6379 -- vendor/bin/redis-client-tester-diff --port={port} \
+vendor/bin/harness --jobs 8 --capture failures --steps 30 \
+    --port 6379 -- vendor/bin/diff --port={port} \
     --steps={steps} --cases 200
 
 php reproducers/differential/1a2b3c4d/reproduce.php
@@ -1805,7 +1806,7 @@ from unconstrained crash fuzzing. Enable it with an ordered client pair: the
 reference client first and the Relay subject second.
 
 ```bash
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=redis,relay \
     --differential \
     --differential-tolerance-ms=10 \
@@ -1859,7 +1860,7 @@ before the random command stream, use the run seed in their key namespace, and
 report every operation and postcondition in `stateful_outcomes`:
 
 ```bash
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=relay-cluster \
     --scenarios=transaction-exec,transaction-discard,watch-unwatch-discard \
     --steps=1000 \
@@ -2027,17 +2028,17 @@ The `connection` group is reserved for direct socket lifecycle operations;
 `CLIENT` needs only the admin opt-in. For a disposable target:
 
 ```bash
-bin/redis-client-tester --include=admin --commands=client --seed=42 --steps=100
+bin/tester --include=admin --commands=client --seed=42 --steps=100
 ```
 
 `crash` is never enabled by `all` and has to be named on its own. It selects
 the deliberately process-crashing catalog entry (`Relay\Relay::crash()`), which
 only exists in debug builds of the extension and segfaults the running process
 by design. It is useful for verifying that a supervisor such as
-`redis-client-tester-harness` captures reproducers (cores, `rr` traces) correctly:
+`harness` captures reproducers (cores, `rr` traces) correctly:
 
 ```bash
-bin/redis-client-tester --include=crash --commands=crash --steps=1
+bin/tester --include=crash --commands=crash --steps=1
 ```
 
 Because the safety gates and `--commands` filters are independent, a pattern
@@ -2083,7 +2084,7 @@ The HTTP adapter keeps both the cap and mutation permission server-controlled.
 For an explicitly selected disposable target, a focused workload can use:
 
 ```bash
-bin/redis-client-tester --commands=set,get --serializer=php --seed=42 \
+bin/tester --commands=set,get --serializer=php --seed=42 \
     --max-value-bytes=4097 --steps=1000
 # Add --allow-deserialization-mutations only when testing those known edge cases.
 ```
@@ -2178,13 +2179,13 @@ dataset changes, and do not change Relay's separate `fullscan()` generator.
 
 ## Command coverage
 
-Composer also installs `vendor/bin/redis-client-tester-coverage`, which reports the Redis
-commands the catalog does not yet exercise. Unlike `redis-client-tester`, it only
+Composer also installs `vendor/bin/coverage`, which reports the Redis
+commands the catalog does not yet exercise. Unlike `tester`, it only
 issues `COMMAND` and never writes, so it is safe to point at a server the
 fuzzer itself must not touch.
 
 ```bash
-vendor/bin/redis-client-tester-coverage --client=redis --port=6379
+vendor/bin/coverage --client=redis --port=6379
 ```
 
 ```
@@ -2241,7 +2242,7 @@ available in process through `Coverage\CoverageAnalyzer`, which accepts a
 
 ## Live command statistics
 
-`redis-client-tester-commandstats` is a resize-aware php-tui dashboard for the calls in
+`commandstats` is a resize-aware php-tui dashboard for the calls in
 `INFO commandstats`. Its first sample is the baseline, so every displayed value
 is a cumulative delta since the dashboard started rather than a server lifetime
 counter. Commands are sorted from most to least frequent and the dashboard packs
@@ -2249,10 +2250,10 @@ multiple command groups across wider terminals.
 
 ```bash
 # A standalone server through PhpRedis
-vendor/bin/redis-client-tester-commandstats --client=redis --host=127.0.0.1 --port=6379
+vendor/bin/commandstats --client=redis --host=127.0.0.1 --port=6379
 
 # Every connected primary and replica in a cluster, sampled through Relay
-vendor/bin/redis-client-tester-commandstats \
+vendor/bin/commandstats \
     --client=relay-cluster \
     --seeds=127.0.0.1:7000,127.0.0.1:7001 \
     --interval=0.5
@@ -2266,7 +2267,7 @@ leave the dashboard. Unreachable servers and partial or complete cluster
 outages are shown in the dashboard without terminating it; connections and
 topology discovery are retried every interval, and recovered nodes resume from
 their prior counters (or establish a new baseline when first discovered). Run
-`vendor/bin/redis-client-tester-commandstats --help` for all connection options.
+`vendor/bin/commandstats --help` for all connection options.
 
 ## Minimal HTTP shim
 
@@ -2371,11 +2372,11 @@ Use `--tls` with a server's TLS port. It applies to all selected client types,
 cluster discovery seeds, topology probes, and stateful peer connections:
 
 ```bash
-bin/redis-client-tester --client=redis,relay --host=localhost --port=6380 \
+bin/tester --client=redis,relay --host=localhost --port=6380 \
     --tls --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
     --commands=get,set,del --steps=1000 --seed=42
 
-bin/redis-client-tester --client=redis-cluster,relay-cluster \
+bin/tester --client=redis-cluster,relay-cluster \
     --seeds=localhost:7000,localhost:7001 --tls \
     --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
     --commands=get,set,del --steps=1000 --seed=42
@@ -2394,9 +2395,9 @@ Use TLS-enabled cluster ports and ensure discovered nodes advertise reachable
 TLS ports. Explicit `tls://` hosts/seeds are also accepted; `--tls` upgrades
 plain hosts and `tcp://` endpoints and rejects Unix sockets.
 
-The same flags work with `redis-client-tester-coercive`, `redis-client-tester-diff`,
-`redis-client-tester-subscribe`, `redis-client-tester-killer`, `redis-client-tester-coverage`, and
-`redis-client-tester-commandstats`. The differential runner encrypts its neutral RESP
+The same flags work with `coercive`, `diff`,
+`subscribe`, `killer`, `coverage`, and
+`commandstats`. The differential runner encrypts its neutral RESP
 connection as well as both client connections. Command statistics and killer
 connections use TLS for discovered nodes too.
 
@@ -2404,8 +2405,8 @@ For harness campaigns, put TLS flags on the worker command after `--`; the
 startup availability check inherits them:
 
 ```bash
-bin/redis-client-tester-harness --port 6380 -- \
-    bin/redis-client-tester --client=relay --host=localhost --port={port} \
+bin/harness --port 6380 -- \
+    bin/tester --client=relay --host=localhost --port={port} \
     --tls-options='{"cafile":"/absolute/path/ca.crt"}' \
     --commands=get,set,del --steps={steps} --seed={seed}
 ```
@@ -2512,7 +2513,7 @@ supplied Relay cluster options are ignored with a warning so the same invocation
 can be reused while switching between standalone and cluster clients.
 
 ```bash
-vendor/bin/redis-client-tester \
+vendor/bin/tester \
     --client=relay-cluster \
     --seeds=127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002 \
     --relay-failover=all \
@@ -2571,7 +2572,7 @@ At least one of `maxSteps` or `maxSeconds` must be greater than zero.
 
 ### Hot keys and read/write affinities
 
-All fuzzer entrypoints, including `bin/redis-client-tester-coercive`, support seeded
+All fuzzer entrypoints, including `bin/coercive`, support seeded
 key popularity and persistent read/write preferences. They are disabled by
 default, preserving the existing seeded selection sequence.
 
@@ -2663,8 +2664,8 @@ Command filters are case-insensitive:
 - `@common` selects a curated set of everyday Redis commands.
 - `-getex` or `-@scan` excludes a name or flag.
 - Within each group, positive filters are ORed, then negative filters are removed.
-- Repeated `--commands` arguments are ANDed in `redis-client-tester`,
-  `redis-client-tester-coercive`, and `redis-client-tester-commands`. Previously, only the last
+- Repeated `--commands` arguments are ANDed in `tester`,
+  `coercive`, and `commands`. Previously, only the last
   occurrence was used. A single occurrence keeps its existing behavior.
 - Exclusion-only groups narrow the selection; empty groups impose no restriction.
   An empty final selection reports an error.
@@ -2672,10 +2673,10 @@ Command filters are case-insensitive:
 For example, select common commands that either invalidate or read the cache:
 
 ```bash
-bin/redis-client-tester-coercive --commands='@common' --commands='@invalidating,@cached'
+bin/coercive --commands='@common' --commands='@invalidating,@cached'
 
 # Preview the same intersection without connecting to Redis:
-bin/redis-client-tester-commands --commands='@common' --commands='@invalidating,@cached'
+bin/commands --commands='@common' --commands='@invalidating,@cached'
 ```
 
 `@common` is a judgment-based workload category, not a
@@ -2683,7 +2684,7 @@ measured popularity ranking. It covers routine string reads/writes and counters,
 key deletion/existence/expiry, basic hash and set operations, list queues and
 ranges, basic sorted-set operations, scans, and ping. It includes `get`, `set`,
 `mget`, `mset`, `hgetall`, `hmset`, `sadd`, `smembers`, and `sismember`; use
-`bin/redis-client-tester-commands --commands=@common` for the full list. Membership does
+`bin/commands --commands=@common` for the full list. Membership does
 not enable safety categories: `blpop` and `brpop` still require blocking opt-in.
 
 Embedded callers keep the existing OR semantics of `commands` and can supply
@@ -2755,7 +2756,7 @@ is the interesting target. Every other multi-key command stays inside a single
 slot by default. Select them with the `@crossslot` filter:
 
 ```bash
-bin/redis-client-tester --client=redis-cluster --seeds=127.0.0.1:7000 --commands=@crossslot
+bin/tester --client=redis-cluster --seeds=127.0.0.1:7000 --commands=@crossslot
 ```
 
 The scope is opened by the runner, so an embedded caller driving commands
@@ -2792,7 +2793,7 @@ $configuration = new RunConfiguration(
 ```
 
 ```bash
-bin/redis-client-tester --client=redis-cluster --seeds=127.0.0.1:7000 \
+bin/tester --client=redis-cluster --seeds=127.0.0.1:7000 \
     --crossslot-chance=0.05 --steps=100000
 ```
 
@@ -2927,7 +2928,7 @@ which sees raw bitmap bytes it did not write, so `fast` runs against a
 serializing client will report the corresponding client warnings or errors.
 
 ```bash
-bin/redis-client-tester --client=relay --steps=100000 \
+bin/tester --client=relay --steps=100000 \
     --saturate-chance=0.05 --saturate-mode=fast \
     --saturate-target=16m --saturate-steps=10
 ```
@@ -2945,7 +2946,7 @@ $configuration = new RunConfiguration(
 ```
 
 ```bash
-bin/redis-client-tester --client=relay --steps=100000 \
+bin/tester --client=relay --steps=100000 \
     --saturate-chance=0.02 --saturate-target=100m --saturate-mode=seeded
 ```
 
@@ -2957,7 +2958,7 @@ rounded to the nearest byte. The resolved byte count is recorded in the run
 configuration and reproduction log.
 
 ```bash
-bin/redis-client-tester --client=relay --steps=100000 \
+bin/tester --client=relay --steps=100000 \
     --saturate-chance=0.02 --saturate-target=95.2% --saturate-mode=seeded
 ```
 
@@ -2972,11 +2973,11 @@ composer install
 find src tests bin -type f -exec php -l {} +
 vendor/bin/phpstan analyse --debug --no-progress
 vendor/bin/phpunit
-bin/redis-client-tester --help
-bin/redis-client-tester-harness --help
-bin/redis-client-tester-commands --help
-bin/redis-client-tester-coverage --help
-bin/redis-client-tester-commandstats --help
+bin/tester --help
+bin/harness --help
+bin/commands --help
+bin/coverage --help
+bin/commandstats --help
 ```
 
 PHPStan runs at level `max`. PHPUnit unit tests do not require a Redis server.

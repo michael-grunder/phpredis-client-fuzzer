@@ -113,7 +113,7 @@ final class CommandCatalogApplicationTest extends TestCase
         $status = (new CommandCatalogApplication($output, $error))->run(['--help']);
 
         self::assertSame(0, $status);
-        self::assertStringContainsString('redis-client-tester-commands', self::contents($output));
+        self::assertStringContainsString('commands', self::contents($output));
         self::assertSame('', self::contents($error));
     }
 

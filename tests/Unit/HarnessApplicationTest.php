@@ -27,7 +27,7 @@ final class HarnessApplicationTest extends TestCase
         $root = $this->workspace();
         mkdir($root, 0o700, true);
         $process = proc_open([
-            PHP_BINARY, dirname(__DIR__, 2) . '/bin/redis-client-tester-harness',
+            PHP_BINARY, dirname(__DIR__, 2) . '/bin/harness',
             '--no-core-check', '--no-tui', '--output=' . $root . '/campaign',
             '--runs=2', '--jobs=2', '--seed=42', '--steps=4', '--capture=failures', '--reduce=steps',
             '--', dirname(__DIR__) . '/Fixtures/sapi-server.php', 'harness', $mode, '{steps}',
@@ -137,7 +137,7 @@ final class HarnessApplicationTest extends TestCase
             '--php-ini', '/nonexistent/redis-client-tester.ini',
             '--runs', '1',
             '--',
-            'bin/redis-client-tester', '--steps', '{steps}',
+            'bin/tester', '--steps', '{steps}',
         ]);
 
         self::assertSame(1, $status);
@@ -158,7 +158,7 @@ final class HarnessApplicationTest extends TestCase
             '--no-core-check',
             '--runs', '1',
             '--',
-            'bin/redis-client-tester', '--steps', '{steps}',
+            'bin/tester', '--steps', '{steps}',
         ]);
 
         self::assertSame(1, $status);
@@ -185,7 +185,7 @@ final class HarnessApplicationTest extends TestCase
         $status = (new HarnessApplication(self::stream(), $error))->run([
             '--no-core-check', '--port', '6379', '7000',
             '--output', $root . '/out', '--run-log', $root . '/runs.log',
-            '--', 'bin/redis-client-tester', '--port={port}', '--host=' . $root . '/missing.sock',
+            '--', 'bin/tester', '--port={port}', '--host=' . $root . '/missing.sock',
         ]);
 
         self::assertSame(1, $status);

@@ -185,7 +185,7 @@ final class TuiView implements View
 
         return BlockWidget::default()
             ->borders(Borders::ALL)
-            ->titles(Title::fromString(' redis-client-tester-harness '))
+            ->titles(Title::fromString(' harness '))
             ->widget(ParagraphWidget::fromLines(
                 ...array_map(static fn (string $line): Line => Line::parse($line), $lines),
             ));

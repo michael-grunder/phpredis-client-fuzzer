@@ -246,7 +246,7 @@ final class ClientKillerApplication
                 }
             }
         } catch (\Throwable $throwable) {
-            $this->write('redis-client-tester-killer: ' . $throwable->getMessage() . "\n", true);
+            $this->write('killer: ' . $throwable->getMessage() . "\n", true);
             return $configured ? ExitCode::FAILURE : ExitCode::STARTUP;
         }
     }
@@ -258,7 +258,7 @@ final class ClientKillerApplication
     {
         $pids = ($this->pidFinder)();
         if ($pids === []) {
-            $this->log($started, 'No redis-client-tester processes found');
+            $this->log($started, 'No tester processes found');
         }
 
         foreach ($pids as $pid) {
@@ -456,7 +456,7 @@ final class ClientKillerApplication
                 static fn (string $argument): bool => $argument !== '',
             );
             foreach ($arguments as $argument) {
-                if (basename($argument) === 'redis-client-tester') {
+                if (basename($argument) === 'tester') {
                     $pids[] = $pid;
                     break;
                 }
@@ -688,7 +688,7 @@ final class ClientKillerApplication
         $summary = $nodes === []
             ? 'no Redis nodes'
             : count($nodes) . ' Redis node(s): ' . implode(', ', $nodes);
-        $this->write("redis-client-tester-killer: targeting {$summary}\n");
+        $this->write("killer: targeting {$summary}\n");
     }
 
     private function logSignalFailure(float $started, string $signal, int $pid): void
@@ -719,14 +719,14 @@ final class ClientKillerApplication
     }
 
     private const HELP = <<<'HELP'
-redis-client-tester-killer - randomly disrupt a running redis-client-tester workload
+killer - randomly disrupt a running tester workload
 
 Usage:
-  redis-client-tester-killer [options]
+  killer [options]
 
 Modes:
   --mode=MODE              What to disrupt each iteration (default: process)
-                             process  send signals to redis-client-tester workers
+                             process  send signals to tester workers
                              client   run CLIENT KILL against a Redis target
                              both     do both every iteration
 
@@ -756,7 +756,7 @@ Shared options:
   --help                     Show this help
 
 Process discovery finds processes with a command-line argument whose basename is
-exactly "redis-client-tester" and requires Linux /proc and PHP's POSIX extension.
+exactly "tester" and requires Linux /proc and PHP's POSIX extension.
 Client killing requires PHP's redis extension. Every action, skipped target,
 failure, empty scan, and sleep is logged with elapsed time. The utility runs
 until stopped.

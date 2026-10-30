@@ -154,7 +154,7 @@ final class SubscribeApplication
     private function help(): string
     {
         return <<<'HELP'
-Usage: redis-client-tester-subscribe [--client=redis|redis-cluster|relay|relay-cluster]
+Usage: subscribe [--client=redis|redis-cluster|relay|relay-cluster]
     [--host=HOST] [--port=N] [--seeds=HOST:PORT,...] [--steps=N] [--seed=N]
     [--no-fork] [--commands=PATTERNS] [--command-steps=N] [--script-log=PREFIX] [--verbose]
 

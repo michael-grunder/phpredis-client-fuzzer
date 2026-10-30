@@ -14,12 +14,12 @@ unset FAILOVER
 mkdir "$workspace/bin" "$workspace/scripts" "$workspace/local-scripts"
 cp "$root/scripts/sapi-campaign.sh" "$workspace/scripts/"
 cp "$root/local-scripts/asan-sapi.sh" "$root/local-scripts/asan-saturate-sapi.sh" "$workspace/local-scripts/"
-cat > "$workspace/bin/redis-client-tester-harness" <<'STUB'
+cat > "$workspace/bin/harness" <<'STUB'
 #!/usr/bin/env bash
 [[ $PWD == "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)" ]] || exit 1
 printf '%s\0' "$@"
 STUB
-chmod +x "$workspace/bin/redis-client-tester-harness"
+chmod +x "$workspace/bin/harness"
 
 contains() {
     local wanted=$1 item
@@ -66,7 +66,7 @@ capture() {
             esac
         fi
     done
-    [[ $stage == 2 && ${sapi[0]} == bin/redis-client-tester-sapi ]]
+    [[ $stage == 2 && ${sapi[0]} == bin/sapi ]]
     contains --asan "${harness[@]}"
     expect_option php-ini conf.d/php.ini "${harness[@]}"
     contains -n "${harness[@]}"

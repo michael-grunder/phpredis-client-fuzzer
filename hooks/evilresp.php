@@ -15,7 +15,7 @@ declare(strict_types=1);
  * turns that on for every client the fuzzer uses:
  *
  *     evilresp --proxy 127.0.0.1:6379 --listen 127.0.0.1:6390
- *     bin/redis-client-tester --port=6390 --seed=123 --hook=hooks/evilresp.php
+ *     bin/tester --port=6390 --seed=123 --hook=hooks/evilresp.php
  *
  * To use the server's simpler CHAOS preset, add:
  *     --hook-arg evilresp.mode=chaos --hook-arg evilresp.chaos_min=5

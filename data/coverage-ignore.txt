@@ -1,4 +1,4 @@
-# Default ignore patterns for bin/redis-client-tester-coverage.
+# Default ignore patterns for bin/coverage.
 #
 # One shell glob per line, matched case-insensitively against a server command
 # name with fnmatch(). Blank lines and lines starting with "#" are ignored.
