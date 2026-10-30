@@ -42,6 +42,10 @@ final class TuiView implements View
 
     public function start(): void
     {
+        if ($this->active) {
+            return;
+        }
+
         $this->terminal = Terminal::new();
         $this->display = DisplayBuilder::default(PhpTermBackend::new($this->terminal))
             ->fullscreen()
@@ -53,6 +57,7 @@ final class TuiView implements View
             Actions::cursorHide(),
         );
         $this->active = true;
+        register_shutdown_function($this->stop(...));
     }
 
     public function render(Stats $stats, DashboardState $state): void
@@ -108,6 +113,7 @@ final class TuiView implements View
 
         $this->terminal->execute(
             Actions::alternateScreenDisable(),
+            Actions::printString("\033c"),
             Actions::cursorShow(),
         );
         $this->terminal->disableRawMode();

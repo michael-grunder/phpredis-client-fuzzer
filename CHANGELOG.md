@@ -165,6 +165,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Restore the harness's original terminal settings by avoiding a second TUI
+  initialization; emit a terminal reset on exit and clean up on PHP shutdown.
+
 - Authenticate SAPI requests before returning their run token, and scan server
   diagnostics without loading the entire log into memory.
 

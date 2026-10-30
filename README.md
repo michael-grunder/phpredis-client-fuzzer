@@ -1533,7 +1533,9 @@ startup failure). The harness also cleans up descendants after ordinary runs
 and on PHP shutdown. Run and time limits stop new launches while existing runs
 finish; reaching the reproducer limit stops any remaining inferiors.
 The TUI is used when stdout and stdin are a TTY; otherwise, or with `--no-tui`,
-the harness prints a line per finished run and a periodic summary. The dashboard
+the harness prints a line per finished run and a periodic summary. On exit, the
+TUI emits a terminal reset sequence and restores the original terminal settings,
+including during PHP shutdown. The dashboard
 tallies failures, crashes, timeouts, reproducers, and reductions, plus a `leaks`
 count whenever `leaks` is in `--capture`, a `memory` count when `memory` is
 selected, a `failed repros` count once a capture
