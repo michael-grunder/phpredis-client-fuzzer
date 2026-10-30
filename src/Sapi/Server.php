@@ -83,7 +83,7 @@ final class Server
         $stats = glob('/proc/[0-9]*/stat') ?: [];
         foreach ($stats as $path) {
             $stat = @file_get_contents($path);
-            if ($stat === false) {
+            if ($stat === false || $stat === '') {
                 continue;
             }
             $fields = explode(' ', substr($stat, (int) strrpos($stat, ')') + 2));
@@ -378,7 +378,7 @@ final class Server
             } elseif ($pid === $this->pid && !$status['running']) {
                 $this->observe($pid, 'exited', $status['signaled'] || $status['exitcode'] < 0 ? null : $status['exitcode'],
                     $status['signaled'] ? $status['termsig'] : null, null, null, 'proc_get_status');
-            } elseif ($stat === false) {
+            } elseif ($stat === false || $stat === '') {
                 $this->observe($pid, 'missing', null, null, null, null, '/proc/stat unavailable');
             } elseif (!isset($this->states[$pid])) {
                 $this->observe($pid, 'running', null, null, null, null, '/proc/stat');
@@ -516,7 +516,8 @@ final class Server
     {
         foreach ($this->pids as $pid => $_) {
             $stat = @file_get_contents('/proc/' . $pid . '/stat');
-            if ($stat !== false && substr($stat, (int) strrpos($stat, ')') + 2, 1) !== 'Z') {
+            // /proc can return an empty read while a zombie is being reaped.
+            if ($stat !== false && $stat !== '' && substr($stat, (int) strrpos($stat, ')') + 2, 1) !== 'Z') {
                 return true;
             }
         }

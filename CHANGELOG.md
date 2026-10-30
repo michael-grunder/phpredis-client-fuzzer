@@ -169,6 +169,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Ignore empty `/proc` status reads during SAPI worker reaping so successful
+  shutdowns do not become false timeouts. Only label a reduction as minimized
+  when its final replay confirms the same failure; retain unconfirmed evidence.
+  Distinguish child-reported timeouts from an expired harness deadline in metadata.
+
 - Restore the harness's original terminal settings by avoiding a second TUI
   initialization; emit a terminal reset on exit and clean up on PHP shutdown.
 

@@ -8,6 +8,7 @@ use Mgrunder\RedisClientTester\Harness\FailureClassifier;
 use Mgrunder\RedisClientTester\Harness\Fs;
 use Mgrunder\RedisClientTester\Sapi\Server;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 
 final class SapiServerTest extends TestCase
@@ -59,6 +60,19 @@ final class SapiServerTest extends TestCase
             self::assertStringContainsString('X-Fuzzer-Pid:', $response);
         }
         $this->assertStopped();
+    }
+
+    #[RunInSeparateProcess]
+    public function testEmptyProcStatDoesNotKeepAReapedWorkerAlive(): void
+    {
+        require dirname(__DIR__) . '/Fixtures/sapi-empty-stat.php';
+        $server = new Server($this->directory, 2, 1, 0, 1);
+        $pids = new \ReflectionProperty($server, 'pids');
+        $alive = new \ReflectionMethod($server, 'hasLiveWorkers');
+        $pids->setValue($server, [getmypid() => true]);
+        self::assertTrue($alive->invoke($server));
+        $pids->setValue($server, [-1 => true]);
+        self::assertFalse($alive->invoke($server));
     }
 
     public function testSeededScriptsAreStableAndStartupErrorsPropagateWithoutRedis(): void

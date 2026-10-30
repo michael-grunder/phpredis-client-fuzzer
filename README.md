@@ -1356,12 +1356,13 @@ concurrency is capped at the number of ports.
   precedence over memory errors, which take precedence over leak reports.
   Use `--capture crashes,memory` to capture these alongside crashes. A SIGKILL
   alone is not classified as memory exhaustion without an allocation diagnostic.
-- `timeouts` — the run was still going when it hit `--run-timeout` and the
-  harness killed it. Termination escalates: `SIGTERM` first for a clean exit,
+- `timeouts` — the run exceeded `--run-timeout`, or a supervised SAPI deadline
+  expired (exit 124). Harness termination escalates: `SIGTERM` first for a clean exit,
   then `SIGKILL` after a short grace period if it is still alive. The
   reproducer's `meta.json` records `run_timeout_seconds` and `kill_signal`
-  (`SIGTERM` or `SIGKILL`, so a genuinely wedged process is visible). Runs only
-  time out when `--run-timeout` is set.
+  (`SIGTERM` or `SIGKILL`, so a genuinely wedged process is visible) when the
+  harness deadline expires. Both fields are null for a child-reported timeout,
+  which can occur even without `--run-timeout`.
 - `failures` — any other non-zero exit (the fuzzer's own "caught a diagnostic"
   exit).
 
@@ -1471,6 +1472,10 @@ With `--reduce steps` a capture is followed by a binary search for the smallest
 port; the minimised re-run's artifacts are written to
 `<repro>/minimized/`. The template must contain `{steps}` for this to work, and
 the search is bounded by `--reduce-timeout` seconds.
+The final replay must reproduce the same failure before it is counted or saved
+as minimized. If confirmation fails, the original capture remains intact and
+the trial and final replay artifacts stay in their work directories; the harness
+prints their paths.
 
 The dashboard keeps refreshing and accepts quit keys during reduction re-runs,
 trace finalization, and process termination waits. Reduction remains sequential:

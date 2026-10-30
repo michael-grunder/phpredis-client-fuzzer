@@ -25,6 +25,19 @@ final class HarnessJobRunnerTest extends TestCase
 {
     private string $root = '';
 
+    public function testChildTimeoutDoesNotClaimTheHarnessDeadlineExpired(): void
+    {
+        $root = $this->workspace();
+        $runner = $this->runner($root, ['--capture=timeouts', '--run-timeout=600'], $this->child(124));
+        $job = $this->await($runner, $runner->spawn(0, null, 42));
+        self::assertSame(JobStatus::TimedOut, $job->status);
+        self::assertNotNull($job->reproDir);
+        $meta = $this->meta($job->reproDir);
+        self::assertTrue($meta['timed_out']);
+        self::assertNull($meta['run_timeout_seconds']);
+        self::assertNull($meta['kill_signal']);
+    }
+
     public function testCleanupKillsDetachedSapiWorkersAndKeepsArtifacts(): void
     {
         $root = $this->workspace();

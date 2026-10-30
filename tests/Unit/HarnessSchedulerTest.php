@@ -22,6 +22,59 @@ use PHPUnit\Framework\TestCase;
 
 final class HarnessSchedulerTest extends TestCase
 {
+    /** @return iterable<string, array{int}> */
+    public static function unconfirmedReplays(): iterable
+    {
+        yield 'passing replay' => [0];
+        yield 'different failure' => [124];
+    }
+
+    #[RunInSeparateProcess]
+    #[DataProvider('unconfirmedReplays')]
+    public function testFinalReplayMustConfirmTheReduction(int $exit): void
+    {
+        $root = sys_get_temp_dir() . '/scheduler-unconfirmed-' . getmypid();
+        mkdir($root);
+        file_put_contents($root . '/child.php', <<<'PHP'
+<?php
+$counter = __DIR__ . '/count';
+$count = is_file($counter) ? (int) file_get_contents($counter) : 0;
+file_put_contents($counter, (string) ($count + 1));
+echo "replay {$count}\n";
+exit($count === 3 ? (int) $argv[1] : 1);
+PHP);
+        $command = [$root . '/child.php', (string) $exit, '{steps}'];
+        $options = HarnessOptions::parse([
+            '--jobs=1', '--runs=1', '--steps=4', '--seed=42', '--capture=failures', '--reduce=steps',
+            '--', ...$command,
+        ]);
+        $store = new ReproStore($root . '/out', new CorePattern('core.%e.%p', false), $root);
+        $runner = new JobRunner($options, PHP_BINARY, [], $root, new CommandTemplate($command),
+            $store, $root . '/work', null, PHP_VERSION);
+        $stats = new Stats();
+        $view = $this->createStub(View::class);
+        $notes = [];
+        $view->method('note')->willReturnCallback(static function (string $note) use (&$notes): void {
+            $notes[] = $note;
+        });
+        $scheduler = new Scheduler($options, $root . '/out', $runner, new Reducer($runner, 10), $store,
+            new PortPool([], 'cycle', true), $stats, $view, PHP_VERSION);
+        try {
+            self::assertSame(1, $scheduler->run());
+            self::assertSame(4, $runner->launched());
+            self::assertSame(0, $stats->reductions);
+            self::assertStringContainsString('Final reduction replay did not reproduce', implode("\n", $notes));
+            $captures = glob($root . '/out/failure/*') ?: [];
+            self::assertCount(1, $captures);
+            self::assertDirectoryDoesNotExist($captures[0] . '/minimized');
+            self::assertSame("replay 2\n", file_get_contents($root . '/work/reduce-00003/stdout.log'));
+            self::assertSame("replay 3\n", file_get_contents($root . '/work/reduce-00004/stdout.log'));
+        } finally {
+            $runner->cleanup();
+            Fs::removeTree($root);
+        }
+    }
+
     /** @return iterable<string, array{string, int, int, int}> */
     public static function shutdownPhases(): iterable
     {

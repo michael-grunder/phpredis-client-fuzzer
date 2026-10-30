@@ -520,7 +520,7 @@ final class JobRunner
             'exit_code' => $verdict->exitCode,
             'crashed' => $verdict->crashed,
             'timed_out' => $verdict->timedOut,
-            'run_timeout_seconds' => $verdict->timedOut ? $this->options->runTimeout : null,
+            'run_timeout_seconds' => $job->timedOut ? $this->options->runTimeout : null,
             'kill_signal' => $job->killSignal,
             'kill_signal_name' => $job->killSignal !== null
                 ? FailureClassifier::signalLabel($job->killSignal)

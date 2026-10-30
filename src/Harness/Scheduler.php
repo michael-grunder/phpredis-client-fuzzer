@@ -358,6 +358,12 @@ final class Scheduler
             $this->options->rr,
         );
         $this->heartbeat();
+        if (!$result['outcome']->verdict->matches($final->verdict)) {
+            $job->note = $original . ' — reduction unconfirmed';
+            $this->view->note('Final reduction replay did not reproduce; retained trial and replay artifacts in '
+                . $result['outcome']->workDir . ' and ' . $final->workDir);
+            return;
+        }
         $this->store->addMinimized($job->reproDir, $final, $result['steps']);
         $job->reducedSteps = $result['steps'];
         $this->runner->cleanupOutcome($final);
