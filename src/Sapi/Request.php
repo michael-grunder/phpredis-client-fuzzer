@@ -25,6 +25,23 @@ final class Request
     /** @param (\Closure(): int) $signal */
     public function run(string $path, string $capture, \Closure $signal, bool $output = true): int
     {
+        $exchange = $this->exchange($path, $capture, $signal, $output);
+        foreach ($exchange as $socket) {
+            $read = [$socket];
+            $write = $except = [];
+            @stream_select($read, $write, $except, 0, 20000);
+        }
+        return $exchange->getReturn();
+    }
+
+    /**
+     * Resume when readable, or every 20 ms to check deadlines and signals.
+     * Releasing the generator closes the connection and retains partial capture.
+     * @param (\Closure(): int) $signal
+     * @return \Generator<int, resource, void, int>
+     */
+    public function exchange(string $path, string $capture, \Closure $signal, bool $output = true): \Generator
+    {
         if (preg_match('~\A[a-zA-Z0-9/_.-]+\z~', $path) !== 1) {
             throw new \InvalidArgumentException('invalid request path');
         }
@@ -37,27 +54,23 @@ final class Request
         try {
             $socket = @stream_socket_client('tcp://' . $this->address, $errno, $error, min(1.0, $this->timeout));
             if ($socket === false) {
-                throw new \RuntimeException("HTTP connection failed: {$error}");
+                throw new \RuntimeException("HTTP connection failed for {$path}: {$error}");
             }
             stream_set_blocking($socket, false);
             $request = "GET /{$path} HTTP/1.0\r\nHost: {$this->address}\r\nX-Fuzzer-Token: {$this->token}\r\nConnection: close\r\n\r\n";
             if (fwrite($socket, $request) !== strlen($request)) {
-                throw new \RuntimeException('cannot send complete HTTP request');
+                throw new \RuntimeException('cannot send complete HTTP request: ' . $path);
             }
             while (!feof($socket)) {
                 if (($received = $signal()) !== 0) {
                     return 128 + $received;
                 }
                 if (microtime(true) >= $deadline) {
-                    throw new \RuntimeException('HTTP request timed out; partial response retained', ExitCode::TIMEOUT);
+                    throw new \RuntimeException('HTTP request timed out; partial response retained: ' . $capture, ExitCode::TIMEOUT);
                 }
-                $read = [$socket];
-                $write = $except = [];
-                if (@stream_select($read, $write, $except, 0, 20000) !== 1) {
-                    continue;
-                }
+                yield $socket;
                 if (stream_copy_to_stream($socket, $response, 65536) === false) {
-                    throw new \RuntimeException('cannot capture HTTP response');
+                    throw new \RuntimeException('cannot capture HTTP response: ' . $capture);
                 }
             }
             rewind($response);
@@ -65,7 +78,7 @@ final class Request
             while (($line = fgets($response, 8192)) !== false && $line !== "\r\n") {
                 $headers .= $line;
                 if (strlen($headers) > 65536) {
-                    throw new \RuntimeException('oversized HTTP headers');
+                    throw new \RuntimeException('oversized HTTP headers: ' . $capture);
                 }
             }
             if ($output) {

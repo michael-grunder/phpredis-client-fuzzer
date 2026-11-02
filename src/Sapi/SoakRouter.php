@@ -45,9 +45,9 @@ register_shutdown_function(static function () use ($event, $started, $record): v
         $error = error_get_last()['type'] ?? null;
         $record($event + ['event' => 'finish', 'elapsed' => microtime(true) - $started,
             'status' => http_response_code(), 'exit' => $exit, 'error_type' => $error]);
-        if ($exit === 0 && http_response_code() === 200
+        if (in_array($exit, [0, 1], true) && http_response_code() === 200
             && !in_array($error, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR], true)) {
-            if (file_put_contents(__DIR__ . $event['path'] . '.executed', "0\n", LOCK_EX) !== 2) {
+            if (file_put_contents(__DIR__ . $event['path'] . '.executed', $exit . "\n", LOCK_EX) !== 2) {
                 throw new RuntimeException('cannot confirm request completion');
             }
         }

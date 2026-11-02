@@ -135,9 +135,16 @@ final class SapiSoakTest extends TestCase
         $connection = $this->startServer(extra: ['--keep-work']);
         $before = file_get_contents($this->directory . '/server/pids.txt');
         $first = $this->client('first');
-        $second = $this->client('second');
+        $second = $this->client('second', extra: ['--no-tui']);
         self::assertSame(0, proc_close($first));
         self::assertSame(0, proc_close($second));
+        foreach (['first', 'second'] as $name) {
+            $output = (string) file_get_contents($this->directory . '/' . $name . '.out');
+            self::assertStringContainsString('Request 1 seed=42', $output);
+            self::assertStringContainsString('Completed request 3 exit=0', $output);
+            self::assertStringContainsString('cli-server:12', $output);
+            self::assertStringNotContainsString("\033[", $output);
+        }
         self::assertSame($before, file_get_contents($this->directory . '/server/pids.txt'));
         $clients = glob($this->directory . '/server/clients/*') ?: [];
         self::assertCount(2, $clients);
@@ -184,6 +191,185 @@ final class SapiSoakTest extends TestCase
         self::assertSame(0, proc_close($this->client('keep', extra: ['--keep-work'])));
         self::assertCount(3, glob($this->directory . '/server/clients/*/0/*.calls.php') ?: []);
         self::assertCount(3, glob($this->directory . '/server/clients/*/0/*.php.http') ?: []);
+        $this->stopServer();
+    }
+
+    public function testJobsRefillBeforeSlowRequestsFinishAndPreserveSeeds(): void
+    {
+        $this->environment['SAPI_TEST_OUTCOME'] = 'staggered';
+        $this->startServer();
+        self::assertSame(0, proc_close($this->client('concurrent', extra: [
+            '--jobs', '2', '--requests=6', '--idle-ms=60000', '--keep-work',
+        ])));
+        $events = file($this->directory . '/server/requests.jsonl') ?: [];
+        self::assertCount(12, $events);
+        $active = $peak = 0;
+        $firstFinished = false;
+        foreach ($events as $event) {
+            $start = str_contains($event, '"event":"start"');
+            $active += $start ? 1 : -1;
+            $peak = max($peak, $active);
+            if (str_contains($event, 'request-00000001-') && !$start) {
+                $firstFinished = true;
+            }
+            if (str_contains($event, 'request-00000003-') && $start) {
+                self::assertFalse($firstFinished, 'refill must not wait for the slow first request');
+            }
+        }
+        self::assertSame(2, $peak);
+        self::assertSame(0, $active);
+        $parallel = array_map(basename(...), glob($this->directory . '/server/clients/*/0/*.php.http') ?: []);
+        self::assertSame(0, proc_close($this->client('serial', extra: ['--requests=6', '--keep-work'])));
+        $clients = glob($this->directory . '/server/clients/*') ?: [];
+        self::assertCount(2, $clients);
+        foreach ($clients as $client) {
+            self::assertSame($parallel, array_map(basename(...), glob($client . '/0/*.php.http') ?: []));
+        }
+        $this->stopServer();
+    }
+
+    public function testJobsRangeRepeatsItsRampAndCleansSuccessfulRequests(): void
+    {
+        $this->startServer(extra: ['--workers=4']);
+        $schedules = [];
+        foreach (['ramp-one', 'ramp-two'] as $name) {
+            self::assertSame(0, proc_close($this->client($name, extra: ['--jobs=1-4', '--requests=24'])));
+            self::assertSame([], glob($this->directory . '/server/clients/*'));
+            $active = $completed = $peak = 0;
+            $targets = [];
+            foreach (file($this->directory . '/' . $name . '.out') ?: [] as $line) {
+                if (preg_match('/^Request .* jobs=([0-9]+)/', $line, $match) === 1) {
+                    $target = (int) $match[1];
+                    $targets[] = $target;
+                    self::assertSame([1, 2, 3, 4, 3, 2][$completed % 6], $target);
+                    self::assertLessThanOrEqual($target, ++$active);
+                    $peak = max($peak, $active);
+                } elseif (str_starts_with($line, 'Completed request ')) {
+                    $active--;
+                    $completed++;
+                }
+            }
+            self::assertSame(24, $completed);
+            self::assertSame(0, $active);
+            self::assertSame(4, $peak);
+            $schedules[] = $targets;
+        }
+        self::assertSame($schedules[0], $schedules[1]);
+        $this->stopServer();
+    }
+
+    public function testRequestLimitCanBeSmallerThanJobs(): void
+    {
+        $this->startServer();
+        self::assertSame(0, proc_close($this->client('limited', extra: ['--jobs=4', '--requests=2'])));
+        self::assertCount(4, file($this->directory . '/server/requests.jsonl') ?: []);
+        self::assertSame([], glob($this->directory . '/server/clients/*'));
+        $this->stopServer();
+    }
+
+    public function testContinueOnFailureRetainsEvidenceAfterLaterSuccesses(): void
+    {
+        $this->environment['SAPI_TEST_OUTCOME'] = 'fail-first';
+        $this->startServer();
+        self::assertSame(1, proc_close($this->client('continue', extra: [
+            '--continue-on-failure', '--jobs=1-4', '--requests=8',
+        ])));
+        self::assertCount(16, file($this->directory . '/server/requests.jsonl') ?: []);
+        $clients = glob($this->directory . '/server/clients/*') ?: [];
+        self::assertCount(1, $clients);
+        $responses = glob($clients[0] . '/0/*.php.http') ?: [];
+        self::assertCount(1, $responses);
+        self::assertStringContainsString('request-00000001-seed-42', $responses[0]);
+        $script = substr($responses[0], 0, -5);
+        self::assertFileExists($script);
+        self::assertFileExists(substr($script, 0, -4) . '.calls.php');
+        self::assertSame("1\n", file_get_contents($script . '.executed'));
+        self::assertStringContainsString('"exit":1', (string) file_get_contents($clients[0] . '/exit.json'));
+        self::assertStringContainsString('"continue_on_failure": true', (string) file_get_contents($clients[0] . '/workload.json'));
+        self::assertStringContainsString('failed; continuing; artifacts retained:', (string) file_get_contents($this->directory . '/continue.err'));
+        $this->stopServer();
+    }
+
+    /** @return iterable<string, array{string, int}> */
+    public static function fatalClientFailures(): iterable
+    {
+        yield 'startup error' => ['startup', 78];
+        yield 'timeout' => ['timeout', 124];
+        yield 'fatal after success headers' => ['fatal-after-headers', 1];
+        yield 'fatal after failure headers' => ['fatal-after-failure', 1];
+    }
+
+    #[DataProvider('fatalClientFailures')]
+    public function testContinueOnFailureStillStopsOnUnconfirmedOrBrokenRequests(string $mode, int $code): void
+    {
+        $this->environment['SAPI_TEST_OUTCOME'] = $mode;
+        $this->startServer();
+        self::assertSame($code, proc_close($this->client('stop', extra: [
+            '--continue-on-failure', '--request-timeout=0.3',
+        ])));
+        self::assertCount(1, glob($this->directory . '/server/clients/*/0/*.php.http') ?: []);
+        self::assertStringNotContainsString('Completed request 2', (string) file_get_contents($this->directory . '/stop.out'));
+        $this->stopServer();
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function invalidJobs(): iterable
+    {
+        foreach (['0', '-1', '2-1', '0-4', '129', '1-129', '1-', '1-2-3', '1.5', '999999999999999999999'] as $jobs) {
+            yield $jobs => [$jobs];
+        }
+    }
+
+    #[DataProvider('invalidJobs')]
+    public function testInvalidJobsAreRejectedBeforeServerDiscovery(string $jobs): void
+    {
+        $process = $this->launch('invalid', [dirname(__DIR__, 2) . '/bin/sapi', 'client', '--jobs=' . $jobs]);
+        self::assertSame(78, proc_close($process));
+        self::assertStringContainsString('--jobs must be', (string) file_get_contents($this->directory . '/invalid.err'));
+    }
+
+    #[DataProvider('retainedRequests')]
+    public function testConcurrentFailuresRetainOutstandingRequests(string $mode, int $code, bool $keep): void
+    {
+        $this->environment['SAPI_TEST_OUTCOME'] = $mode;
+        $this->startServer();
+        self::assertSame($code, proc_close($this->client('failed', extra: [
+            '--jobs=3', '--request-timeout=0.3', ...($keep ? ['--keep-work'] : []),
+        ])));
+        $responses = glob($this->directory . '/server/clients/*/0/*.php.http') ?: [];
+        self::assertNotEmpty($responses);
+        foreach ($responses as $response) {
+            self::assertFileExists(substr($response, 0, -5));
+        }
+        if ($code === 124) {
+            self::assertCount(3, $responses);
+            self::assertStringContainsString('partial reply', (string) file_get_contents($responses[0]));
+        }
+        $this->stopServer();
+    }
+
+    public function testInterruptClosesConcurrentRequestsAndRetainsEvidence(): void
+    {
+        $this->environment['SAPI_TEST_OUTCOME'] = 'timeout';
+        $connection = $this->startServer();
+        $client = $this->client('interrupted', extra: ['--jobs=3', '--requests=0']);
+        try {
+            $deadline = microtime(true) + 5;
+            do {
+                $responses = glob($this->directory . '/server/clients/*/0/*.php.http') ?: [];
+                if (count($responses) === 3 && str_contains((string) file_get_contents($responses[2]), 'partial reply')) {
+                    break;
+                }
+                usleep(10000);
+            } while (microtime(true) < $deadline);
+            self::assertCount(3, $responses);
+        } finally {
+            proc_terminate($client, SIGTERM);
+            $code = proc_close($client);
+        }
+        self::assertSame(143, $code);
+        self::assertCount(3, glob($this->directory . '/server/clients/*/0/*.php.http') ?: []);
+        self::assertTrue(posix_kill($connection['pid'], 0));
         $this->stopServer();
     }
 
@@ -690,7 +876,7 @@ class Application {
                     ? str_repeat('x', 2097152) : '<?php // fixture calls');
             }
         }
-        if (getenv('SAPI_TEST_OUTCOME') === 'fatal-after-headers') {
+        if (in_array(getenv('SAPI_TEST_OUTCOME'), ['fatal-after-headers', 'fatal-after-failure'], true)) {
             register_shutdown_function(static function (): void {
                 trigger_error('fixture fatal after headers', E_USER_ERROR);
             });
@@ -704,10 +890,15 @@ class Application {
         if (getenv('SAPI_TEST_OUTCOME') === 'large') {
             echo str_repeat('y', 131072);
         }
+        if (getenv('SAPI_TEST_OUTCOME') === 'staggered' && $requestSeed === '--seed=42') {
+            usleep(800000);
+        }
         usleep(150000);
         echo PHP_SAPI . ':' . ini_get('precision') . ':' . json_encode($arguments);
         return match (getenv('SAPI_TEST_OUTCOME')) {
             'fail-second' => $requestSeed === '--seed=42' ? 0 : 1,
+            'fail-first' => $requestSeed === '--seed=42' ? 1 : 0,
+            'fatal-after-failure' => 1,
             'startup' => 78,
             default => 0,
         };

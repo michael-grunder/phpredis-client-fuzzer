@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add a terminal dashboard for `sapi client`, showing request totals, failures,
+  concurrency, seeds and running/recent requests. Use `--no-tui` or redirect
+  stdout to retain the existing full-response and request-event output.
+
+- Add `sapi client --continue-on-failure` and enable it in the local saturation
+  client wrapper. Retain failed workloads and continue after confirmed normal
+  PHP shutdown; keep startup, transport and shutdown failures fatal. Finite runs
+  still report failure if any request failed. Restart existing SAPI servers to
+  supply completion markers for failed workloads.
+
+- Add `sapi client --jobs=N|MIN-MAX` for continuously refilled concurrent HTTP
+  requests or a deterministic ramp between bounds. Preserve workload seeds,
+  per-request deadlines and failure evidence; share the total request limit
+  across jobs. Explicit jobs bypass idle pauses; the default remains sequential.
+
 - Save full all-thread gdb backtraces beside captured harness, minimized and SAPI
   worker cores. Keep SAPI supervision and harness shutdown responsive while gdb
   runs; retain diagnostics and partial reports on failure or timeout, and never

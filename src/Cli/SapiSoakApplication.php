@@ -10,6 +10,7 @@ use Mgrunder\RedisClientTester\Harness\Fs;
 use Mgrunder\RedisClientTester\Harness\PhpStartupTemplate;
 use Mgrunder\RedisClientTester\Harness\ReproStore;
 use Mgrunder\RedisClientTester\Harness\RrTrace;
+use Mgrunder\RedisClientTester\Sapi\ClientMonitor;
 use Mgrunder\RedisClientTester\Sapi\Request;
 use Mgrunder\RedisClientTester\Sapi\RequestScript;
 use Mgrunder\RedisClientTester\Sapi\Server;
@@ -341,7 +342,7 @@ final class SapiSoakApplication
     {
         $separator = array_search('--', $arguments, true);
         $options = Options::parse($separator === false ? $arguments : array_slice($arguments, 0, $separator),
-            ['directory', 'server', 'requests', 'idle-ms', 'request-timeout'], ['help', 'keep-work']);
+            ['directory', 'server', 'requests', 'jobs', 'idle-ms', 'request-timeout'], ['help', 'keep-work', 'continue-on-failure', 'no-tui']);
         if ($options->has('help')) {
             echo self::HELP;
             return 0;
@@ -358,6 +359,14 @@ final class SapiSoakApplication
             }
         }
         $requests = $options->integer('requests', 0);
+        $jobs = $options->string('jobs', '1');
+        if (preg_match('/\A([1-9][0-9]*)(?:-([1-9][0-9]*))?\z/', $jobs, $bounds) !== 1
+            || (int) $bounds[1] > 128 || (int) ($bounds[2] ?? $bounds[1]) > 128
+            || (int) $bounds[1] > (int) ($bounds[2] ?? $bounds[1])) {
+            throw new \InvalidArgumentException('--jobs must be N or MIN-MAX with 1 <= MIN <= MAX <= 128');
+        }
+        $minJobs = (int) $bounds[1];
+        $maxJobs = (int) ($bounds[2] ?? $bounds[1]);
         $idle = $options->integer('idle-ms', 100);
         $timeout = $options->number('request-timeout', 30);
         $seed = $fuzzer->optionalInteger('seed') ?? random_int(0, mt_getrandmax());
@@ -386,8 +395,14 @@ final class SapiSoakApplication
         Server::write($clientDirectory . '/workload.json', json_encode([
             'seed' => $seed, 'arguments' => $workload, 'requests' => $requests, 'idle_ms' => $idle,
             'request_timeout' => $timeout, 'started' => date(DATE_ATOM), 'keep_work' => $keepWork,
+            'jobs' => $options->has('jobs') ? $jobs : null,
+            'continue_on_failure' => $options->has('continue-on-failure'),
         ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n");
         fwrite(STDERR, "SAPI client artifacts: {$clientDirectory}\nSeed: {$seed}\n");
+        $monitor = !$options->has('no-tui') && stream_isatty(STDOUT)
+            ? new ClientMonitor((new ServerDiscovery(sys_get_temp_dir()))->tag($directory), $seed, $requests, $jobs)
+            : null;
+        $targetJobs = $minJobs;
         $stopped = 0;
         $previousAsync = pcntl_async_signals(true);
         $handlers = [];
@@ -395,8 +410,16 @@ final class SapiSoakApplication
             $handlers[$signal] = pcntl_signal_get_handler($signal);
             pcntl_signal($signal, static function (int $signal) use (&$stopped): void { $stopped = $signal; });
         }
-        $signal = static function () use (&$stopped): int { return $stopped; };
+        $signal = static function () use (&$stopped, $monitor, &$targetJobs): int {
+            if ($stopped === 0) {
+                $monitor?->render($targetJobs);
+            }
+            return $stopped;
+        };
         $code = 0;
+        $failed = false;
+        /** @var array<int, array{exchange: \Generator<int, resource, void, int>, path: string}> $active */
+        $active = [];
         try {
             $code = $http->run('ready', $clientDirectory . '/ready.http', $signal, false);
             if ($code !== 0) {
@@ -406,46 +429,93 @@ final class SapiSoakApplication
                 throw new \RuntimeException('cannot remove readiness response');
             }
             $random = new Randomizer(new Mt19937($seed));
-            for ($index = 0; $requests === 0 || $index < $requests; $index++) {
+            $index = $completed = 0;
+            while ($active !== [] || $requests === 0 || $index < $requests) {
                 if ($stopped !== 0) {
                     return $code = 128 + $stopped;
                 }
-                $requestSeed = $index === 0 ? $seed : $random->getInt(0, mt_getrandmax());
-                $bucket = (string) intdiv($index, 1000);
-                $target = $clientDirectory . '/' . $bucket;
-                if (!is_dir($target) && !mkdir($target, 0o700)) {
-                    throw new \RuntimeException('cannot create request directory');
+                while (count($active) < $targetJobs && ($requests === 0 || $index < $requests) && $signal() === 0) {
+                    $requestSeed = $index === 0 ? $seed : $random->getInt(0, mt_getrandmax());
+                    $bucket = (string) intdiv($index, 1000);
+                    $target = $clientDirectory . '/' . $bucket;
+                    if (!is_dir($target) && !mkdir($target, 0o700)) {
+                        throw new \RuntimeException('cannot create request directory');
+                    }
+                    $name = sprintf('request-%08d-seed-%d', $index + 1, $requestSeed);
+                    $path = 'clients/' . $client . '/' . $bucket . '/' . $name . '.php';
+                    $source = RequestScript::source($this->autoload, [...$workload, '--persistent', '--seed=' . $requestSeed], $name);
+                    Server::write($target . '/' . $name . '.tmp', $source);
+                    if (!rename($target . '/' . $name . '.tmp', $directory . '/' . $path)) {
+                        throw new \RuntimeException('cannot publish request script');
+                    }
+                    if ($monitor === null) {
+                        echo "Request " . ($index + 1) . " seed={$requestSeed} path={$path} jobs={$targetJobs}\n";
+                    }
+                    $monitor?->started($index + 1, $requestSeed, $path);
+                    $active[++$index] = ['exchange' => $http->exchange($path, $directory . '/' . $path . '.http', $signal, $monitor === null), 'path' => $path];
+                    $active[$index]['exchange']->current();
                 }
-                $name = sprintf('request-%08d-seed-%d', $index + 1, $requestSeed);
-                $path = 'clients/' . $client . '/' . $bucket . '/' . $name . '.php';
-                $source = RequestScript::source($this->autoload, [...$workload, '--persistent', '--seed=' . $requestSeed], $name);
-                Server::write($target . '/' . $name . '.tmp', $source);
-                if (!rename($target . '/' . $name . '.tmp', $directory . '/' . $path)) {
-                    throw new \RuntimeException('cannot publish request script');
+                if ($signal() !== 0) {
+                    return $code = 128 + $signal();
                 }
-                echo "Request " . ($index + 1) . " seed={$requestSeed} path={$path}\n";
-                $code = $http->run($path, $directory . '/' . $path . '.http', $signal);
-                if ($code !== 0) {
-                    return $code;
+                $read = array_map(static fn (array $request) => $request['exchange']->current(), $active);
+                $write = $except = [];
+                @stream_select($read, $write, $except, 0, 20000);
+                foreach ($active as $number => $request) {
+                    $request['exchange']->next();
+                    if ($request['exchange']->valid()) {
+                        continue;
+                    }
+                    $code = $request['exchange']->getReturn();
+                    $path = $request['path'];
+                    $monitor?->completed($number, $code);
+                    if ($monitor === null) {
+                        echo "Completed request {$number} exit={$code} path={$path}\n";
+                    }
+                    if ($code !== 0 && ($code !== ExitCode::FAILURE || !$options->has('continue-on-failure'))) {
+                        return $code;
+                    }
+                    if (@file_get_contents($directory . '/' . $path . '.executed') !== $code . "\n") {
+                        throw new \RuntimeException('request did not confirm clean shutdown; artifacts retained: ' . $path
+                            . ($code === ExitCode::FAILURE ? '; restart sapi serve after upgrading to enable confirmed workload failures' : ''));
+                    }
+                    if ($code !== 0) {
+                        $failed = true;
+                        if ($monitor === null) {
+                            fwrite(STDERR, "Request {$number} failed; continuing; artifacts retained: {$directory}/{$path}\n");
+                        }
+                    } elseif (!$keepWork) {
+                        RequestScript::discard($directory . '/' . $path);
+                        @rmdir(dirname($directory . '/' . $path));
+                    }
+                    unset($active[$number]);
+                    $completed++;
+                    if ($minJobs !== $maxJobs) {
+                        $span = $maxJobs - $minJobs;
+                        $phase = $completed % (2 * $span);
+                        $targetJobs = $minJobs + min($phase, 2 * $span - $phase);
+                    }
+                    if (!$options->has('jobs')) {
+                        $until = microtime(true) + $idle / 1000;
+                        while ($signal() === 0 && microtime(true) < $until) {
+                            usleep(10000);
+                        }
+                    }
+                    // Refill after each completion, without waiting for slower peers.
+                    break;
                 }
-                if (@file_get_contents($directory . '/' . $path . '.executed') !== "0\n") {
-                    throw new \RuntimeException('request did not confirm clean shutdown; artifacts retained: ' . $path);
-                }
-                if (!$keepWork) {
-                    RequestScript::discard($directory . '/' . $path);
-                    @rmdir($target);
-                }
-                $until = microtime(true) + $idle / 1000;
-                while ($signal() === 0 && microtime(true) < $until) {
-                    usleep(10000);
-                }
+                unset($request);
             }
-            return $code = $signal() === 0 ? 0 : 128 + $signal();
+            return $code = $signal() === 0 ? ($failed ? ExitCode::FAILURE : 0) : 128 + $signal();
         } catch (\Throwable $error) {
             $code = $error->getCode() === ExitCode::TIMEOUT ? ExitCode::TIMEOUT : ExitCode::FAILURE;
+            $monitor?->stop();
             fwrite(STDERR, $error->getMessage() . "\n");
             return $code;
         } finally {
+            $monitor?->stop();
+            unset($request);
+            $active = [];
             foreach ($handlers as $signalNumber => $handler) {
                 pcntl_signal($signalNumber, $handler);
             }
@@ -453,6 +523,11 @@ final class SapiSoakApplication
             Server::write($clientDirectory . '/exit.json', json_encode(['exit' => $code, 'stopped' => date(DATE_ATOM)], JSON_THROW_ON_ERROR) . "\n");
             if ($code === 0 && !$keepWork) {
                 Fs::removeTree($clientDirectory);
+            }
+            if ($monitor !== null) {
+                fwrite(STDERR, "SAPI client exit={$code} seed={$seed}\n"
+                    . ($code === 0 && !$keepWork ? 'Successful client artifacts cleaned: ' : 'Client artifacts retained: ')
+                    . $clientDirectory . "\n");
             }
         }
     }
@@ -487,8 +562,11 @@ Client options (before --):
   --directory PATH      Explicit server directory (mutually exclusive with --server)
   --server ID           Short tag or full server ID; default: latest ready server
   --requests N          Request limit, 0 runs until interrupted (0)
+  --jobs N|MIN-MAX      Continuous in-flight requests, bounds 1..128 (off)
+  --continue-on-failure Continue after confirmed workload failures; retain evidence
+  --no-tui              Print full responses and request events instead of the TUI
   --keep-work           Retain successful requests (also inherited from serve)
-  --idle-ms N           Delay between requests, 0..60000 (100)
+  --idle-ms N           Delay between requests without --jobs, 0..60000 (100)
   --request-timeout N   Wall-clock deadline per HTTP request in seconds (30)
   --help                Show this help (also available on serve)
 
@@ -505,8 +583,21 @@ All normal workload filters, flags, weights, clients, TLS, hooks, serializers,
 cluster and invocation settings follow --. --steps/--seconds apply per request.
 --seed must be 0..2147483647; later request seeds are derived deterministically.
 Persistent connections are enabled. --forks, --script-log and --help are reserved.
-Run multiple clients for concurrent traffic; each gets an isolated directory.
-Clients print each response and stop on the first failed or timed-out request.
+Without --jobs, requests run sequentially with --idle-ms pauses. --jobs=4 keeps
+four requests in flight, refilling as each finishes. --jobs=1-4 starts at one
+and cycles targets 1,2,3,4,3,2,1,... after each completion. Shrinking lets requests
+finish; it never cancels them. --jobs bypasses --idle-ms. A finite --requests
+limit is shared across all jobs; the final requests drain below the minimum.
+Targets and request seeds are deterministic; completion order and timing are not.
+Each client gets an isolated directory. On a terminal, a dashboard shows totals,
+jobs, seeds, running requests and the ten most recent completions. --no-tui or
+redirected stdout prints full responses on completion with request events.
+No HTTP client extension is required.
+By default, clients stop on the first failed or timed-out request.
+--continue-on-failure keeps sending after workload exit 1, retaining failed
+requests. Finite runs still exit 1 if any request failed. Timeouts, startup
+errors, incomplete replies and unconfirmed PHP shutdowns always stop the client.
+Restart serve after upgrading so its router confirms failed request completion.
 The server remains available after worker exits while the PHP parent is alive.
 
 Linux /proc, setsid, pcntl and posix are required. HTTP binds only 127.0.0.1

@@ -55,6 +55,7 @@ for arg in "${args[@]}"; do
 done
 [[ $stage == 1 && ${client[-1]} == --request-timeout=90 ]]
 contains --requests=3 "${client[@]}"
+contains --continue-on-failure "${client[@]}"
 for arg in --client=relay --saturate-mode=churn --saturate-steps=3 --steps=100 --seconds=0.25 --port=6390 --seed=42 'space $literal' \
     "--hook=$workspace/with spaces/hooks/clamp-read-timeout.php"; do
     contains "$arg" "${workload[@]}"

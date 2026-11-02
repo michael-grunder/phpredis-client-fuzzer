@@ -970,8 +970,9 @@ last one still running. An explicit ID remains tied to its original directory.
 
 The client must run on the same machine with access to the private server
 directory. No Redis connection is made when starting the server. Run additional
-clients against that directory for concurrent traffic, with independent workload
-options and seeds. Each client sends one request at a time. All four client types
+clients against that directory with independent workload options and seeds.
+Each client sends one request at a time by default; `--jobs` enables concurrent
+requests within a single client. All four client types
 (`redis`, `redis-cluster`, `relay`, `relay-cluster`) use the ordinary workload
 engine: command and flag filters, weights, safety gates, serializers, compressors,
 TLS, hooks, differential/scenario settings, and invocation modes remain available.
@@ -1020,13 +1021,46 @@ configure the **server**. Repeatable `--server-prefix` supports wrappers such as
 Valgrind. Server `--seed` (default 0) controls startup-template substitutions.
 
 Client options before `--` are `--directory`, `--server`, `--requests=N` (0 means
-unlimited, the default), `--idle-ms=N` (100, range 0..60000), `--request-timeout=N` (30
-seconds), and `--keep-work` (retain successful request artifacts). The workload `--steps` and `--seconds` budgets apply to **each request**.
+unlimited, the default), `--jobs=N` or `--jobs=MIN-MAX` (bounds 1..128),
+`--idle-ms=N` (100, range 0..60000), `--request-timeout=N` (30
+seconds), `--no-tui`, and `--keep-work` (retain successful request artifacts). The workload `--steps` and `--seconds` budgets apply to **each request**.
+
+On a terminal, `sapi client` shows a dashboard in the same style as the server:
+uptime, seed, request totals, completions, failures, in-flight requests, average
+requests/second and the current/configured job count. Its request table shows
+running requests followed by the ten newest completions, with status, request
+number, seed, elapsed time, exit code and script filename. Ctrl+C stops the
+client and restores the terminal; the exit code and artifact location print
+afterwards. Full responses are captured in the usual request artifacts, subject
+to the existing retention rules. Use `bin/sapi client --no-tui -- [workload options]`
+for the previous full-response and request-event output. Redirecting stdout also
+selects that output automatically.
+
+Without `--jobs`, the client sends one request at a time with an `--idle-ms`
+pause after each. `--jobs=4` keeps four HTTP requests in flight, replacing each
+as it finishes without waiting for slower requests. `--jobs=1-4` starts at one
+and repeats the target sequence `1, 2, 3, 4, 3, 2, 1, ...`, advancing after each
+completion. Decreases let existing requests finish; increases fill immediately.
+This deterministic ramp exercises changing numbers of idle server workers.
+Explicit `--jobs` bypasses `--idle-ms`, including `--jobs=1`. `--requests` limits
+the **total** dispatched requests; startup and the final drain can have fewer
+requests than the lower bound. Jobs count HTTP connections, not server workers;
+requests beyond the available serving pool queue at the server. Multiplexing
+uses PHP sockets with bounded-memory response captures, without extra processes
+or dependencies. In plain output mode, each response prints whole, followed by
+its request number and path. The jobs setting is recorded in the client's `workload.json`.
+
 The first request uses the workload seed (0..2147483647); subsequent seeds come
-from a private deterministic generator. Omitting it selects and records a seed.
+from a private deterministic generator, unchanged by `--jobs`. Omitting it selects and records a seed.
 Every request gets a fresh PHP script with fixed arguments, executed through the
-same application as the burst runner. Clients print the response and stop on the
-first failure, incomplete reply, timeout, or interruption. They can be restarted
+same application as the burst runner. Clients stop on the
+first failure, incomplete reply, timeout, or interruption by default. Add
+`--continue-on-failure` before `--` to keep sending after confirmed workload
+failures (exit 1), including failed scenario assertions. Failed requests retain
+their scripts, call logs and responses; a finite run still exits 1 if any request
+failed. Startup errors, timeouts, incomplete replies and unconfirmed PHP shutdowns
+still stop the client. Restart `sapi serve` after upgrading so its router records
+completion markers for normally finished failures too. Clients can be restarted
 or replaced without recycling the server workers. Workload seeds are reproducible;
 worker scheduling, shared Redis state and concurrent interleaving are not.
 
@@ -1096,7 +1130,7 @@ Artifacts include `server-command.txt`, server stdout/stderr logs,
 Each client initially gets `clients/client-*/workload.json`, request scripts,
 executable `.calls.php` concrete call logs, raw `.php.http` responses and
 `.executed` markers preventing replay. **After each successful HTTP request,
-the client removes that request's files before sending the next request.**
+the client removes that request's files before refilling its slot.**
 Cleanup also requires the router's completion marker after its PHP shutdown
 callbacks; success headers alone do not authorize deletion. Restart existing
 `serve` processes after updating so their routers supply this marker.
@@ -1132,7 +1166,7 @@ The local saturation presets split server setup and workload generation:
 ```bash
 ./local-scripts/sapi-saturate-serve.sh --directory=/tmp/relay-soak
 # In another terminal, select your disposable Redis target:
-./local-scripts/sapi-saturate-client.sh -- --port=6390 --seed=42
+./local-scripts/sapi-saturate-client.sh --jobs=1-4 -- --port=6390 --seed=42
 ```
 
 The wrapper also accepts `info [ID]` and `list` to inspect servers without
@@ -1146,12 +1180,17 @@ The client preset uses standalone Relay, coercive invocation, varied serializers
 and compressors, 1,000 keys, weighted cached/invalidating commands, and the
 `cache-hll,cache-collections` scenarios. Churn events run with probability 0.05
 and visit up to 3 keys. Each request allows 100 steps or 0.25 seconds; HTTP
-requests have a 60-second deadline and a 100 ms pause between them. The workload
+requests have a 60-second deadline and, without `--jobs`, a 100 ms pause between them. The workload
 time budget is checked between operations, so slow commands/scenarios can exceed
 0.25 seconds. The short requests exercise shared state across many PHP request
 lifetimes. Running the client wrapper with no arguments discovers the latest
 server and uses the preset Redis target `127.0.0.1:6379`; select a disposable
 target with `-- --port=...` when needed.
+
+The local client wrapper enables `--continue-on-failure`, retaining failed
+workloads while continuing the soak. Use `--no-tui -- --output=detailed` to print scenario
+failure details. Retained failures accumulate on disk; timeouts and broken
+requests still stop the client.
 
 Put client controls such as `--requests=100` before `--`, and workload overrides
 such as `--keys=4000 --steps=50` after it. Scalar options override the presets;
@@ -1160,7 +1199,8 @@ also work inside HTTP requests. The preset enables local/stateful commands and
 rare Relay `flushmemory` calls, but excludes Redis `FLUSHALL` and `FLUSHDB`.
 Initial codec choices omit LZ4, as in the ASAN saturation preset; `setoption`
 can still select it and encounter the allocation issue described in that script.
-Start multiple client wrappers for concurrent traffic against the same workers.
+Use `--jobs=4` for steady concurrency or `--jobs=1-4` for a repeating ramp.
+Multiple client wrappers can still share the same server independently.
 These scripts live in the repository's ignored `local-scripts/` directory.
 
 ### PHP server workers and idle invalidations
