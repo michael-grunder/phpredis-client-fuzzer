@@ -1068,6 +1068,10 @@ The TUI places a worker pane between the summary and requests. It lists each
 worker and the serving parent by PID, with Running, Exited or Missing state,
 exit code and terminating signal number. A dash means unavailable or not
 applicable; missing/reaped processes are not assumed to have exited successfully.
+Exited or missing workers stay visible for five seconds after detection, then
+leave the pane to make room for live workers, whether healing is enabled or not.
+Their PIDs, exit codes and signals remain in `processes.jsonl`, `exit.json` and
+the final printed report; `bin/sapi info` shows the paths to those records.
 
 Ctrl+C or SIGTERM stops the server supervisor and all its workers. For a daemon,
 use the printed `kill -TERM PID` command. By default, worker exits are recorded

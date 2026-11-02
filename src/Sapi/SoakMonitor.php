@@ -182,6 +182,10 @@ final class SoakMonitor
 
         $workers = [];
         foreach ($this->pool['processes'] ?? [] as $process) {
+            if ($process['role'] === 'worker' && $process['state'] !== 'running'
+                && $now - $process['observed_at'] >= 5) {
+                continue;
+            }
             $workers[] = TableRow::fromStrings((string) $process['pid'], ucfirst($process['role']),
                 ucfirst($process['state']),
                 $process['exit_code'] === null ? '-' : (string) $process['exit_code'],

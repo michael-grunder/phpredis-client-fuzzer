@@ -151,6 +151,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Hide exited or missing workers from the server TUI after five seconds, with or
+  without healing. Preserve their PIDs, exit codes and signals in the process
+  journal and final report.
+
 - Clean successful SAPI request scripts, concrete call logs, HTTP captures and
   replay markers by default, and remove successful standalone burst directories.
   Add `--keep-work` to retain successes; preserve failed/incomplete requests and

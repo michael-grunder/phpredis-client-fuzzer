@@ -117,6 +117,23 @@ final class SapiSoakTest extends TestCase
             self::assertMatchesRegularExpression('/105\s+Worker\s+Exited\s+0\s+-/', $screen);
             self::assertMatchesRegularExpression('/106\s+Worker\s+Missing\s+-\s+-/', $screen);
 
+            foreach ($pool['processes'] as &$process) {
+                $process['observed_at'] -= 10;
+            }
+            unset($process);
+            $pool['processes'][] = [...$processes[1], 'pid' => 107];
+            $pool['workers_alive'] = 2;
+            $monitor->render('a1b2c3d4e5f6', true, $pool);
+            $screen = $backend->toString();
+            foreach ([99, 103, 107] as $pid) {
+                self::assertMatchesRegularExpression('/' . $pid . '\s+(Parent|Worker)\s+Running/', $screen);
+            }
+            foreach ([104, 105, 106] as $pid) {
+                self::assertStringNotContainsString((string) $pid, $screen);
+            }
+            // Expiry only affects rows; the complete diagnostic snapshot stays intact.
+            self::assertSame($pool, (new \ReflectionProperty($monitor, 'pool'))->getValue($monitor));
+
             $small = new DummyBackend(60, 12);
             (new \ReflectionProperty($monitor, 'display'))->setValue($monitor, DisplayBuilder::default($small)->build());
             $monitor->render('a1b2c3d4e5f6', true, $pool);
