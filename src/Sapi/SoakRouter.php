@@ -7,9 +7,9 @@ namespace Mgrunder\RedisClientTester\Sapi;
 /** Router body after Server's identity, authentication and readiness checks. */
 final class SoakRouter
 {
-    public static function source(): string
+    public static function source(int $healWorkers = 0): string
     {
-        return <<<'PHP'
+        return ($healWorkers > 0 ? self::healSource($healWorkers) : '') . <<<'PHP'
 $path = $_SERVER['REQUEST_URI'];
 if ($_SERVER['REQUEST_METHOD'] !== 'GET'
     || preg_match('~^/clients/client-[a-f0-9]+/[0-9]+/request-[0-9]+-seed-[0-9]+\.php$~D', $path) !== 1
@@ -54,6 +54,47 @@ register_shutdown_function(static function () use ($event, $started, $record): v
     });
 });
 require __DIR__ . $path;
+PHP;
+    }
+
+    private static function healSource(int $workers): string
+    {
+        return '$healWorkers = ' . $workers . ";\n" . <<<'PHP'
+if ($_SERVER['REQUEST_URI'] === '/heal' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    $lock = fopen(__DIR__ . '/heal.lock', 'c');
+    if ($lock === false || !flock($lock, LOCK_EX)) {
+        http_response_code(500);
+        return;
+    }
+    // Count under the lock: even delayed or repeated requests may only fill a deficit.
+    $group = posix_getpgrp();
+    $alive = 0;
+    foreach (glob('/proc/[0-9]*/stat') ?: [] as $path) {
+        $stat = @file_get_contents($path);
+        if ($stat === false || $stat === '') {
+            continue;
+        }
+        $fields = explode(' ', substr($stat, (int) strrpos($stat, ')') + 2));
+        if ($fields[0] !== 'Z' && ($fields[2] ?? '') === (string) $group
+            && (int) basename(dirname($path)) !== $group) {
+            $alive++;
+        }
+    }
+    $pid = $alive < $healWorkers ? pcntl_fork() : 0;
+    if ($pid !== 0) {
+        flock($lock, LOCK_UN);
+    }
+    fclose($lock);
+    if ($pid < 0) {
+        http_response_code(500);
+        echo 'pcntl_fork failed';
+        return;
+    }
+    header('X-Fuzzer-Exit: 0');
+    // Both processes finish this request and return to the inherited server loop.
+    return;
+}
+
 PHP;
     }
 }

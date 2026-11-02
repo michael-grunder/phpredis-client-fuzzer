@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Allow `PHP_BIN=/path/to/php` to select the PHP binary used by the local
+  saturation server wrapper and its workers, and enable `--heal` in that preset
+  to replace exited workers.
+
+- Add opt-in `sapi serve --heal` to replace exited workers through authenticated,
+  capped fork requests. Retain worker exit diagnostics and healing replies, track
+  replacement descendants for cleanup, and reject `--stop-on-worker-exit` conflicts.
+
 - Add a terminal dashboard for `sapi client`, showing request totals, failures,
   concurrency, seeds and running/recent requests. Use `--no-tui` or redirect
   stdout to retain the existing full-response and request-event output.

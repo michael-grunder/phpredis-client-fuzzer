@@ -42,6 +42,11 @@ final class Server
     private array $cores = [];
     /** @var array<int, CoreBacktrace> */
     private array $backtraces = [];
+    /** @var \Generator<int, resource, void, int>|null */
+    private ?\Generator $healing = null;
+    private int $healAttempt = 0;
+    private float $nextHeal = 0;
+    private float $nextGroupScan = 0;
 
     public function __construct(
         private readonly string $directory,
@@ -53,6 +58,7 @@ final class Server
         private readonly bool $stopOnWorkerExit = true,
         private readonly ?CorePattern $corePattern = null,
         private readonly ?string $rrTrace = null,
+        private readonly bool $heal = false,
     ) {
         if ($workers < 2 || $workers > 128 || $concurrency < 1 || $concurrency > $workers
             || $idleMs < 0 || $idleMs > 60000 || !is_finite($timeout) || $timeout <= 0) {
@@ -60,6 +66,9 @@ final class Server
         }
         if ($corePattern !== null && !$corePattern->isPiped() && !$corePattern->isolatesByPid()) {
             throw new \InvalidArgumentException('core_pattern must contain %p');
+        }
+        if ($heal && $stopOnWorkerExit) {
+            throw new \InvalidArgumentException('--heal cannot be combined with --stop-on-worker-exit');
         }
         $this->token = hash('sha256', $directory);
     }
@@ -135,9 +144,13 @@ final class Server
             . 'if (($_SERVER["HTTP_X_FUZZER_TOKEN"] ?? "") !== ' . var_export($this->token, true)
             . ') { http_response_code(403); return; }' . "\n"
             . 'header("X-Fuzzer-Run: ' . $this->token . '");' . "\n"
-            . 'header("X-Fuzzer-Pid: " . getmypid());' . "\n"
-            . 'if ($_SERVER["REQUEST_URI"] === "/ready") { header("X-Fuzzer-Exit: 0"); echo "ready"; return; }' . "\n";
-        $router .= $heartbeat !== null ? SoakRouter::source()
+            . 'header("X-Fuzzer-Pid: " . getmypid());' . "\n";
+        if ($this->heal) {
+            $router .= 'if (!function_exists("pcntl_fork")) { http_response_code(500); '
+                . 'error_log("--heal requires pcntl_fork in the server PHP"); return; }' . "\n";
+        }
+        $router .= 'if ($_SERVER["REQUEST_URI"] === "/ready") { header("X-Fuzzer-Exit: 0"); echo "ready"; return; }' . "\n";
+        $router .= $heartbeat !== null ? SoakRouter::source($this->heal ? $this->workers : 0)
             : '$paths = ' . var_export(array_map(static fn (string $path): string => '/' . $path, $paths), true) . ";\n"
                 . 'if (!in_array($_SERVER["REQUEST_URI"], $paths, true)) { http_response_code(404); return; }' . "\n"
                 . 'require __DIR__ . $_SERVER["REQUEST_URI"];' . "\n";
@@ -171,6 +184,7 @@ final class Server
             fwrite(STDERR, $error->getMessage() . "\n");
             $code = $error->getCode() === ExitCode::TIMEOUT ? ExitCode::TIMEOUT : ExitCode::FAILURE;
         } finally {
+            $this->healing = null;
             $shutdownCode = $this->stop();
             foreach ($handlers as $signal => $handler) {
                 pcntl_signal($signal, $handler);
@@ -249,6 +263,9 @@ final class Server
                 $this->tick();
                 if ($this->failure !== 0 || $this->stopped !== 0) {
                     return $this->failure ?: 128 + $this->stopped;
+                }
+                if ($this->heal) {
+                    $this->heal();
                 }
                 if (!$heartbeat($this->address, $this->token)) {
                     return 0;
@@ -366,10 +383,30 @@ final class Server
             return;
         }
         $status = proc_get_status($this->process);
-        $queue = [$this->pid];
+        $queue = [];
+        if ($this->heal && microtime(true) >= $this->nextGroupScan) {
+            $this->nextGroupScan = microtime(true) + 1;
+            // A replacement can be reparented before its forking worker is discovered.
+            foreach (glob('/proc/[0-9]*/stat') ?: [] as $path) {
+                $stat = @file_get_contents($path);
+                if ($stat === false || $stat === '') {
+                    continue;
+                }
+                $fields = explode(' ', substr($stat, (int) strrpos($stat, ')') + 2));
+                if (($fields[2] ?? '') === (string) $this->pid && ($fields[3] ?? '') === (string) $this->pid) {
+                    $queue[] = (int) basename(dirname($path));
+                }
+            }
+        }
+        $queue[] = $this->pid;
+        $visited = [];
         $changed = false;
         while ($queue !== []) {
             $pid = array_pop($queue);
+            if (isset($visited[$pid])) {
+                continue;
+            }
+            $visited[$pid] = true;
             if (!isset($this->pids[$pid])) {
                 $this->pids[$pid] = true;
                 $changed = true;
@@ -411,6 +448,37 @@ final class Server
                 $this->observe($pid, 'running', null, null, null, null, '/proc/stat');
             }
         }
+    }
+
+    private function heal(): void
+    {
+        try {
+            if ($this->healing === null) {
+                if (microtime(true) < $this->nextHeal || $this->snapshot()['workers_alive'] >= $this->workers) {
+                    return;
+                }
+                $this->healAttempt++;
+                $this->event(['event' => 'heal_request', 'attempt' => $this->healAttempt, 'observed_at' => microtime(true)]);
+                $this->healing = (new Request($this->address, $this->token, $this->timeout))->exchange(
+                    'heal', $this->directory . '/heal-' . $this->healAttempt . '.http', fn (): int => $this->stopped, false,
+                );
+            } else {
+                $this->healing->next();
+            }
+            if ($this->healing->valid()) {
+                return;
+            }
+            if ($this->healing->getReturn() !== 0) {
+                throw new \RuntimeException('healing request failed');
+            }
+            $this->event(['event' => 'heal_complete', 'attempt' => $this->healAttempt, 'observed_at' => microtime(true)]);
+        } catch (\RuntimeException $error) {
+            $this->event(['event' => 'heal_failed', 'attempt' => $this->healAttempt,
+                'error' => $error->getMessage(), 'observed_at' => microtime(true)]);
+            fwrite(STDERR, 'SAPI healing: ' . $error->getMessage() . "\n");
+        }
+        $this->healing = null;
+        $this->nextHeal = microtime(true) + 1;
     }
 
     private function observe(int $pid, string $state, ?int $exit, ?int $signal, ?int $wait, ?bool $core, string $source): void

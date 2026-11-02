@@ -18,6 +18,14 @@ printf '%s\0' "$@"
 exit "${STUB_EXIT:-0}"
 STUB
 chmod +x "$workspace/with spaces/bin/sapi"
+cat > "$workspace/with spaces/bin/php" <<'STUB'
+#!/usr/bin/env bash
+[[ $1 == bin/sapi ]] || exit 1
+exec "$@"
+STUB
+chmod +x "$workspace/with spaces/bin/php"
+export PATH="$workspace/with spaces/bin:$PATH"
+unset PHP_BIN
 
 contains() {
     local wanted=$1 item
@@ -34,9 +42,22 @@ contains() {
 mapfile -d '' -t args < "$workspace/args"
 [[ ${args[0]} == serve && ${args[-1]} == --daemon ]]
 contains --workers=4 "${args[@]}"
+contains --heal "${args[@]}"
 contains --php-arg=-drelay.eviction_policy=lru "${args[@]}"
 [[ ${args[-3]} == --workers=8 && ${args[-2]} == --php-arg=-drelay.maxmemory=32m ]]
 contains '/tmp/soak with spaces' "${args[@]}"
+
+cp "$workspace/with spaces/bin/sapi" "$workspace/custom php"
+(cd / && PHP_BIN="$workspace/custom php" "$workspace/with spaces/local-scripts/sapi-saturate-serve.sh" \
+    --directory '/tmp/soak with spaces' --daemon) > "$workspace/args"
+mapfile -d '' -t args < "$workspace/args"
+[[ ${args[0]} == bin/sapi && ${args[1]} == serve && ${args[-1]} == --daemon ]]
+contains --workers=4 "${args[@]}"
+contains --heal "${args[@]}"
+contains '/tmp/soak with spaces' "${args[@]}"
+status=0
+PHP_BIN="$workspace/custom php" STUB_EXIT=23 "$workspace/with spaces/local-scripts/sapi-saturate-serve.sh" --help > /dev/null || status=$?
+[[ $status == 23 ]]
 
 (cd / && "$workspace/with spaces/local-scripts/sapi-saturate-client.sh" \
     --directory '/tmp/soak with spaces' --requests=3 --request-timeout=90 -- \

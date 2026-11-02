@@ -50,12 +50,16 @@ final class SapiSoakApplication
             }
             $options = Options::parse($arguments,
                 ['workers', 'directory', 'php-arg', 'php-ini', 'server-prefix', 'request-timeout', 'history', 'seed'],
-                ['help', 'daemon', 'no-tui', 'json', 'stop-on-worker-exit', 'rr', 'rr-chaos', 'keep-work'], ['php-arg', 'server-prefix']);
+                ['help', 'daemon', 'no-tui', 'json', 'stop-on-worker-exit', 'heal', 'rr', 'rr-chaos', 'keep-work'], ['php-arg', 'server-prefix']);
             if ($options->has('help')) {
                 echo self::HELP;
                 return 0;
             }
             $json = $options->has('json');
+            $heal = $options->has('heal');
+            if ($heal && $options->has('stop-on-worker-exit')) {
+                throw new \InvalidArgumentException('--heal cannot be combined with --stop-on-worker-exit');
+            }
             Server::assertSupported();
             $workers = $options->integer('workers', 4);
             $history = $options->integer('history', 10);
@@ -119,16 +123,16 @@ final class SapiSoakApplication
             }
             $started = true;
             $server = new Server($directory, $workers, 1, 0, $timeout, !$tui && !$json,
-                stopOnWorkerExit: $options->has('stop-on-worker-exit'), corePattern: $core, rrTrace: $trace);
+                stopOnWorkerExit: $options->has('stop-on-worker-exit'), corePattern: $core, rrTrace: $trace, heal: $heal);
             try {
                 $code = $server->run(
                     [], $phpArgs, $prefix,
-                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, $discovery, $tag, $tui, $json, $server, $trace, $keepWork, &$published): bool {
+                    function (string $address, string $token) use ($directory, $workers, $phpArgs, $seed, $monitor, $connection, $discovery, $tag, $tui, $json, $server, $trace, $keepWork, $heal, &$published): bool {
                         if (!$published) {
                             $metadata = json_encode([
                                 'address' => $address, 'token' => $token, 'pid' => getmypid(), 'workers' => $workers,
                                 'php' => PHP_BINARY, 'php_args' => $phpArgs, 'seed' => $seed, 'started' => date(DATE_ATOM),
-                                'rr_trace' => $trace, 'keep_work' => $keepWork,
+                                'rr_trace' => $trace, 'keep_work' => $keepWork, 'heal' => $heal,
                             ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
                             Server::write($directory . '/connection.json.tmp', $metadata);
                             if (!rename($directory . '/connection.json.tmp', $directory . '/connection.json')) {
@@ -308,7 +312,7 @@ final class SapiSoakApplication
             echo 'Server: ' . $discovery->tag($directory) . ' (' . ($running ? 'running' : 'stopped') . ")\n";
             echo 'ID: ' . $discovery->id($directory) . "\nDirectory: {$directory}\n";
             echo 'Address: http://' . $metadata['address'] . "\nPID: " . $metadata['pid'] . "\n";
-            foreach (['started' => 'Started', 'workers' => 'Workers', 'php' => 'PHP', 'php_args' => 'PHP arguments', 'seed' => 'Startup seed', 'keep_work' => 'Keep successful requests'] as $key => $label) {
+            foreach (['started' => 'Started', 'workers' => 'Workers', 'php' => 'PHP', 'php_args' => 'PHP arguments', 'seed' => 'Startup seed', 'keep_work' => 'Keep successful requests', 'heal' => 'Heal workers'] as $key => $label) {
                 echo $label . ': ' . json_encode($metadata[$key] ?? null, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n";
             }
             if (is_string($metadata['rr_trace'] ?? null)) {
@@ -550,12 +554,13 @@ Server options:
   --rr                  Record the PHP server process tree in DIRECTORY/rr-trace
   --rr-chaos            Enable rr chaos scheduling (implies --rr)
   --seed N              Seed for server startup templates (0)
-  --request-timeout N   Readiness/shutdown deadline in seconds (30)
+  --request-timeout N   Readiness/healing/shutdown deadline in seconds (30)
   --history N           Recent completed requests in the TUI, 1..1000 (10)
   --no-tui              Plain events and periodic uptime/request totals
   --daemon              Detach; write events and totals to supervisor.log
   --json                JSON Lines: ready/request/status/exit events, no TUI
   --stop-on-worker-exit  Stop the remaining pool on the first worker exit (off)
+  --heal                Replace exited workers by forking a surviving server (off)
   --keep-work           Retain successful client artifacts and full request journal
 
 Client options (before --):
@@ -608,6 +613,9 @@ Stopping a client does not cancel PHP already running on the server.
 The header counts live forked workers separately from the serving parent. With
 server-prefix wrappers, worker counts include other tracked descendants.
 Worker exits are recorded without stopping or restarting the remaining pool.
+With --heal, authenticated fork requests restore the configured worker count;
+the server PHP must provide pcntl_fork. Failed attempts are retained and retried.
+Healing cannot be combined with --stop-on-worker-exit and cannot revive the parent.
 Use --stop-on-worker-exit to stop on the first worker exit, including exit code 0.
 Parent exit always stops the supervisor and remaining workers. processes.jsonl
 records observations and requested cleanup signals. exit.json retains the first

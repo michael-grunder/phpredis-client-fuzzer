@@ -533,7 +533,7 @@ final class SapiSoakTest extends TestCase
     {
         $connection = $this->startServer();
         $script = $this->fixtureScript('<?php header("X-Fuzzer-Exit: 0"); echo "ok";');
-        foreach (['router.php', '../connection.json', $script . '?steps=1000'] as $path) {
+        foreach (['router.php', '../connection.json', 'heal', $script . '?steps=1000'] as $path) {
             self::assertStringContainsString('404', $this->raw($connection, $path));
         }
         $unauthorized = $this->raw($connection, $script, false);
@@ -743,6 +743,135 @@ final class SapiSoakTest extends TestCase
         self::assertStringContainsString('signal=9', (string) file_get_contents($this->directory . '/server.err'));
         $this->assertDiagnosticGuidance();
         $this->assertWorkersStopped();
+    }
+
+    public function testHealingReplacesWorkersWithoutOverfillingAndStopsWithParent(): void
+    {
+        $connection = $this->startServer(extra: ['--heal', '--json']);
+        $original = $this->liveWorkerPids();
+        self::assertCount(2, $original);
+        self::assertStringContainsString('403', $this->raw($connection, 'heal', false));
+        for ($round = 0; $round < 3; $round++) {
+            // Also exercise recovery with only the serving parent left.
+            $victims = $this->liveWorkerPids();
+            foreach ($victims as $pid) {
+                self::assertTrue(posix_kill($pid, SIGKILL));
+            }
+            $deadline = microtime(true) + 6;
+            do {
+                usleep(20000);
+                $live = $this->liveWorkerPids();
+            } while ((count($live) !== 2 || array_intersect($live, $victims) !== []) && microtime(true) < $deadline);
+            self::assertCount(2, $live, 'healing must restore the pool');
+            self::assertSame([], array_intersect($live, $victims));
+            self::assertStringContainsString('ready', $this->raw($connection, 'ready'));
+        }
+        for ($index = 0; $index < 3; $index++) {
+            self::assertStringContainsString('X-Fuzzer-Exit: 0', $this->raw($connection, 'heal'));
+        }
+        usleep(1200000);
+        self::assertCount(2, $this->liveWorkerPids());
+        $served = false;
+        for ($index = 0; $index < 100 && !$served; $index++) {
+            $reply = $this->raw($connection, 'ready');
+            foreach ($this->liveWorkerPids() as $pid) {
+                $served = $served || str_contains($reply, 'X-Fuzzer-Pid: ' . $pid . "\r\n");
+            }
+        }
+        self::assertTrue($served, 'a replacement must serve requests after its fork request shuts down');
+        $history = (string) file_get_contents($this->directory . '/server/processes.jsonl');
+        self::assertStringContainsString('heal_complete', $history);
+        self::assertStringContainsString('"signal":9', $history);
+        $pids = file($this->directory . '/server/pids.txt', FILE_IGNORE_NEW_LINES);
+        self::assertIsArray($pids);
+        self::assertTrue(posix_kill((int) $pids[0], SIGKILL));
+        $this->waitForFile($this->directory . '/server/exit.json');
+        self::assertIsResource($this->server);
+        self::assertSame(137, proc_close($this->server));
+        $this->server = null;
+        $this->assertWorkersStopped();
+    }
+
+    public function testHealingDaemonStopsReplacementWorkersOnTerm(): void
+    {
+        $connection = $this->startServer(true, ['--heal']);
+        $this->daemon = $connection['pid'];
+        $victims = $this->liveWorkerPids();
+        self::assertCount(2, $victims);
+        self::assertTrue(posix_kill($victims[0], SIGKILL));
+        $deadline = microtime(true) + 5;
+        do {
+            usleep(20000);
+            $replacements = array_diff($this->liveWorkerPids(), $victims);
+        } while ($replacements === [] && microtime(true) < $deadline);
+        self::assertCount(1, $replacements);
+        self::assertTrue(posix_kill($this->daemon, SIGTERM));
+        $this->waitForFile($this->directory . '/server/exit.json');
+        $this->daemon = 0;
+        self::assertSame(143, $this->exitReport()['exit']);
+        $this->assertWorkersStopped();
+    }
+
+    public function testHealingRejectsStopOnWorkerExitBeforeCreatingDirectory(): void
+    {
+        $process = $this->launch('conflict', [dirname(__DIR__, 2) . '/bin/sapi', 'serve',
+            '--directory=' . $this->directory . '/server', '--heal', '--stop-on-worker-exit']);
+        self::assertSame(78, proc_close($process));
+        self::assertDirectoryDoesNotExist($this->directory . '/server');
+        self::assertStringContainsString('--heal cannot be combined', (string) file_get_contents($this->directory . '/conflict.err'));
+    }
+
+    public function testHealingRequiresForkInTheServerPhp(): void
+    {
+        $process = $this->launch('unsupported', [dirname(__DIR__, 2) . '/bin/sapi', 'serve',
+            '--directory=' . $this->directory . '/server', '--heal', '--no-tui',
+            '--php-arg=-ddisable_functions=pcntl_fork']);
+        self::assertSame(1, proc_close($process));
+        self::assertStringContainsString('--heal requires pcntl_fork',
+            (string) file_get_contents($this->directory . '/server/server.stderr.log'));
+        $this->assertWorkersStopped();
+    }
+
+    public function testHealingRetriesFailedRequestsAndRetainsTheirReplies(): void
+    {
+        $this->startServer(extra: ['--heal']);
+        $router = $this->directory . '/server/router.php';
+        $source = file_get_contents($router);
+        self::assertIsString($source);
+        $failure = <<<'PHP'
+if ($_SERVER['REQUEST_URI'] === '/heal' && !is_file(__DIR__ . '/heal-failed-once')) {
+    file_put_contents(__DIR__ . '/heal-failed-once', '1');
+    http_response_code(503);
+    return;
+}
+PHP;
+        file_put_contents($router, str_replace('<?php', "<?php\n" . $failure, $source));
+        $victims = $this->liveWorkerPids();
+        self::assertTrue(posix_kill($victims[0], SIGKILL));
+        $deadline = microtime(true) + 5;
+        do {
+            usleep(20000);
+            $replacements = array_diff($this->liveWorkerPids(), $victims);
+        } while ($replacements === [] && microtime(true) < $deadline);
+        self::assertCount(1, $replacements);
+        self::assertStringContainsString('503', (string) file_get_contents($this->directory . '/server/heal-1.http'));
+        self::assertStringContainsString('heal_failed', (string) file_get_contents($this->directory . '/server/processes.jsonl'));
+        $this->stopServer();
+    }
+
+    /** @return list<int> */
+    private function liveWorkerPids(): array
+    {
+        $live = [];
+        $pids = file($this->directory . '/server/pids.txt', FILE_IGNORE_NEW_LINES);
+        self::assertIsArray($pids);
+        foreach (array_slice($pids, 1) as $pid) {
+            $stat = @file_get_contents('/proc/' . $pid . '/stat');
+            if ($stat !== false && $stat !== '' && !str_contains($stat, ') Z ')) {
+                $live[] = (int) $pid;
+            }
+        }
+        return $live;
     }
 
     /** @return iterable<string, array{int}> */

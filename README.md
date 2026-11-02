@@ -1075,12 +1075,26 @@ without stopping the supervisor or surviving processes. Even with no forked
 workers left, the PHP parent can keep serving. Parent exit always stops the
 supervisor and cleans up the remaining workers. To stop on the first worker
 exit (including code 0), pass `--stop-on-worker-exit`, for example:
-`local-scripts/sapi-saturate-serve.sh --stop-on-worker-exit`. There is no
-automatic restart that could hide a defect. Stopping or timing out a
-client closes its HTTP connection but does not cancel PHP already running on the
+`bin/sapi serve --stop-on-worker-exit`.
+
+Pass `bin/sapi serve --heal` to replace exited workers by sending authenticated
+fork-only requests to the surviving server processes, including the serving
+parent. The server PHP must provide `pcntl_fork()`. Healing restores `--workers`
+without restarting the server or replaying failed workloads. Fork requests are
+serialized and capped at the configured pool size, including delayed requests
+after a timeout. Failed attempts are retried with a one-second pause; a busy
+pool can delay recovery. With wrappers, the cap uses the same descendant count
+as the worker display. Replacement processes remain in the server process group
+and are included in shutdown cleanup. `--heal` is off by default and cannot be
+combined with `--stop-on-worker-exit`. Parent exit still stops the supervisor;
+healing cannot recover a dead parent or a pool with no responsive process.
+Original worker exits and core diagnostics remain recorded. Healing attempts
+are logged in `processes.jsonl`, with replies retained as `heal-N.http`.
+
+Stopping or timing out a client closes its HTTP connection but does not cancel PHP already running on the
 server. Stop the server to terminate a stuck request. Server `--request-timeout`
-bounds readiness and shutdown, not the lifetime of the server. Exit codes follow
-the burst runner: 78 for configuration errors, 124 for client request timeouts,
+bounds readiness, each healing request and shutdown, not the lifetime of the
+server. Exit codes follow the burst runner: 78 for configuration errors, 124 for client request timeouts,
 128+signal for interruption or a process death that stops the supervisor, and 1
 for other failures. Worker exits that do not stop the supervisor remain recorded
 individually in the process history and final report.
@@ -1172,10 +1186,13 @@ The local saturation presets split server setup and workload generation:
 The wrapper also accepts `info [ID]` and `list` to inspect servers without
 generating requests.
 
-The server preset uses four workers, a 16 MiB LRU cache with an 80% eviction
-threshold and 16 sampled keys, and a 768 MiB PHP memory limit. It uses the current
-PHP installation; pass `--php-ini=FILE` to choose an ini, `--php-arg=-d...` to
-override startup settings, or `--daemon` to detach. It does not enable ASAN itself.
+The server preset enables `--heal` to replace exited workers and cannot be
+combined with `--stop-on-worker-exit`. It uses four workers, a 16 MiB LRU cache
+with an 80% eviction threshold and 16 sampled keys, and a 768 MiB PHP memory limit. It uses the current
+PHP installation by default; set `PHP_BIN=/path/to/php` before the server wrapper
+to select another binary for both supervision and workers. Pass `--php-ini=FILE`
+to choose an ini, `--php-arg=-d...` to override startup settings, or `--daemon`
+to detach. It does not enable ASAN itself.
 The client preset uses standalone Relay, coercive invocation, varied serializers
 and compressors, 1,000 keys, weighted cached/invalidating commands, and the
 `cache-hll,cache-collections` scenarios. Churn events run with probability 0.05
