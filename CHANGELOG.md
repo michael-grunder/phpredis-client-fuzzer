@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add method and raw-protocol handlers for Redis 8.12 set-member expiration
+  commands, `SADDEX`, `BITRANGEINTARRAY`, and admin-gated `BLESS`, including
+  logged consumption of Relay's lazy `BLESS SCAN` iterator.
+
 - Allow `PHP_BIN=/path/to/php` to select the PHP binary used by the local
   saturation server wrapper and its workers, and enable `--heal` in that preset
   to replace exited workers.

@@ -2257,6 +2257,24 @@ exception. Both calls use normal diagnostics and reproduction logging. These
 are recovery probes, not cross-serializer equality assertions: JSON and PHP
 serialization intentionally preserve different types and reference structures.
 
+### Redis 8.12 commands
+
+The catalog includes `SEXPIRE`, `SPEXPIRE`, `SEXPIREAT`, `SPEXPIREAT`,
+`SPERSIST`, `STTL`, `SPTTL`, `SEXPIRETIME`, `SPEXPIRETIME`, `SADDEX`,
+`BITRANGEINTARRAY`, and `BLESS`. Method calls require the installed client to
+expose the method; raw coverage is available with `--raw`. Older servers may
+reject these commands, and those errors remain visible in diagnostics.
+
+Set-member handlers cover expiration conditions and second/millisecond units;
+`SADDEX` also covers `MNX`, `MXX`, and `KEEPTTL`. `BITRANGEINTARRAY` varies
+byte/bit ranges, `ZEROS`, and `LIMIT`.
+
+`BLESS` requires `--include=admin` because `SET` and `CLEAR` change key eviction
+protection. Its method handler consumes and logs the full `SCAN` iterator in
+atomic mode, routing to one node in a cluster. In pipelines and transactions it
+uses key operations instead. Raw `BLESS SCAN` samples a single page from cursor
+zero. Neither path changes the default safety gates.
+
 ### Sorted-set argument coverage
 
 ZSET generators exercise both client methods and raw protocol arguments.

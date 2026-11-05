@@ -10,6 +10,8 @@ use Relay\Relay;
 abstract class HashFieldExpiryCommand extends Command implements FuzzInterface,
                                                                  FuzzRawInterface
 {
+    protected const MEMBER_TOKEN = 'FIELDS';
+
     abstract protected function expiry(FuzzConfig $config): int;
 
     public function type(): string {
@@ -61,7 +63,7 @@ abstract class HashFieldExpiryCommand extends Command implements FuzzInterface,
             $args[] = $mode;
         }
 
-        array_push($args, 'FIELDS', count($fields), ...$fields);
+        array_push($args, static::MEMBER_TOKEN, count($fields), ...$fields);
 
         return $this->execRaw($client, ...$args);
     }

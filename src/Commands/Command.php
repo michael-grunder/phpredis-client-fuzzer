@@ -501,6 +501,7 @@ abstract class Command implements HasWeight {
         array &$args,
         ?int $referenceIndex = null,
         ?bool &$redisError = null,
+        bool $iterable = false,
     ): mixed
     {
         $redisError = false;
@@ -560,7 +561,10 @@ abstract class Command implements HasWeight {
         $timed = $oraclePrepared || self::$postCommandHooks !== null;
         $started = $timed ? hrtime(true) : 0;
         try {
-            $result = $this->invokeClient($client, $cmd, $args, $scriptArgs);
+            $result = $this->invokeClient($client, $cmd, $args, $scriptArgs, $iterable);
+            if ($iterable && $result instanceof \Traversable) {
+                $result = iterator_to_array($result, false);
+            }
         } catch (\Throwable $throwable) {
             /* Do not let diagnostics hide the exception thrown by the client. */
             try {

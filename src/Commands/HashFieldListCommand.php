@@ -10,6 +10,8 @@ use Relay\Relay;
 abstract class HashFieldListCommand extends Command implements FuzzInterface,
                                                                FuzzRawInterface
 {
+    protected const MEMBER_TOKEN = 'FIELDS';
+
     public function type(): string {
         return self::HASH;
     }
@@ -32,7 +34,7 @@ abstract class HashFieldListCommand extends Command implements FuzzInterface,
         return $this->execRaw(
             $client,
             $config->getRandomKey($this->type()),
-            'FIELDS',
+            static::MEMBER_TOKEN,
             count($fields),
             ...$fields,
         );
