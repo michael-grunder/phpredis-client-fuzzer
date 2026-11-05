@@ -17,10 +17,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   commands, `SADDEX`, `BITRANGEINTARRAY`, and admin-gated `BLESS`, including
   logged consumption of Relay's lazy `BLESS SCAN` iterator.
 
-- Allow `PHP_BIN=/path/to/php` to select the PHP binary used by the local
-  saturation server wrapper and its workers, and enable `--heal` in that preset
-  to replace exited workers.
-
 - Add opt-in `sapi serve --heal` to replace exited workers through authenticated,
   capped fork requests. Retain worker exit diagnostics and healing replies, track
   replacement descendants for cleanup, and reject `--stop-on-worker-exit` conflicts.
@@ -29,9 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   concurrency, seeds and running/recent requests. Use `--no-tui` or redirect
   stdout to retain the existing full-response and request-event output.
 
-- Add `sapi client --continue-on-failure` and enable it in the local saturation
-  client wrapper. Retain failed workloads and continue after confirmed normal
-  PHP shutdown; keep startup, transport and shutdown failures fatal. Finite runs
+- Add `sapi client --continue-on-failure`. Retain failed workloads and continue
+  after confirmed normal PHP shutdown; keep startup, transport and shutdown
+  failures fatal. Finite runs
   still report failure if any request failed. Restart existing SAPI servers to
   supply completion markers for failed workloads.
 
@@ -60,17 +56,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the initiating failure, pre-cleanup counts and stderr tail in `exit.json`, and
   print diagnostics after restoring the terminal. Add `serve --json` events.
 
-- Add SAPI `info [ID]` and `list` commands, also forwarded by the local client
-  wrapper, to show server directories, startup settings, logs and client commands
-  without issuing workloads. List live supervisors while excluding stale PIDs.
+- Add SAPI `info [ID]` and `list` commands to show server directories, startup
+  settings, logs and client commands without issuing workloads. List live
+  supervisors while excluding stale PIDs.
 
 - Publish hashed SAPI server IDs and per-user latest path pointers in the temp
   directory. Allow clients to select `--server=ID` or discover the latest ready
   server without a directory argument; reject stale pointers and unsafe files.
-
-- Add local `sapi-saturate-serve.sh` and `sapi-saturate-client.sh` wrappers for
-  long-lived standalone Relay cache churn, with a small evicting cache, codec
-  variation, weighted cached/invalidating commands, and cache scenarios.
 
 - Add `redis-client-tester-sapi serve` and `client` for long-running PHP worker
   testing, with interactive request statistics, daemon logging, independent
@@ -80,10 +72,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Add an opening flaw-type category page to `redis-client-tester-repros`, with
   capture counts, category filtering, and navigation back from the capture list.
-
-- Add `--tls` to the local `asan.sh` and `asan-saturate.sh` helpers to select
-  ports 16379/18000 with peer and hostname verification disabled, including
-  TLS for `asan.sh`'s optional cluster failover commands.
 
 - Add SAPI `--step-jitter=0..100` to vary per-request step budgets deterministically
   without changing workload seeds. Record concrete budgets in scripts and
@@ -106,17 +94,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   seeds a key, then wraps an optional whole-value read in randomly chosen
   partial Relay-cached reads (lengths, member checks, field and range reads), so
   Relay's partial cache entries are created, upgraded to whole values, and hit.
-- Add `asan-saturate.sh`, an ASAN campaign focused on Relay cache churn with
-  randomized `relay.maxmemory`, eviction policy, threshold, and sample size.
-
 - Add the `phpser` serializer choice (when PhpRedis defines
   `Redis::SERIALIZER_PHPSER`), random `OPT_PACK_IGNORE_NUMBERS` and backoff
   option changes, and `AGGREGATE COUNT` for zset union/intersection commands.
-- Add `FAILOVER=N` to `asan.sh` to promote a random cluster replica every N
-  seconds during a campaign; `asan.sh` now also selects `phpser`.
-
-- Add an inline tuning reference to `asan.sh` covering inferior workload options,
-  campaign limits, command filters, cache pressure, and proxy prerequisites.
 - Add local `conf.d/build-redis.sh` and `conf.d/build-relay.sh` helpers to build
   ASAN-instrumented extensions from working source copies, retain build logs and
   previous modules, and copy successful builds into `conf.d`. PhpRedis enables
@@ -155,10 +135,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Add a source-backed Relay coverage opportunity report with prioritized test
   scenarios and a plan for measuring incremental coverage.
 - add a changelog
-- Add a local coverage stress-launch script with explicit inferior PHP selection
-  and reference settings for the standalone evilresp proxy.
 
 ### Changed
+
+- Keep README examples and release notes focused on distributed package features.
 
 - Hide exited or missing workers from the server TUI after five seconds, with or
   without healing. Preserve their PIDs, exit codes and signals in the process
@@ -173,7 +153,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Rename `bin/redis-client-tester` to `bin/tester` and drop the
   `redis-client-tester-` prefix from companion binaries. Update Composer entries,
-  CLI output, process discovery, documentation, tests, and local shell launchers.
+  CLI output, process discovery, documentation, and tests.
 
 - Keep long-running SAPI supervisors alive after worker exits by default; add
   `serve --stop-on-worker-exit` to opt into stopping the remaining pool. Parent
@@ -187,21 +167,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with aligned summary metrics, running requests, newest-first completed history,
   coloured results and terminal-sized layout.
 
-- Shorten the local Relay SAPI saturation preset to 100 steps or 0.25 seconds
-  per request and three-key churn batches, preserving shared server state across
-  frequent request lifetimes.
-
-- Move local ASAN, harness, invocation, and coverage wrappers into ignored
-  `local-scripts/`, resolving paths from the repository root; update launcher
-  tests and documentation for the new location.
-
 - Rename the Composer package to `mgrunder/redis-client-tester`, the namespace
   to `Mgrunder\RedisClientTester`, and every binary to the `redis-client-tester`
   prefix. Rename `Fuzzer`, `FuzzResult`, `FuzzerEndpoint`, and
   `FuzzKillerApplication` to `Tester`, `TestResult`, `TesterEndpoint`, and
   `ClientKillerApplication`; update hooks, tests, documentation, generated script
-  identifiers, and local shell helpers. This is a breaking rename without aliases;
-  retain existing diagnostic artifacts and the differential generator's seed salt.
+  identifiers. This is a breaking rename without aliases; retain existing
+  diagnostic artifacts and the differential generator's seed salt.
 
 - Build Relay and PhpRedis concurrently in `conf.d/build-extensions.sh`, waiting
   for both builds and succeeding only when both succeed.
@@ -209,15 +181,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Repeated `--commands` arguments now intersect in the strict/coercive fuzzer
   and command catalog CLI. Comma-separated positives still use OR, exclusions
   still remove matches, and all safety gates remain in force.
-- Rework `fuzz-coverage.sh` into a multi-lane campaign: per-job evilresp
-  proxies (`chaos`), a direct high-throughput Relay lane with forks, saturation,
-  the adaptive cache and deserialization callbacks (`direct`), strict
-  differential and full-scenario oracle lanes on both topologies (`oracle`),
-  and subscription callback lanes (`subscribe`), with `preflight` and `summary`
-  subcommands. Every lane now randomizes serializers and compressors, and
-  `fuzz.ini` also draws Relay lock types, `relay.default_pconnect` and
-  `zend.enable_gc` per run.
-
 - Group new harness reproducers under `crash/`, `memory/`, `leak/`, `timeout/`,
   or `failure/` in the output directory, retaining existing captures and the
   separate `failed/` directory for incomplete recordings.
@@ -237,10 +200,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Authenticate SAPI requests before returning their run token, and scan server
   diagnostics without loading the entire log into memory.
 
-- Make every local fuzzing wrapper enable unlimited core dump size before any
-  work and abort if the hard limit prevents it, including parallel campaigns
-  and direct forked runs.
-
 - Cancel harness capture, rr trace waits, and reduction on shutdown and kill
   owned inferiors and SAPI workers after the first stop request. Preserve
   existing captures and interrupted work artifacts without requiring `--keep-work`.
@@ -252,7 +211,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Kill owned harness process groups and detached SAPI workers on forced exit,
   including reduction runs and shutdown after errors. Clean up descendants after
   ordinary runs and find orphan workers even if their parent died before discovery.
-  Add campaign-scoped TERM/KILL exit cleanup to both local ASAN SAPI launchers.
 
 - Fix PHPStan errors in command dispatch, differential helpers, value corpus
   generation, and the evilresp test's mutable command snapshots without changing
@@ -286,7 +244,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   when a generated value or reply contains invalid UTF-8; such bytes are now
   substituted so differential observations stay readable.
 
-- Correct the local fuzz launcher's `--pick-client` flag and use farm PHP for
-  inferiors without redundantly loading its built-in extensions from `fuzz.ini`.
-- Clarify worker PHP selection for coverage builds and correct the local coverage
-  INI's extension paths and eviction-policy choices.
+- Clarify worker PHP selection for coverage builds.

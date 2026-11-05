@@ -890,9 +890,9 @@ callers supplying their own client construction and output destinations.
 | Differential fuzzer | Successful cases stay in memory; only findings/reproducers and the signature index are persisted. |
 | Coverage, command catalog/stats, reproducer viewer | No workload scratch directories; output is streamed or existing captures are read. |
 
-Local ASAN presets explicitly enable `--run-log`; those files, shell redirections,
-and captured reproducers are persistent output, not temporary work. Cleanup
-never scans old `/tmp` folders or another campaign's directories.
+Explicit `--run-log` files, shell redirections, and captured reproducers are
+persistent output, not temporary work. Cleanup never scans old `/tmp` folders
+or another campaign's directories.
 
 ### Long-running PHP server testing
 
@@ -987,11 +987,6 @@ the current user in the same temp directory:
 bin/sapi info                 # Latest server, including stopped ones
 bin/sapi info a1b2c3d4e5f6    # Tag from the TUI
 bin/sapi list
-
-# The local client wrapper forwards these commands without starting a workload:
-./local-scripts/sapi-saturate-client.sh info
-./local-scripts/sapi-saturate-client.sh info a1b2c3d4e5f6
-./local-scripts/sapi-saturate-client.sh list
 ```
 
 `info` also accepts `--server=ID` or `--directory=PATH`. Both inspection commands
@@ -1131,7 +1126,7 @@ before/after pool snapshots and stderr tail; full server logs remain intact.
 For machine-readable monitoring:
 
 ```bash
-./local-scripts/sapi-saturate-serve.sh --json > sapi-events.jsonl
+bin/sapi serve --json > sapi-events.jsonl
 ```
 
 `--json` disables the TUI and emits JSON Lines with `type` values `ready`,
@@ -1179,51 +1174,6 @@ User-selected log files are never truncated automatically. Existing run
 folders and crash evidence are not swept by cleanup. A partial response without
 a finish event can indicate a worker died during a request; consult
 `server.stderr.log` and the retained concrete call log.
-
-The local saturation presets split server setup and workload generation:
-
-```bash
-./local-scripts/sapi-saturate-serve.sh --directory=/tmp/relay-soak
-# In another terminal, select your disposable Redis target:
-./local-scripts/sapi-saturate-client.sh --jobs=1-4 -- --port=6390 --seed=42
-```
-
-The wrapper also accepts `info [ID]` and `list` to inspect servers without
-generating requests.
-
-The server preset enables `--heal` to replace exited workers and cannot be
-combined with `--stop-on-worker-exit`. It uses four workers, a 16 MiB LRU cache
-with an 80% eviction threshold and 16 sampled keys, and a 768 MiB PHP memory limit. It uses the current
-PHP installation by default; set `PHP_BIN=/path/to/php` before the server wrapper
-to select another binary for both supervision and workers. Pass `--php-ini=FILE`
-to choose an ini, `--php-arg=-d...` to override startup settings, or `--daemon`
-to detach. It does not enable ASAN itself.
-The client preset uses standalone Relay, coercive invocation, varied serializers
-and compressors, 1,000 keys, weighted cached/invalidating commands, and the
-`cache-hll,cache-collections` scenarios. Churn events run with probability 0.05
-and visit up to 3 keys. Each request allows 100 steps or 0.25 seconds; HTTP
-requests have a 60-second deadline and, without `--jobs`, a 100 ms pause between them. The workload
-time budget is checked between operations, so slow commands/scenarios can exceed
-0.25 seconds. The short requests exercise shared state across many PHP request
-lifetimes. Running the client wrapper with no arguments discovers the latest
-server and uses the preset Redis target `127.0.0.1:6379`; select a disposable
-target with `-- --port=...` when needed.
-
-The local client wrapper enables `--continue-on-failure`, retaining failed
-workloads while continuing the soak. Use `--no-tui -- --output=detailed` to print scenario
-failure details. Retained failures accumulate on disk; timeouts and broken
-requests still stop the client.
-
-Put client controls such as `--requests=100` before `--`, and workload overrides
-such as `--keys=4000 --steps=50` after it. Scalar options override the presets;
-command filters, weights, and hooks accumulate. Hook paths are absolute so they
-also work inside HTTP requests. The preset enables local/stateful commands and
-rare Relay `flushmemory` calls, but excludes Redis `FLUSHALL` and `FLUSHDB`.
-Initial codec choices omit LZ4, as in the ASAN saturation preset; `setoption`
-can still select it and encounter the allocation issue described in that script.
-Use `--jobs=4` for steady concurrency or `--jobs=1-4` for a repeating ramp.
-Multiple client wrappers can still share the same server independently.
-These scripts live in the repository's ignored `local-scripts/` directory.
 
 ### PHP server workers and idle invalidations
 
@@ -1298,13 +1248,6 @@ completion, failure, or interruption. Timeouts exit 124, observed signal deaths
 exit 128+signal, invalid workloads exit 78, and PHP fatals or incomplete HTTP
 responses fail the run. A worker's sanitizer or nonzero Valgrind error summary
 also fails the run even if the server parent exits successfully.
-
-The `local-scripts/asan-sapi.sh` and `local-scripts/asan-saturate-sapi.sh` wrappers
-forward Ctrl+C to the harness. Their exit traps also send TERM, wait half a second, then send KILL
-to remaining processes carrying that invocation's unique environment marker.
-This includes detached workers and the optional failover helper, even after
-their parents exit. Cleanup uses Linux `/proc` and affects only that campaign;
-logs and reproducers are retained. SIGKILL of the wrapper itself cannot run traps.
 
 Standalone bursts use a fresh private temporary directory printed on stderr;
 `--directory=PATH` selects another fresh directory and refuses to reuse an
@@ -2558,30 +2501,7 @@ $relay = (new ClientFactory())->create(new ClientConfiguration(
 `ClientType` values are `redis`, `redis-cluster`, `relay`, and
 `relay-cluster`. Cluster configurations use `seeds` in `host:port` form.
 
-### Local invocation wrappers
-
-Local invocation wrappers live in the ignored `local-scripts/` directory (not
-included in a fresh checkout). Run them with paths such as
-`./local-scripts/asan.sh`; they change to the repository root, so relative
-configuration, hook, log, and reproducer paths stay rooted there, even when
-invoked from another working directory. Keep generated artifacts outside this
-directory. Ordinary `git clean -fd` leaves it alone; `git clean -fdx` and
-`git clean -fdX` can delete it. Preview any cleanup with `git clean -nd` (using
-the same flags and paths you intend to clean).
-
-Every local wrapper sets `ulimit -c unlimited` before doing any work, so its
-harness, forked clients, and SAPI workers inherit an unlimited core size limit.
-If the hard limit prevents this, the wrapper exits immediately; raise that limit
-in the launching shell or service before retrying. Core files still depend on
-the kernel's `core_pattern`, writable storage, and the runtime's core dump settings.
-
 ### TLS connections
-
-The `local-scripts/asan.sh` and `local-scripts/asan-saturate.sh` helpers accept
-`--tls` to switch from plaintext ports 6379/7000 to TLS ports 16379/18000. They pass
-`--tls` and `--tls-options='{"verify_peer":false,"verify_peer_name":false}'`
-to the worker for these disposable test instances. `FAILOVER=N ./local-scripts/asan.sh --tls`
-also uses TLS with certificate verification disabled for cluster failover.
 
 Use `--tls` with a server's TLS port. It applies to all selected client types,
 cluster discovery seeds, topology probes, and stateful peer connections:
