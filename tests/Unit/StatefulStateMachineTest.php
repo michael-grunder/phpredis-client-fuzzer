@@ -45,7 +45,7 @@ final class StatefulStateMachineTest extends TestCase
     {
         // CacheScenarioTest covers the collection/HLL fixtures with a value model;
         // this fake models transaction queues and uses a non-none serializer.
-        foreach (array_diff(StatefulScenarioRegistry::names(), ['cache-hll', 'cache-collections']) as $name) {
+        foreach (array_diff(StatefulScenarioRegistry::names(), ['cache-hll', 'cache-collections', 'cluster-queue-error', 'cluster-watch-abort', 'cluster-error-alignment']) as $name) {
             yield $name => [$name];
         }
     }

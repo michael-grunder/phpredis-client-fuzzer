@@ -656,8 +656,11 @@ Run configuration:
                              watch-unwatch-commit, pipeline-replies,
                              queued-value-mutation, disconnect-recovery,
                              cache-hll, cache-collections,
+                             cluster-queue-error, cluster-watch-abort,
+                             cluster-error-alignment,
                              none, or random (random may select any subset).
-                             watch-abort and watch-unwatch-commit open a second
+                             watch-abort, watch-unwatch-commit and
+                             cluster-watch-abort open a second
                              connection from the same --client configuration
   --verbose                  Log command execution to stderr
   --help                     Show this help without connecting to Redis

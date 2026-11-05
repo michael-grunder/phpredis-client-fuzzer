@@ -719,7 +719,8 @@ accepts at most 1,024 children; `--forks=0` (the default) does not fork.
 `transaction-cross-slot-replies`, `transaction-error-alignment`,
 `transaction-queue-error`, `transaction-local-rejection`, `watch-abort`,
 `watch-unwatch-commit`, `pipeline-replies`, `queued-value-mutation`,
-`disconnect-recovery`, `cache-hll`, and `cache-collections`.
+`disconnect-recovery`, `cache-hll`, `cache-collections`,
+`cluster-queue-error`, `cluster-watch-abort`, and `cluster-error-alignment`.
 Use `none` to explicitly disable them, or `random` to
 select a deterministic random subset (including no scenarios) from the full
 catalog. The subset is derived from the workload seed, so a reported seed
@@ -2050,6 +2051,49 @@ what `watch-abort` and `watch-unwatch-commit` do with a second connection.
 | `disconnect-recovery` | MULTI, queued writes, `close()` with replies outstanding, reconnect | Atomic mode, no queued write applied, and the next commands answered by their own replies |
 | `cache-hll` | PFADD, GET of the exact HLL keys, repeated PFCOUNT, PFADD/PFMERGE, warm and count again | Sparse/dense encodings and counts agree with server counts before and after mutation |
 | `cache-collections` | Populate, partial/full warm-up, repeated targeted reads, mutate, read again | String, hash, list, set, and sorted-set replies agree with bounded known fixtures |
+| `cluster-queue-error` | Interleaved commands on two verified nodes, unknown raw command on one node, EXEC | Client-specific partial commits, abort reporting, and recovery on both connections |
+| `cluster-watch-abort` | WATCH on two verified nodes, peer changes one key, interleaved MULTI/EXEC | Only that node's replies become false; the other node commits; both connections recover |
+| `cluster-error-alignment` | Interleaved MULTI across two verified nodes with one WRONGTYPE command | Exact reply order around the error, committed writes, and recovery on both connections |
+
+The three `cluster-*` scenarios require `RedisCluster` or `Relay\Cluster`.
+They route read-only `CLUSTER MYID` probes using scenario keys and require two
+different node IDs before writing. Up to 128 deterministic hash tags are tried;
+if discovery is unavailable or a second node cannot be found (including a prefix
+that pins all keys to one slot), the outcome is `skipped`, not a coverage pass.
+Every operation, discovered node ID, concrete key, reply and error is recorded.
+
+Each scenario fails the first participant and then the second, with SET and GET
+replies interleaved across nodes. Related keys on each node share one hash tag.
+After each round it checks values and PING on both connections, then a fresh
+transaction with distinct values and exact replies on the same client. WATCH
+recovery also changes both keys again to detect watches left behind.
+
+Queue-time failure uses an unknown command so client-side arity checks cannot
+silently replace the intended server rejection. The expected EXEC behavior is
+explicit for each client: PhpRedis raises a cluster EXEC error and stops at the
+failing participant, so an earlier participant commits while a later one is
+discarded; Relay completes the healthy participant and returns false entries
+for the aborted participant. WATCH aborts require false entries in both clients.
+When Relay has `OPT_THROW_ON_ERROR` enabled, the corresponding EXECABORT or
+WATCH transaction-failure exception is required instead; the same exact data
+and recovery checks still apply. Runtime WRONGTYPE accepts false, null, or a WRONGTYPE error in its exact reply
+position. Unrelated exceptions do not count as expected transaction failures.
+These checks deliberately retain client differences; they do not imply atomic
+commit across the cluster.
+
+For a disposable cluster, select the scenarios explicitly (replace the seed
+address with your target; use `relay-cluster` to exercise Relay):
+
+```bash
+bin/tester --client=redis-cluster --seeds=127.0.0.1:7000 \
+    --scenarios=cluster-queue-error,cluster-watch-abort,cluster-error-alignment \
+    --commands=get --steps=1 --seed=42
+```
+
+They remain opt-in and need no admin or flush categories. The queue-error
+scenario itself sends the one deliberate raw rejection. Keys retain their final
+values; existing serializer, compression and prefix settings are preserved.
+
 
 The cache scenarios exercise Relay's in-memory cache paths and also run with
 PhpRedis as ordinary server-backed correctness checks, on standalone or cluster
@@ -2087,12 +2131,12 @@ scenario proves reply correctness; use those deltas and a coverage report to
 verify which in-memory paths executed. Serializer/compressor and queued-mode
 matrices remain subsequent experiments.
 
-`watch-abort` and `watch-unwatch-commit` need a second connection. The CLI
+`watch-abort`, `watch-unwatch-commit`, and `cluster-watch-abort` need a second connection. The CLI
 builds one lazily from the same `--client` configuration as the client under
 test, so it shares its target, prefix, database and serializer, and closes it
 when the scenarios finish. Embedded callers pass a `ScenarioPeers`
 implementation to `Tester` (`CallableScenarioPeers` wraps a factory closure);
-without one, both scenarios report `skipped`:
+without one, these scenarios report `skipped`:
 
 ```php
 use Mgrunder\RedisClientTester\Stateful\CallableScenarioPeers;

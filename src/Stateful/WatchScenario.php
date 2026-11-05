@@ -79,8 +79,10 @@ final class WatchScenario extends ScenarioBase
         } else {
             $run->expectThat(
                 'exec-aborts-after-the-watched-key-changed',
-                'EXEC reports the aborted transaction: false, null, or a raised error',
-                $exec->threw() || $exec->reply === false || $exec->reply === null,
+                'EXEC reports the aborted transaction: [false] for clusters; false or null otherwise; or a raised error',
+                $exec->threw() || ($this->isCluster($client)
+                    ? $exec->reply === [false]
+                    : $exec->reply === false || $exec->reply === null),
                 $exec->describe(),
             );
             $run->expect('aborted-exec-restores-atomic-mode', Redis::ATOMIC, $run->mode());

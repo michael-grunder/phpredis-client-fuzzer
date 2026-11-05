@@ -28,6 +28,9 @@ final class StatefulScenarioRegistry
             'disconnect-recovery',
             'cache-hll',
             'cache-collections',
+            'cluster-queue-error',
+            'cluster-watch-abort',
+            'cluster-error-alignment',
         ];
     }
 
@@ -102,6 +105,8 @@ final class StatefulScenarioRegistry
             'disconnect-recovery' => new RecoveryScenario('disconnect-recovery', $clientInvoker),
             'cache-hll' => new HllCacheScenario('cache-hll', $clientInvoker),
             'cache-collections' => new CollectionCacheScenario('cache-collections', $clientInvoker),
+            'cluster-queue-error', 'cluster-watch-abort', 'cluster-error-alignment' =>
+                new MultiNodeFailureScenario(strtolower($name), $clientInvoker),
             default => throw new \InvalidArgumentException(
                 "Unknown stateful scenario: {$name}",
             ),

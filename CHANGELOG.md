@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add opt-in cluster transaction scenarios for queue-time errors, WATCH aborts,
+  and runtime error alignment on two verified primary nodes. Exercise both
+  failure positions, client-specific partial commits, and subsequent recovery
+  on both connections, with server-free regression tests.
+
 - Add method and raw-protocol handlers for Redis 8.12 set-member expiration
   commands, `SADDEX`, `BITRANGEINTARRAY`, and admin-gated `BLESS`, including
   logged consumption of Relay's lazy `BLESS SCAN` iterator.
@@ -218,6 +223,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   separate `failed/` directory for incomplete recordings.
 
 ### Fixed
+
+- Accept the cluster `[false]` EXEC reply in the existing WATCH-abort scenario.
 
 - Ignore empty `/proc` status reads during SAPI worker reaping so successful
   shutdowns do not become false timeouts. Only label a reduction as minimized
