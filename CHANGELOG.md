@@ -142,18 +142,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- Enable the existing adaptive-cache hook and Lua methods/scenario in the local
-  coverage preset. Reduce full-keyspace scans to weight 0.05 while retaining
-  cursor scans at weight 3, so full traversals do not dominate request budgets.
-
-- Raise the local coverage SAPI preset's PHP memory limit from 768 MiB to 4 GiB
-  per worker, allowing malformed LZ4 payloads with signed 32-bit output lengths
-  to reach decompression failure instead of PHP memory exhaustion. Keep LZ4
-  enabled and preserve explicit server memory-limit overrides.
-
-- Broaden the local SAPI coverage preset to scans, encode/decode methods and
-  seeded transaction scenarios, with all Relay compressors and distribution
-  modes, while retaining the existing safety gates and cache-churn workload.
+- Clarify repository boundaries in the agent guide and remove unrelated preset
+  changes from the package changelog.
 
 - Keep README examples and release notes focused on distributed package features.
 

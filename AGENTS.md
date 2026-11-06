@@ -50,6 +50,11 @@ required compatibility API; Relay is optional for package consumers.
 - `src/Data/` and `data/` contain geo and stream workload fixtures.
 - `tests/` contains server-free PHPUnit unit tests.
 
+`local-scripts/` is its own Git repository, kept in this working directory for
+convenient access to complex testing commands. Keep documentation and changelog
+entries for those scripts inside `local-scripts/`, not in this package's
+`README.md` or `CHANGELOG.md`.
+
 ## Engineering conventions
 
 - Use PSR-4 namespace `Mgrunder\RedisClientTester` and four-space
