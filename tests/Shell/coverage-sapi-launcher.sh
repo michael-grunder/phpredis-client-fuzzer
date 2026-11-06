@@ -44,9 +44,12 @@ contains() {
 }
 for arg in --steps=300 --seconds=2 --compression=none,lzf,zstd,lz4 --relay-distribute=any \
     --include=local,flush,stateful --saturate-mode=churn --port=6390 --seed=42 \
-    '--weight=@local:1' '--weight=@scan:3' '--weight=@flush:0.002' \
-    '--commands=@cached,@invalidating,@scan,flushmemory,setoption,getoption,addallowpatterns,addignorepatterns,_pack,_unpack,_serialize,_unserialize,_compress,_uncompress,-flushall,-flushdb' \
-    '--scenarios=cache-hll,cache-collections,transaction-exec,transaction-discard,transaction-cross-slot-replies,transaction-error-alignment,pipeline-replies' \
+    '--weight=@local:1' '--weight=@scan:3' '--weight=fullscan:0.05' '--weight=@flush:0.002' \
+    '--commands=@cached,@invalidating,@scan,eval,eval_ro,evalsha,evalsha_ro,flushmemory,setoption,getoption,addallowpatterns,addignorepatterns,_pack,_unpack,_serialize,_unserialize,_compress,_uncompress,-flushall,-flushdb' \
+    '--scenarios=cache-hll,cache-collections,transaction-exec,transaction-discard,transaction-cross-slot-replies,transaction-error-alignment,pipeline-replies,lua-replies' \
+    "--hook=$workspace/with spaces/hooks/adaptive.php" \
+    --hook-arg=adaptive.width=512 --hook-arg=adaptive.depth=4 \
+    --hook-arg=adaptive.minEvents=4 --hook-arg=adaptive.minRatio=2 \
     "--hook=$workspace/with spaces/hooks/no-msgpack.php"; do
     contains "$arg" "${workload[@]}"
 done
@@ -58,4 +61,24 @@ done
 status=0
 STUB_EXIT=23 "$launcher" --help > /dev/null || status=$?
 [[ $status == 23 ]]
+server=${COVERAGE_SERVER_SCRIPT:-$root/local-scripts/coverage-sapi-server}
+if [[ -f $server && -f $root/local-scripts/sapi-saturate-serve.sh ]]; then
+    cp "$server" "$root/local-scripts/sapi-saturate-serve.sh" "$workspace/with spaces/local-scripts/"
+    chmod +x "$workspace/with spaces/local-scripts/coverage-sapi-server"
+    : > "$workspace/fake relay.so"
+    for override in '' --php-arg=-dmemory_limit=8G; do
+        extra=()
+        [[ -z $override ]] || extra+=("$override")
+        (cd / && PHP_BIN="$workspace/with spaces/bin/sapi" RELAY_SO="$workspace/fake relay.so" \
+            "$workspace/with spaces/local-scripts/coverage-sapi-server" "${extra[@]}") > "$workspace/args"
+        mapfile -d '' -t args < "$workspace/args"
+        contains --php-arg=-dmemory_limit=4G "${args[@]}"
+        contains "--php-arg=-dextension=$workspace/fake relay.so" "${args[@]}"
+        memory=''
+        for arg in "${args[@]}"; do
+            [[ $arg != --php-arg=-dmemory_limit=* ]] || memory=$arg
+        done
+        [[ $memory == "${override:---php-arg=-dmemory_limit=4G}" ]]
+    done
+fi
 echo 'SAPI coverage wrapper: OK'

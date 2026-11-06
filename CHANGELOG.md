@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add opt-in `lua-replies` scenarios for all four clients: bounded Lua integer,
+  binary-string and nested-array replies, followed by successful SHA reuse on
+  the same keyed primary, with recorded arguments and reply assertions.
+
 - Add opt-in cluster transaction scenarios for queue-time errors, WATCH aborts,
   and runtime error alignment on two verified primary nodes. Exercise both
   failure positions, client-specific partial commits, and subsequent recovery
@@ -137,6 +141,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - add a changelog
 
 ### Changed
+
+- Enable the existing adaptive-cache hook and Lua methods/scenario in the local
+  coverage preset. Reduce full-keyspace scans to weight 0.05 while retaining
+  cursor scans at weight 3, so full traversals do not dominate request budgets.
+
+- Raise the local coverage SAPI preset's PHP memory limit from 768 MiB to 4 GiB
+  per worker, allowing malformed LZ4 payloads with signed 32-bit output lengths
+  to reach decompression failure instead of PHP memory exhaustion. Keep LZ4
+  enabled and preserve explicit server memory-limit overrides.
 
 - Broaden the local SAPI coverage preset to scans, encode/decode methods and
   seeded transaction scenarios, with all Relay compressors and distribution

@@ -31,6 +31,7 @@ final class StatefulScenarioRegistry
             'cluster-queue-error',
             'cluster-watch-abort',
             'cluster-error-alignment',
+            'lua-replies',
         ];
     }
 
@@ -105,6 +106,7 @@ final class StatefulScenarioRegistry
             'disconnect-recovery' => new RecoveryScenario('disconnect-recovery', $clientInvoker),
             'cache-hll' => new HllCacheScenario('cache-hll', $clientInvoker),
             'cache-collections' => new CollectionCacheScenario('cache-collections', $clientInvoker),
+            'lua-replies' => new LuaReplyScenario('lua-replies', $clientInvoker),
             'cluster-queue-error', 'cluster-watch-abort', 'cluster-error-alignment' =>
                 new MultiNodeFailureScenario(strtolower($name), $clientInvoker),
             default => throw new \InvalidArgumentException(

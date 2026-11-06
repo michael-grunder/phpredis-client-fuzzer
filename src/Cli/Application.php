@@ -659,7 +659,7 @@ Run configuration:
                              queued-value-mutation, disconnect-recovery,
                              cache-hll, cache-collections,
                              cluster-queue-error, cluster-watch-abort,
-                             cluster-error-alignment,
+                             cluster-error-alignment, lua-replies,
                              none, or random (random may select any subset).
                              watch-abort, watch-unwatch-commit and
                              cluster-watch-abort open a second

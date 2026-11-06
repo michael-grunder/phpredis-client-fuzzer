@@ -720,7 +720,8 @@ accepts at most 1,024 children; `--forks=0` (the default) does not fork.
 `transaction-queue-error`, `transaction-local-rejection`, `watch-abort`,
 `watch-unwatch-commit`, `pipeline-replies`, `queued-value-mutation`,
 `disconnect-recovery`, `cache-hll`, `cache-collections`,
-`cluster-queue-error`, `cluster-watch-abort`, and `cluster-error-alignment`.
+`cluster-queue-error`, `cluster-watch-abort`, `cluster-error-alignment`, and
+`lua-replies`.
 Use `none` to explicitly disable them, or `random` to
 select a deterministic random subset (including no scenarios) from the full
 catalog. The subset is derived from the workload seed, so a reported seed
@@ -2014,6 +2015,7 @@ what `watch-abort` and `watch-unwatch-commit` do with a second connection.
 | `cluster-queue-error` | Interleaved commands on two verified nodes, unknown raw command on one node, EXEC | Client-specific partial commits, abort reporting, and recovery on both connections |
 | `cluster-watch-abort` | WATCH on two verified nodes, peer changes one key, interleaved MULTI/EXEC | Only that node's replies become false; the other node commits; both connections recover |
 | `cluster-error-alignment` | Interleaved MULTI across two verified nodes with one WRONGTYPE command | Exact reply order around the error, committed writes, and recovery on both connections |
+| `lua-replies` | Three bounded EVAL/EVALSHA pairs, with one routing key and binary/empty ARGV values | Integer, binary string and nested array replies match their fixtures; EVAL primes each script on the same primary for SHA reuse without modifying keys |
 
 The three `cluster-*` scenarios require `RedisCluster` or `Relay\Cluster`.
 They route read-only `CLUSTER MYID` probes using scenario keys and require two
