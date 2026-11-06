@@ -45,8 +45,8 @@ class setoption extends OptionCommand implements FuzzInterface {
     ): mixed {
         return match ($option) {
             Redis::OPT_PREFIX => $config->getRandomPrefix(),
-            Redis::OPT_SERIALIZER => $this->randomSerializer(),
-            Redis::OPT_COMPRESSION => $this->randomCompression(),
+            Redis::OPT_SERIALIZER => $this->randomSerializer($client),
+            Redis::OPT_COMPRESSION => $this->randomCompression($client),
             Redis::OPT_COMPRESSION_LEVEL => rand() & 1 ? rand(-99, 99) : rand(-150000,150000),
             Redis::OPT_READ_TIMEOUT => $this->randomReadTimeout($config),
             Redis::OPT_SCAN => $this->randomScanOption(),

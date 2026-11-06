@@ -5,12 +5,60 @@ declare(strict_types=1);
 namespace Mgrunder\RedisClientTester\Tests\Unit;
 
 use Mgrunder\RedisClientTester\OptionChoices;
+use Mgrunder\RedisClientTester\ClientFactory;
+use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\Commands\OptionValue;
 use Mgrunder\RedisClientTester\RelayClusterOptions;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class OptionChoicesTest extends TestCase
 {
+    public function testRelayCodecsDoNotDependOnPhpRedisBuildOptions(): void
+    {
+        if (!class_exists(\Relay\Relay::class)) {
+            self::markTestSkipped('Relay is optional');
+        }
+        foreach ([ClientType::Relay, ClientType::RelayCluster] as $type) {
+            foreach (['serializer' => OptionChoices::SERIALIZER, 'compression' => OptionChoices::COMPRESSION] as $kind => $choices) {
+                $supported = OptionChoices::available($choices, [$type]);
+                self::assertContains('none', $supported);
+                foreach ($supported as $name) {
+                    $constants = OptionChoices::forClient($choices, $type->className());
+                    $value = constant($constants[$name]);
+                    self::assertIsInt($value);
+                    self::assertSame($name, OptionChoices::resolve($name . ',' . $name, $choices, $kind, [$type]));
+                    self::assertSame($value, (new \ReflectionMethod(ClientFactory::class, $kind))->invoke(
+                        new ClientFactory(), $name, $type->className(),
+                    ));
+                    $option = $kind === 'serializer' ? \Redis::OPT_SERIALIZER : \Redis::OPT_COMPRESSION;
+                    $code = (new OptionValue($option, $value))->code();
+                    self::assertTrue(defined(ltrim($code, '\\')));
+                    self::assertSame($value, constant(ltrim($code, '\\')));
+                }
+                $mixed = OptionChoices::available($choices, [ClientType::Redis, $type]);
+                self::assertSame(array_values(array_intersect(OptionChoices::available($choices), $supported)), $mixed);
+                mt_srand(42);
+                $first = OptionChoices::resolve('random', $choices, $kind, [$type]);
+                mt_srand(42);
+                self::assertSame($first, OptionChoices::resolve('random', $choices, $kind, [$type]));
+            }
+        }
+        if (defined('Relay\\Relay::COMPRESSION_LZF')) {
+            self::assertContains('lzf', OptionChoices::available(OptionChoices::COMPRESSION, [ClientType::Relay]));
+        }
+        if (!extension_loaded('phpser')) {
+            self::assertNotContains('phpser', OptionChoices::available(OptionChoices::SERIALIZER, [ClientType::Relay]));
+        }
+    }
+
+    public function testUnsupportedCodecLoggingFallsBackToTheConcreteValue(): void
+    {
+        foreach ([\Redis::OPT_SERIALIZER, \Redis::OPT_COMPRESSION] as $option) {
+            self::assertSame('99999', (new OptionValue($option, 99999))->code());
+        }
+    }
+
     /** @return iterable<string, array{array<string, string>}> */
     public static function choiceLists(): iterable
     {
@@ -223,7 +271,7 @@ final class OptionChoicesTest extends TestCase
     #[DataProvider('choiceLists')]
     public function testEveryChoiceResolvesToAValueTheSettingAccepts(array $choices): void
     {
-        foreach (OptionChoices::available($choices) as $name) {
+        foreach (self::supported($choices) as $name) {
             self::assertArrayHasKey($name, $choices);
         }
     }

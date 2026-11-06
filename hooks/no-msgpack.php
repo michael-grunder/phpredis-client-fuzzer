@@ -16,7 +16,9 @@ use Mgrunder\RedisClientTester\Hooks\InvocationHook;
 use Mgrunder\RedisClientTester\Hooks\PendingInvocation;
 
 return static function (HookRegistry $hooks): void {
-    if (!defined('Redis::SERIALIZER_MSGPACK')) {
+    $constant = defined('Redis::SERIALIZER_MSGPACK')
+        ? 'Redis::SERIALIZER_MSGPACK' : 'Relay\\Relay::SERIALIZER_MSGPACK';
+    if (!defined($constant)) {
         return;
     }
 
@@ -24,7 +26,7 @@ return static function (HookRegistry $hooks): void {
         'no-msgpack-serializer',
         new readonly class(
             Redis::OPT_SERIALIZER,
-            constant('Redis::SERIALIZER_MSGPACK'),
+            constant($constant),
         ) implements InvocationHook {
             public function __construct(
                 private int $serializerOption,

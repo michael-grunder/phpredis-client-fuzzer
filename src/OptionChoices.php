@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\RedisClientTester;
 
 use Relay\Cluster;
+use Relay\Relay;
 
 /**
  * Named settings that accept one of a fixed list of values, plus the sentinel
@@ -98,15 +99,16 @@ final class OptionChoices
      *
      * @param array<string, string> $choices Setting name to constant.
      * @param string $kind Human-readable setting name used in errors.
+     * @param list<ClientType> $clientTypes Restrict automatic codec choices to support shared by these clients.
      */
-    public static function resolve(string $value, array $choices, string $kind): string
+    public static function resolve(string $value, array $choices, string $kind, array $clientTypes = []): string
     {
         if (!str_contains($value, ',')) {
             if (!self::isRandom($value, $choices)) {
                 return $value;
             }
 
-            return self::choose(self::available($choices), $kind);
+            return self::choose(self::available($choices, $clientTypes), $kind);
         }
 
         $subset = [];
@@ -127,7 +129,7 @@ final class OptionChoices
             $subset[$name] = $choices[$name];
         }
 
-        return self::choose(self::available($subset), $kind);
+        return self::choose(self::available($subset, $clientTypes), $kind);
     }
 
     /**
@@ -148,18 +150,66 @@ final class OptionChoices
      * The subset of `$choices` whose constant the loaded extension defines.
      *
      * @param array<string, string> $choices Setting name to constant.
+     * @param list<ClientType> $clientTypes
      * @return list<string>
      */
-    public static function available(array $choices): array
+    public static function available(array $choices, array $clientTypes = []): array
     {
+        if ($clientTypes !== []) {
+            $names = array_keys($choices);
+            foreach ($clientTypes as $type) {
+                $names = array_values(array_intersect(
+                    $names,
+                    self::available(self::forClient($choices, $type->className())),
+                ));
+            }
+            return $names;
+        }
+
         $names = [];
         foreach ($choices as $name => $constant) {
-            if (defined($constant)) {
+            if (defined($constant) && self::codecAvailable($constant)) {
                 $names[] = $name;
             }
         }
 
         return $names;
+    }
+
+    /**
+     * Relay's codecs do not depend on how PhpRedis was compiled.
+     * @param array<string, string> $choices
+     * @return array<string, string>
+     */
+    public static function forClient(array $choices, string $class): array
+    {
+        if (is_a($class, Relay::class, true) || is_a($class, Cluster::class, true)) {
+            foreach ($choices as &$constant) {
+                $constant = str_replace('Redis::', Relay::class . '::', $constant);
+            }
+        }
+        return $choices;
+    }
+
+    private static function codecAvailable(string $constant): bool
+    {
+        if (!str_starts_with($constant, Relay::class . '::SERIALIZER_')
+            && !str_starts_with($constant, Relay::class . '::COMPRESSION_')) {
+            return true;
+        }
+
+        // Relay declares optional codecs even when their runtime libraries are absent.
+        $option = str_starts_with($constant, Relay::class . '::SERIALIZER_')
+            ? Relay::OPT_SERIALIZER : Relay::OPT_COMPRESSION;
+        $value = constant($constant);
+        if (!is_int($value)) {
+            return false;
+        }
+        try {
+            return (new Relay())->setOption($option, $value);
+        } catch (\Relay\Exception) {
+            return false;
+        }
     }
 
     /**

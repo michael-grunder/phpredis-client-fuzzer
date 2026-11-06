@@ -1682,7 +1682,14 @@ entries are rejected. Duplicate names are treated as one choice rather than as
 weights. Values in the subset that the loaded extension does not support are
 not picked, consistent with `random`; the run fails if none are supported.
 
-The choice is made from the run's seed before any client is created, so the
+Codec choices use the selected client extension: a Relay-only run can use
+igbinary, LZF, ZSTD or LZ4 even when PhpRedis was built without them. Mixed-client
+runs choose from the codecs supported by every selected client. Relay's optional
+runtime codecs are checked on an unconnected temporary client, so missing
+serializer extensions or compression libraries are excluded from automatic
+choices. An explicitly named codec still reports configuration errors.
+
+The choice is made from the run's seed before any workload client is connected, so the
 same `--seed` selects the same settings and the same command stream:
 
 ```bash

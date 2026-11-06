@@ -3,6 +3,7 @@
 namespace Mgrunder\RedisClientTester\Commands;
 
 use Mgrunder\RedisClientTester\ScriptArg;
+use Mgrunder\RedisClientTester\OptionChoices;
 
 use Redis;
 use RedisCluster;
@@ -64,24 +65,21 @@ class OptionValue extends ScriptArg {
     }
 
     private function compressionValue(): string {
-        return match ($this->value) {
-            Redis::COMPRESSION_NONE => 'Redis::COMPRESSION_NONE',
-            Redis::COMPRESSION_LZF => 'Redis::COMPRESSION_LZF',
-            Redis::COMPRESSION_ZSTD => 'Redis::COMPRESSION_ZSTD',
-            Redis::COMPRESSION_LZ4 => 'Redis::COMPRESSION_LZ4',
-            default => var_export($this->value, true),
-        };
+        return $this->codecValue(OptionChoices::COMPRESSION);
     }
 
     private function serializerValue(): string {
-        return match ($this->value) {
-            Redis::SERIALIZER_NONE => 'Redis::SERIALIZER_NONE',
-            Redis::SERIALIZER_PHP => 'Redis::SERIALIZER_PHP',
-            Redis::SERIALIZER_IGBINARY => 'Redis::SERIALIZER_IGBINARY',
-            Redis::SERIALIZER_MSGPACK => 'Redis::SERIALIZER_MSGPACK',
-            Redis::SERIALIZER_JSON => 'Redis::SERIALIZER_JSON',
-            default => var_export($this->value, true),
-        };
+        return $this->codecValue(OptionChoices::SERIALIZER);
+    }
+
+    /** @param array<string, string> $choices */
+    private function codecValue(array $choices): string {
+        foreach ([...array_values($choices), ...array_values(OptionChoices::forClient($choices, Relay::class))] as $constant) {
+            if (defined($constant) && constant($constant) === $this->value) {
+                return str_starts_with($constant, 'Relay\\') ? '\\' . $constant : $constant;
+            }
+        }
+        return var_export($this->value, true);
     }
 
     private function scanValue(): string {

@@ -3,6 +3,7 @@
 namespace Mgrunder\RedisClientTester\Commands;
 
 use Mgrunder\RedisClientTester\Utilities;
+use Mgrunder\RedisClientTester\OptionChoices;
 
 use Relay\Relay;
 use Relay\Cluster;
@@ -72,22 +73,6 @@ abstract class OptionCommand extends Command {
         'Redis::OPT_REPLY_LITERAL',
     ];
 
-    private const SERIALIZERS = [
-        'Redis::SERIALIZER_NONE',
-        'Redis::SERIALIZER_PHP',
-        'Redis::SERIALIZER_IGBINARY',
-//        'Redis::SERIALIZER_MSGPACK',
-        'Redis::SERIALIZER_JSON',
-        'Redis::SERIALIZER_PHPSER',
-    ];
-
-    private const COMPRESSIONS = [
-        'Redis::COMPRESSION_NONE',
-        'Redis::COMPRESSION_LZF',
-        'Redis::COMPRESSION_LZ4',
-        'Redis::COMPRESSION_ZSTD',
-    ];
-
     private const SCAN_OPTIONS = [
         'Redis::SCAN_RETRY',
         'Redis::SCAN_NORETRY',
@@ -150,12 +135,14 @@ abstract class OptionCommand extends Command {
         return $this->randomConstant(self::BACKOFF_ALGOS);
     }
 
-    protected function randomCompression(): int {
-        return $this->randomConstant(self::COMPRESSIONS);
+    protected function randomCompression(Redis|RedisCluster|Relay|Cluster $client): int {
+        return $this->randomConstant(array_values(OptionChoices::forClient(OptionChoices::COMPRESSION, $client::class)));
     }
 
-    protected function randomSerializer(): int {
-        return $this->randomConstant(self::SERIALIZERS);
+    protected function randomSerializer(Redis|RedisCluster|Relay|Cluster $client): int {
+        $choices = OptionChoices::SERIALIZER;
+        unset($choices['msgpack']);
+        return $this->randomConstant(array_values(OptionChoices::forClient($choices, $client::class)));
     }
 
     protected function randomScanOption(): int {
@@ -205,7 +192,7 @@ abstract class OptionCommand extends Command {
         return $values;
     }
 
-    /** @param non-empty-list<string> $constants */
+    /** @param list<string> $constants */
     private function randomConstant(array $constants): int {
         $values = $this->constantValues($constants);
         return $values[array_rand($values)];

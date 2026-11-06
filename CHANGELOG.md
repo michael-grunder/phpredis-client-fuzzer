@@ -138,6 +138,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Broaden the local SAPI coverage preset to scans, encode/decode methods and
+  seeded transaction scenarios, with all Relay compressors and distribution
+  modes, while retaining the existing safety gates and cache-churn workload.
+
 - Keep README examples and release notes focused on distributed package features.
 
 - Hide exited or missing workers from the server TUI after five seconds, with or
@@ -186,6 +190,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   separate `failed/` directory for incomplete recordings.
 
 ### Fixed
+
+- Select initial and fuzzed codecs using the target client's constants instead
+  of limiting Relay to PhpRedis's compiled features. Automatic choices share
+  support across mixed clients and check Relay's runtime codec availability.
+  Log codec arguments without referencing undefined optional PhpRedis constants.
+  Keep the no-msgpack hook effective when only Relay declares that serializer.
 
 - Accept the cluster `[false]` EXEC reply in the existing WATCH-abort scenario.
 

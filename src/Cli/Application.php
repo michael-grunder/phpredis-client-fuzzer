@@ -219,11 +219,13 @@ final class Application
                 $options->string('serializer', 'none'),
                 OptionChoices::SERIALIZER,
                 'serializer',
+                $clientTypes,
             );
             $compression = OptionChoices::resolve(
                 $options->string('compression', 'none'),
                 OptionChoices::COMPRESSION,
                 'compression',
+                $clientTypes,
             );
 
             $tls = $options->tls();

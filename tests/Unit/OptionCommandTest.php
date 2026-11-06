@@ -8,10 +8,36 @@ use Mgrunder\RedisClientTester\Commands\Command\setoption;
 use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 use Mgrunder\RedisClientTester\Commands\OptionName;
 use Mgrunder\RedisClientTester\Commands\OptionValue;
+use Mgrunder\RedisClientTester\Commands\OptionCommand;
+use Mgrunder\RedisClientTester\OptionChoices;
 use PHPUnit\Framework\TestCase;
 
 final class OptionCommandTest extends TestCase
 {
+    public function testFuzzedCodecsUseTheClientsOwnConstants(): void
+    {
+        foreach ([\Redis::class, \RedisCluster::class, \Relay\Relay::class, \Relay\Cluster::class] as $class) {
+            if (!class_exists($class)) {
+                continue;
+            }
+            $client = $this->createStub($class);
+            foreach (['randomSerializer' => OptionChoices::SERIALIZER, 'randomCompression' => OptionChoices::COMPRESSION] as $method => $choices) {
+                unset($choices['msgpack']);
+                $constants = OptionChoices::forClient($choices, $class);
+                $expected = array_map(constant(...), array_filter($constants, defined(...)));
+                $seen = [];
+                mt_srand(42);
+                for ($attempt = 0; $attempt < 100; $attempt++) {
+                    $value = (new \ReflectionMethod(OptionCommand::class, $method))->invoke(new setoption(), $client);
+                    self::assertIsInt($value);
+                    self::assertContains($value, $expected);
+                    $seen[] = $value;
+                }
+                self::assertEqualsCanonicalizing(array_values($expected), array_values(array_unique($seen)));
+            }
+        }
+    }
+
     /** @var list<string> */
     private const RELAY_CLUSTER_OPTIONS = [
         'Relay\\Cluster::OPT_DISTRIBUTE',

@@ -190,7 +190,9 @@ final class HookTest extends TestCase
             '/^[a-f0-9]{64}$/',
             $metadata['sources'][0]['sha256'],
         );
-        if (defined('Redis::SERIALIZER_MSGPACK')) {
+        $constant = defined('Redis::SERIALIZER_MSGPACK')
+            ? 'Redis::SERIALIZER_MSGPACK' : 'Relay\\Relay::SERIALIZER_MSGPACK';
+        if (defined($constant)) {
             self::assertSame(['no-msgpack-serializer'], $metadata['ids']);
             $client = new class extends \Redis {
                 /** @var list<array{int, mixed}> */
@@ -206,7 +208,7 @@ final class HookTest extends TestCase
             $command = Command::object('setoption');
             $command->setInvocationHook($hooks);
             try {
-                $msgpack = constant('Redis::SERIALIZER_MSGPACK');
+                $msgpack = constant($constant);
                 $rejectedValues = [
                     $msgpack,
                     (float) $msgpack,

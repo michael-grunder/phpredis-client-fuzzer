@@ -70,8 +70,8 @@ final class ClientFactory
         }
 
         $this->setNamedOption($client, Redis::OPT_PREFIX, $configuration->prefix);
-        $this->setNamedOption($client, Redis::OPT_SERIALIZER, $this->serializer($configuration->serializer));
-        $this->setNamedOption($client, Redis::OPT_COMPRESSION, $this->compression($configuration->compression));
+        $this->setNamedOption($client, Redis::OPT_SERIALIZER, $this->serializer($configuration->serializer, $class));
+        $this->setNamedOption($client, Redis::OPT_COMPRESSION, $this->compression($configuration->compression, $class));
 
         if (($client instanceof Relay || $client instanceof Cluster)
             && defined(Relay::class . '::OPT_PHPREDIS_COMPATIBILITY')) {
@@ -112,14 +112,14 @@ final class ClientFactory
         }
     }
 
-    private function serializer(string $name): int
+    private function serializer(string $name, string $class): int
     {
-        return $this->namedConstant($name, OptionChoices::SERIALIZER, 'serializer');
+        return $this->namedConstant($name, OptionChoices::forClient(OptionChoices::SERIALIZER, $class), 'serializer');
     }
 
-    private function compression(string $name): int
+    private function compression(string $name, string $class): int
     {
-        return $this->namedConstant($name, OptionChoices::COMPRESSION, 'compression');
+        return $this->namedConstant($name, OptionChoices::forClient(OptionChoices::COMPRESSION, $class), 'compression');
     }
 
     /** @param array<string, string> $constants */
@@ -130,7 +130,7 @@ final class ClientFactory
             throw new \InvalidArgumentException("Unknown {$kind}: {$name}");
         }
         if (!defined($constant)) {
-            throw new \RuntimeException("{$kind} {$name} is not supported by the loaded PhpRedis extension");
+            throw new \RuntimeException("{$kind} {$name} is not supported: {$constant} is unavailable");
         }
 
         $value = constant($constant);
