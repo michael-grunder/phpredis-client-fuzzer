@@ -618,18 +618,18 @@ final class Server
             $this->beforeShutdown = $this->snapshot();
             $this->reason ??= $this->stopped !== 0 ? 'supervisor received signal ' . $this->stopped : 'run completed';
             $this->shuttingDown = true;
-            $this->event(['event' => 'shutdown_signal', 'signal' => SIGTERM, 'process_group' => $this->pid,
+            $this->event(['event' => 'shutdown_signal', 'signal' => SIGINT, 'process_group' => $this->pid,
                 'observed_at' => microtime(true), 'reason' => $this->reason]);
-            // Leave the recorder alive to finalise after its tracees exit.
-            $this->signalServer(SIGTERM);
-            $deadline = microtime(true) + ($this->stopped === 0 || $this->rrTrace !== null ? $this->timeout : 0.5);
+            // PHP's server handles SIGINT with normal teardown, including coverage destructors.
+            $this->signalServer(SIGINT);
+            $deadline = microtime(true) + $this->timeout;
             do {
                 usleep(10000);
                 $this->tick();
                 $status = proc_get_status($process);
             } while (($status['running'] || $this->hasLiveWorkers()) && microtime(true) < $deadline);
             $code = $status['running'] || $this->hasLiveWorkers() ? ExitCode::TIMEOUT : max(0, $status['exitcode']);
-            if ($status['signaled'] && !in_array($status['termsig'], [SIGTERM, SIGKILL], true)) {
+            if ($status['signaled'] && !in_array($status['termsig'], [SIGINT, SIGTERM, SIGKILL], true)) {
                 $code = 128 + $status['termsig'];
             }
             if ($status['running'] || $this->hasLiveWorkers()) {

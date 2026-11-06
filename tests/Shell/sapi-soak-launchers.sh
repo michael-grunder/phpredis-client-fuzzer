@@ -25,7 +25,7 @@ exec "$@"
 STUB
 chmod +x "$workspace/with spaces/bin/php"
 export PATH="$workspace/with spaces/bin:$PATH"
-unset PHP_BIN
+export PHP_BIN="$workspace/with spaces/bin/php"
 
 contains() {
     local wanted=$1 item
@@ -77,7 +77,8 @@ done
 [[ $stage == 1 && ${client[-1]} == --request-timeout=90 ]]
 contains --requests=3 "${client[@]}"
 contains --continue-on-failure "${client[@]}"
-for arg in --client=relay --saturate-mode=churn --saturate-steps=3 --steps=100 --seconds=0.25 --port=6390 --seed=42 'space $literal' \
+for arg in --client=relay,relay-cluster --pick-client --relay-distribute=random --relay-failover=random \
+    --saturate-mode=churn --saturate-steps=3 --steps=100 --seconds=0.25 --port=6390 --seed=42 'space $literal' \
     "--hook=$workspace/with spaces/hooks/clamp-read-timeout.php"; do
     contains "$arg" "${workload[@]}"
 done
@@ -86,6 +87,7 @@ mapfile -d '' -t args < "$workspace/args"
 [[ ${args[0]} == client ]]
 contains --steps=100 "${args[@]}"
 contains --seconds=0.25 "${args[@]}"
+contains --port=6379,8000 "${args[@]}"
 for mode in info list; do
     (cd / && "$workspace/with spaces/local-scripts/sapi-saturate-client.sh" "$mode" --help) > "$workspace/args"
     mapfile -d '' -t args < "$workspace/args"

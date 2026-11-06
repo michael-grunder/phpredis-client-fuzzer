@@ -357,6 +357,17 @@ final class SapiSoakApplication
         Server::assertSupported();
         $workload = $separator === false ? [] : array_slice($arguments, $separator + 1);
         $fuzzer = Application::parseOptions($workload);
+        $ports = [];
+        if (str_contains($fuzzer->string('port', ''), ',')) {
+            foreach (explode(',', $fuzzer->string('port', '')) as $port) {
+                $value = filter_var(trim($port), FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1, 'max_range' => 65535]]);
+                if ($value === false) {
+                    throw new \InvalidArgumentException('--port must list integers between 1 and 65535');
+                }
+                $ports[] = $value;
+            }
+        }
         foreach (['forks', 'script-log', 'help'] as $name) {
             if ($fuzzer->has($name)) {
                 throw new \InvalidArgumentException("--{$name} is managed by the SAPI client or unavailable in HTTP requests");
@@ -447,7 +458,11 @@ final class SapiSoakApplication
                     }
                     $name = sprintf('request-%08d-seed-%d', $index + 1, $requestSeed);
                     $path = 'clients/' . $client . '/' . $bucket . '/' . $name . '.php';
-                    $source = RequestScript::source($this->autoload, [...$workload, '--persistent', '--seed=' . $requestSeed], $name);
+                    $requestWorkload = $workload;
+                    if ($ports !== []) {
+                        $requestWorkload[] = '--port=' . $ports[$index % count($ports)];
+                    }
+                    $source = RequestScript::source($this->autoload, [...$requestWorkload, '--persistent', '--seed=' . $requestSeed], $name);
                     Server::write($target . '/' . $name . '.tmp', $source);
                     if (!rename($target . '/' . $name . '.tmp', $directory . '/' . $path)) {
                         throw new \RuntimeException('cannot publish request script');
@@ -586,6 +601,8 @@ Server and client must use the same user and temp directory.
 
 All normal workload filters, flags, weights, clients, TLS, hooks, serializers,
 cluster and invocation settings follow --. --steps/--seconds apply per request.
+--port=6379,8000 cycles Redis targets per request; --pick-client selects topology.
+Each request records its concrete port. A single --port still pins one target.
 --seed must be 0..2147483647; later request seeds are derived deterministically.
 Persistent connections are enabled. --forks, --script-log and --help are reserved.
 Without --jobs, requests run sequentially with --idle-ms pauses. --jobs=4 keeps
@@ -609,6 +626,7 @@ Linux /proc, setsid, pcntl and posix are required. HTTP binds only 127.0.0.1
 on an automatic port, checks a private token, and accepts generated paths only.
 No request parameters change workload configuration. Never expose this server.
 Ctrl+C or SIGTERM stops the server and its workers; use the printed PID for a daemon.
+The PHP pool receives SIGINT for normal teardown, then SIGKILL after --request-timeout.
 Stopping a client does not cancel PHP already running on the server.
 The header counts live forked workers separately from the serving parent. With
 server-prefix wrappers, worker counts include other tracked descendants.

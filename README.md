@@ -980,6 +980,13 @@ TLS, hooks, differential/scenario settings, and invocation modes remain availabl
 Persistent connections are enabled automatically. `--forks`, `--script-log`, and
 workload `--help` are reserved; use `tester --help` for workload help.
 
+For mixed targets, SAPI clients accept a comma-separated workload port list:
+`bin/sapi client -- --client=relay,relay-cluster --pick-client --port=6379,8000`.
+Requests cycle through the ports in order, recording the concrete port in each
+request script. `--pick-client` probes that target and keeps the matching client
+topology. A single `--port` pins one target; cluster seeds default to that port
+unless explicitly supplied with `--seeds`.
+
 Use `info` for extended details and `list` for all running servers discovered for
 the current user in the same temp directory:
 
@@ -1070,7 +1077,10 @@ Their PIDs, exit codes and signals remain in `processes.jsonl`, `exit.json` and
 the final printed report; `bin/sapi info` shows the paths to those records.
 
 Ctrl+C or SIGTERM stops the server supervisor and all its workers. For a daemon,
-use the printed `kill -TERM PID` command. By default, worker exits are recorded
+use the printed `kill -TERM PID` command. The supervisor sends SIGINT to the PHP
+pool for normal process teardown (including GCC coverage output), allowing up to
+`--request-timeout` seconds before SIGKILL. Crashes or forced termination can lose
+unwritten coverage counters. By default, worker exits are recorded
 without stopping the supervisor or surviving processes. Even with no forked
 workers left, the PHP parent can keep serving. Parent exit always stops the
 supervisor and cleans up the remaining workers. To stop on the first worker
@@ -1117,7 +1127,7 @@ when the TUI itself disappears. A signal number does not establish its cause
 
 `processes.jsonl` records observed PID starts/exits, raw wait status, exit code,
 signal and core-dump flag when available. Each observation identifies whether it
-occurred during normal operation or supervisor cleanup; requested SIGTERM/SIGKILL
+occurred during normal operation or supervisor cleanup; requested SIGINT/SIGKILL
 cleanup signals are separate events. Unknown statuses are `null`, never guessed
 to be successful exits or crashes. Because workers are grandchildren, a status
 already reaped before polling can be unavailable. `exit.json` retains the reason,

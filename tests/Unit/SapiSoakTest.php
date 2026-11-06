@@ -189,6 +189,50 @@ final class SapiSoakTest extends TestCase
         $this->stopServer();
     }
 
+    /** @return iterable<string, array{list<string>, list<string>}> */
+    public static function portWorkloads(): iterable
+    {
+        yield 'cycle' => [['--port=6379,8000'], ['6379', '8000', '6379']];
+        yield 'single override' => [['--port=6379,8000', '--port=6390'], ['6390', '6390', '6390']];
+        yield 'list override' => [['--port=6379,8000', '--port=8001,8002'], ['8001', '8002', '8001']];
+    }
+
+    /** @param list<string> $workload
+     *  @param list<string> $expected
+     */
+    #[DataProvider('portWorkloads')]
+    public function testRequestsRecordConcretePortsInSubmissionOrder(array $workload, array $expected): void
+    {
+        $this->startServer();
+        self::assertSame(0, proc_close($this->client('ports', extra: ['--jobs=3', '--keep-work'], workload: $workload)));
+        $scripts = glob($this->directory . '/server/clients/*/0/*.php.http') ?: [];
+        self::assertCount(3, $scripts);
+        foreach ($scripts as $index => $script) {
+            $reply = (string) file_get_contents($script);
+            preg_match_all('/"--port=([0-9]+)"/', $reply, $matches);
+            self::assertSame([$expected[$index]], $matches[1]);
+        }
+        self::assertStringContainsString('seed-42', basename($scripts[0]));
+        $this->stopServer();
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function invalidPorts(): iterable
+    {
+        foreach (['6379,', ',8000', '6379,,8000', '0,8000', '6379,65536', '6379,no', '6379,1.5', '6379,-1'] as $ports) {
+            yield $ports => [$ports];
+        }
+    }
+
+    #[DataProvider('invalidPorts')]
+    public function testInvalidPortListsAreRejectedBeforeServerDiscovery(string $ports): void
+    {
+        $process = $this->launch('invalid-ports', [dirname(__DIR__, 2) . '/bin/sapi', 'client', '--', '--port=' . $ports]);
+        self::assertSame(78, proc_close($process));
+        self::assertStringContainsString('--port must list integers between 1 and 65535',
+            (string) file_get_contents($this->directory . '/invalid-ports.err'));
+    }
+
     public function testSuccessfulRequestsAreCleanedBeforeTheNextRequest(): void
     {
         $this->environment['SAPI_TEST_OUTCOME'] = 'large';
@@ -1000,9 +1044,10 @@ PHP;
     }
 
     /** @param list<string> $extra
+     *  @param list<string> $workload
      *  @return resource
      */
-    private function client(string $name, ?string $selector = null, array $extra = [])
+    private function client(string $name, ?string $selector = null, array $extra = [], array $workload = [])
     {
         $autoload = $this->directory . '/' . $name . '-autoload.php';
         file_put_contents($autoload, <<<'SOURCE'
@@ -1055,7 +1100,7 @@ SOURCE);
             ...($selector === null ? ['--directory=' . $this->directory . '/server']
                 : ($selector === '' ? [] : ['--server=' . $selector])),
             '--requests=3', '--idle-ms=0', ...$extra, '--',
-            '--seed=42', '--commands=get,set', '--weight=get:3', '--include-blocking']);
+            '--seed=42', '--commands=get,set', '--weight=get:3', '--include-blocking', ...$workload]);
     }
 
     private function fixtureScript(string $source): string

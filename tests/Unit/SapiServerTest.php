@@ -327,6 +327,36 @@ final class SapiServerTest extends TestCase
         $this->assertStopped();
     }
 
+    public function testSupervisorTerminationLetsTheServerExitNormally(): void
+    {
+        $process = $this->launchFixture('idle');
+        try {
+            $this->waitForIdle();
+            self::assertTrue(proc_terminate($process, SIGTERM));
+            self::assertSame(128 + SIGTERM, proc_close($process));
+        } finally {
+            Server::stopOrphans($this->directory);
+            if (is_resource($process)) {
+                proc_terminate($process, SIGKILL);
+                proc_close($process);
+            }
+        }
+        $lines = file($this->directory . '/processes.jsonl', FILE_IGNORE_NEW_LINES);
+        self::assertIsArray($lines);
+        $parentExit = null;
+        foreach ($lines as $line) {
+            $event = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
+            self::assertIsArray($event);
+            if (($event['role'] ?? null) === 'parent' && ($event['state'] ?? null) === 'exited') {
+                $parentExit = $event;
+            }
+        }
+        self::assertIsArray($parentExit);
+        self::assertSame(0, $parentExit['exit_code']);
+        self::assertNull($parentExit['signal']);
+        $this->assertStopped();
+    }
+
     public function testHarnessCanCleanUpAfterSupervisorIsKilled(): void
     {
         $process = $this->launchFixture('idle');
