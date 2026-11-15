@@ -19,6 +19,11 @@ use Relay\Relay;
  */
 final class InvocationRecorder
 {
+    /** @internal Records concrete inputs before dispatch, including calls that throw.
+     * @var (\Closure(\Redis|\RedisCluster|\Relay\Relay|\Relay\Cluster, string, list<mixed>, ClientInvoker): void)|null
+     */
+    public static ?\Closure $observer = null;
+
     /**
      * @param list<mixed> $arguments
      * @param array<mixed>|null $scriptArguments
@@ -33,6 +38,7 @@ final class InvocationRecorder
         ?array $scriptArguments = null,
         bool $iterable = false,
     ): mixed {
+        self::$observer?->__invoke($client, $method, $arguments, $invoker);
         $record = ScriptLogger::beginInvocation($client, $method, $phase, $context);
         if ($iterable) {
             ScriptLogger::logIterable($client, $method, $scriptArguments ?? $arguments, catchExceptions: true);

@@ -529,7 +529,7 @@ final class DiffRuntime
     private static function describeThrowable(\Throwable $throwable): string
     {
         $class = get_class($throwable);
-        if ($class === 'RedisException' || $class === 'Relay\\Exception') {
+        if ($class === 'RedisException' || $class === 'RedisClusterException' || $class === 'Relay\\Exception') {
             $class = 'ClientException';
         }
 
@@ -543,7 +543,7 @@ final class DiffRuntime
      */
     public static function normalizeMessage(string $message): string
     {
-        return (string) preg_replace('/(?<![\\\\\w])(?:Relay\\\\Relay|Redis)::/', 'Client::', $message);
+        return (string) preg_replace('/(?<![\\\\\w])(?:Relay\\\\(?:Relay|Cluster)|RedisCluster|Redis)::/', 'Client::', $message);
     }
 
     /**

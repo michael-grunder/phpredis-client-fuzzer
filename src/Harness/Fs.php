@@ -11,6 +11,13 @@ namespace Mgrunder\RedisClientTester\Harness;
  */
 final class Fs
 {
+    public static function write(string $path, string $contents): void
+    {
+        if (file_put_contents($path, $contents) !== strlen($contents)) {
+            throw new \RuntimeException("cannot write {$path}");
+        }
+    }
+
     public static function ensureDir(string $path): void
     {
         if (!is_dir($path) && !@mkdir($path, 0o777, true) && !is_dir($path)) {

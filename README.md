@@ -3137,3 +3137,96 @@ bin/commandstats --help
 PHPStan runs at level `max`. PHPUnit unit tests do not require a Redis server.
 Run live integration checks only against an explicitly selected disposable
 standalone instance or cluster.
+
+## Isolated compatibility testing
+
+`bin/compatibility` compares the same concrete command sequence in two separate
+PHP processes. This supports two PhpRedis shared objects, PhpRedis versus Relay,
+RedisCluster versus Relay\Cluster, or two builds of Relay. The two clients must
+use the same topology. A coordinator with the package's normal dependencies
+launches each worker with its own PHP executable, ini and extension arguments.
+
+```bash
+bin/compatibility \
+  --php-args='-n -d extension=/absolute/path/redis-6.3.0.so' \
+  --php-args2='-n -d extension=/absolute/path/redis-6.4.0RC1.so' \
+  --client=redis --client2=redis --steps=1000 --seed=42 \
+  --commands=set,get,mset,mget,del,hset,hget,hgetall,sadd,smembers,lpush,lrange,zadd,zrange
+```
+
+Use `--client=redis-cluster --client2=relay-cluster` for a cluster comparison.
+Relay workers must load the required PhpRedis extension as well as Relay. Use
+`--php`/`--php2` for different PHP executables, `--php-ini`/`--php-ini2` for ini
+files, or repeat `--php-args`/`--php-args2` for shell-style startup arguments.
+The second side's startup arguments and ini are independent, not inherited.
+Random startup choices use the existing harness syntax and the workload seed.
+Codec choices are resolved by the first worker and replayed by name on both sides;
+an unsupported codec on the second side is a startup error. Startup warnings and
+missing client classes fail preflight before any Redis server starts. `--catch`
+is rejected because it would stop generation before comparison.
+
+The runner **creates and owns its targets**: one standalone Redis or three cluster
+primaries, bound to loopback with a private password, no persistence, and fresh
+ports for every comparison. Redis 7+ must be available as `redis-server` (override
+with `--redis-server`). Existing `--host`, `--port` and `--seeds` are rejected.
+Concurrent jobs never share data, even when `--include=flush` explicitly enables
+`FLUSHDB` or `FLUSHALL`. Each worker starts after a synchronous reset of every
+primary. Servers stop when the comparison finishes; the harness also kills their
+process group on forced shutdown. This is local process isolation, not a security
+boundary against other programs running under the same OS account.
+
+Generation uses the normal tester's seed, steps, key/member sizes, weights,
+wrong-type and cross-slot chances, serializers, compressors, prefixes, raw
+protocol option, and strict/coercive invocation mode. The generated arguments
+are frozen without calling object serialization callbacks, then replayed through
+both clients. The second side never regenerates arguments from its replies.
+Only one client is allowed per side. Workloads requiring forks, hooks, saturation,
+stateful scenarios, connection changes, expiration, random server choices, scan
+cursors, stream IDs, server metadata, vector search, unsorted geo/SORT results,
+or arbitrary Lua/raw chaos are currently
+excluded or rejected. The selected command filters still apply; selecting only
+excluded commands fails rather than silently running another workload.
+
+Replies retain PHP types, nested ordered values, duplicate members, and object
+properties. Command metadata declares unordered results: set results and hash
+key/value lists are sorted, while hash maps retain field/value associations.
+Raw `HGETALL` sorts field/value pairs. Warnings, exceptions and Redis errors are
+compared separately; only corresponding client class names are normalized.
+Final state is inspected through neutral RESP connections, including all keys
+in database zero on every primary, with logical ordering for sets and hashes.
+Data-dependent database switching is excluded.
+
+A difference must survive another replay on each client before it is classified
+as compatibility. By default, chunk removal and then individual-call removal
+try to preserve its command/diagnostic or state signature for 30 seconds
+(`--minimize-seconds`; a started trial may finish after that budget). The minimized
+case is checked again for stability. `--no-minimize` retains the complete case.
+`--worker-timeout=60` bounds each generation/replay worker; crashes and timeouts
+remain separate outcomes, never ordinary Redis replies.
+
+Artifacts live under `reproducers/compatibility` or `--artifacts=DIR`. They include
+`original.case`, `minimized.case`, generated calls, each trial's outcomes and state,
+worker PHP/extension versions, server/worker logs, `report.json`, and
+`reproduce.php`/`reproduce.sh`. Run `bash /path/to/reproduce.sh` to replay on new
+private servers, or pass `--replay=/path/to/original.case` to the binary. Reproduction
+requires this package and the recorded PHP binaries/extensions. **Case and worker
+files are trusted executable data**, like PHP reproduction scripts; never load
+an untrusted case. Ini files are copied, and replay paths survive harness moves.
+Exit codes are 0 for a match, 2 for a stable difference, 1 for instability/runtime
+failure, 78 for invalid startup, 124 for a worker timeout, and 128+signal for a
+worker crash. Standalone runs retain artifacts even for matches.
+
+```bash
+bin/harness --capture=compatibility,crashes,timeouts,failures \
+  --jobs=4 --runs=20 --steps=1000 --seed=42 --run-timeout=180 \
+  --php-args='-n -d extension=/absolute/path/redis-6.3.0.so' \
+  --php-args2='-n -d extension=/absolute/path/redis-6.4.0RC1.so' \
+  -- bin/compatibility --steps={steps} --commands=set,get,hset,hgetall,sadd,smembers
+```
+
+The harness launches the coordinator under its own PHP and forwards both worker
+startup configurations. Stable differences are captured under `compatibility/`,
+with all comparison artifacts. As with other modes, successful work directories
+are discarded unless `--keep-work` is set. Use the compatibility runner's own
+minimizer; `--reduce`, `--rr` and `--asan` are rejected for this capture mode.
+No port pool or `--isolate-ports` is needed.

@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add `bin/compatibility` for separate-process, same-topology comparisons of all
+  four clients, including two versions of the same extension. Own private Redis
+  servers per comparison, record concrete seeded workload calls, compare typed
+  replies and logical state, check replay stability, remove irrelevant calls,
+  and retain both original and minimized reproducers. Add command ordering
+  metadata, `harness --capture=compatibility`, and independent second PHP startup
+  options (`--php2`, `--php-args2`, `--php-ini2`).
+
 - Add opt-in `lua-replies` scenarios for all four clients: bounded Lua integer,
   binary-string and nested-array replies, followed by successful SHA reuse on
   the same keyed primary, with recorded arguments and reply assertions.

@@ -91,6 +91,29 @@ abstract class Command implements HasWeight {
         'common' => self::COMMON,
     ];
 
+    /** Ordering semantics shared by compatibility runners and command consumers. */
+    public function comparisonMode(): string {
+        return match ($this->name()) {
+            'smembers', 'sinter', 'sunion', 'sdiff', 'hkeys', 'hvals', 'keys' => 'set',
+            'hgetall', 'hmget' => 'map',
+            default => 'exact',
+        };
+    }
+
+    /** Whether this command generator supports isolated replay with one client. */
+    public function supportsCompatibilityReplay(): bool {
+        // shortcut: exclude time/cursor/stateful commands until replay models those dependencies.
+        return ($this->flags() & (self::EXPIRE | self::SCAN | self::ADMIN | self::LOCAL
+            | self::CONNECTION | self::BLOCKING | self::STATEFUL | self::CRASH | self::SELECT)) === 0
+            && $this->type() !== self::STREAM
+            && preg_match('/(?:expire|ttl|^v|^eval|^fcall|^geo(?:radius|search)|^sort)/', $this->name()) !== 1
+            && !in_array($this->name(), ['spop', 'srandmember', 'hrandfield', 'zrandmember',
+                'randomkey', 'getwithmeta', 'hgetwithmeta', 'getex', 'setex', 'psetex',
+                'saddex', 'restore', 'migrate', 'object', 'dump', 'eval', 'evalsha',
+                'fcall', 'fcall_ro', 'msetex', 'time', 'info', 'lastsave', 'debug', 'auth',
+                'function', 'rawcommand', 'move', 'copy'], true);
+    }
+
     abstract public function type(): string;
     abstract public function flags(): int;
 

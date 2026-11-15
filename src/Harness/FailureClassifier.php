@@ -97,7 +97,7 @@ final class FailureClassifier
      * crash, timeout, memory, leak, rejected command line, non-zero exit.
      * A killed, timed-out run retains its crash/timeout classification.
      *
-     * @return 'pass'|'sanitizer'|'crash'|'timeout'|'memory'|'leak'|'startup'|'failure'
+     * @return 'pass'|'sanitizer'|'crash'|'timeout'|'memory'|'leak'|'startup'|'failure'|'compatibility'
      */
     public function kind(): string
     {
@@ -118,6 +118,9 @@ final class FailureClassifier
         }
         if ($this->startupError) {
             return 'startup';
+        }
+        if ($this->exitCode === ExitCode::COMPATIBILITY) {
+            return 'compatibility';
         }
         if ($this->failed) {
             return 'failure';

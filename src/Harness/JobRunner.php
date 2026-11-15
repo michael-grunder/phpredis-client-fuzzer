@@ -366,6 +366,7 @@ final class JobRunner
             'memory' => $this->options->capturesMemory(),
             'timeout' => $this->options->capturesTimeouts(),
             'failure' => $this->options->capturesFailures(),
+            'compatibility' => in_array('compatibility', $this->options->capture, true),
             default => false,
         };
         if (!$capture) {
@@ -498,6 +499,7 @@ final class JobRunner
             'sanitizer' => 'sanitizer: ' . ($job->sanitizer->message ?? ''),
             'crash' => $verdict->signalName(),
             'memory' => 'memory',
+            'compatibility' => 'compatibility difference',
             'timeout' => $job->killSignal === 9 ? 'timeout (SIGKILL)' : 'timeout',
             'leak' => $job->leak !== null
                 ? sprintf('leak %d (%d bytes, %s)', $job->leak->count, $job->leak->bytes, $job->leak->source)
@@ -568,7 +570,19 @@ final class JobRunner
 
         // Run the fuzzer script through the chosen PHP binary unless the caller
         // already put a php interpreter first.
-        if (preg_match('/^php\d*(?:\.\d+)?$/', basename($child[0])) === 1) {
+        if (in_array('compatibility', $this->options->capture, true)) {
+            $comparison = ['--php=' . $this->php, '--php2=' . ($this->options->php2 ?? $this->php)];
+            foreach ($phpArgs as $arg) {
+                $comparison[] = '--php-args=' . escapeshellarg($arg);
+            }
+            foreach ($this->options->phpArgs2 as $arg) {
+                $comparison[] = '--php-args2=' . escapeshellarg($arg);
+            }
+            if ($this->options->phpIni2 !== null) {
+                $comparison[] = '--php-ini2=' . $this->options->phpIni2;
+            }
+            $child = [PHP_BINARY, ...$child, ...$comparison];
+        } elseif (preg_match('/^php\d*(?:\.\d+)?$/', basename($child[0])) === 1) {
             $child = [$this->php, ...$phpArgs, ...array_slice($child, 1)];
         } else {
             $child = [$this->php, ...$phpArgs, ...$child];

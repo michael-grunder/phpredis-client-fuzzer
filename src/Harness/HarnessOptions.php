@@ -24,7 +24,7 @@ final class HarnessOptions
 
     /** @var list<string> */
     private const SINGLE = [
-        'jobs', 'php', 'php-ini', 'reduce', 'steps', 'seed', 'output', 'run-log', 'runs',
+        'jobs', 'php', 'php-ini', 'php2', 'php-ini2', 'reduce', 'steps', 'seed', 'output', 'run-log', 'runs',
         'seconds', 'reproducers', 'trace-timeout', 'reduce-timeout', 'run-timeout',
         'port-select', 'capture', 'asan-runtime',
     ];
@@ -36,18 +36,19 @@ final class HarnessOptions
      *
      * @var list<string>
      */
-    private const APPEND = ['php-args'];
+    private const APPEND = ['php-args', 'php-args2'];
 
     /** Categories accepted by --capture. */
-    public const CAPTURE_KINDS = ['crashes', 'sanitizers', 'leaks', 'memory', 'timeouts', 'failures'];
+    public const CAPTURE_KINDS = ['crashes', 'sanitizers', 'leaks', 'memory', 'timeouts', 'failures', 'compatibility'];
 
     /** @var list<string> */
     private const MULTI = ['port'];
 
     /**
+     * @param list<string> $phpArgs2
      * @param list<string> $phpArgs
      * @param list<int> $ports
-     * @param list<'crashes'|'sanitizers'|'leaks'|'memory'|'timeouts'|'failures'> $capture
+     * @param list<'crashes'|'sanitizers'|'leaks'|'memory'|'timeouts'|'failures'|'compatibility'> $capture
      * @param list<string> $command
      */
     private function __construct(
@@ -80,6 +81,9 @@ final class HarnessOptions
         public readonly bool $noCoreCheck,
         public readonly bool $quiet,
         public readonly array $command,
+        public readonly ?string $php2,
+        public readonly array $phpArgs2,
+        public readonly ?string $phpIni2,
     ) {
     }
 
@@ -243,6 +247,20 @@ final class HarnessOptions
             throw new \InvalidArgumentException('--php-ini and -c in --php-args set the same thing; use one');
         }
 
+        $compatibility = in_array('compatibility', $capture, true);
+        if ($compatibility && ($asan || isset($flags['rr']) || $rrChaos || $reduce !== null)) {
+            throw new \InvalidArgumentException('Compatibility uses its own minimizer; run --reduce, --asan and --rr in separate campaigns');
+        }
+        if (!$help && $compatibility && basename($command[0]) !== 'compatibility') {
+            throw new \InvalidArgumentException('--capture=compatibility requires bin/compatibility after --');
+        }
+        if (!$compatibility && (isset($values['php2']) || isset($values['php-ini2']) || isset($lists['php-args2']))) {
+            throw new \InvalidArgumentException('Second PHP startup options require --capture=compatibility');
+        }
+        if ($compatibility && isset($lists['port'])) {
+            throw new \InvalidArgumentException('Compatibility provisions private targets; do not pass --port');
+        }
+
         return new self(
             help: $help,
             jobs: $jobs,
@@ -273,6 +291,9 @@ final class HarnessOptions
             noCoreCheck: isset($flags['no-core-check']),
             quiet: isset($flags['quiet']),
             command: $command,
+            php2: $values['php2'] ?? null,
+            phpArgs2: self::argvList($lists['php-args2'] ?? []),
+            phpIni2: $values['php-ini2'] ?? null,
         );
     }
 
@@ -282,7 +303,7 @@ final class HarnessOptions
      * @param list<string> $raw
      * @return list<string>
      */
-    private static function argvList(array $raw): array
+    public static function argvList(array $raw): array
     {
         $tokens = [];
         foreach ($raw as $value) {
@@ -389,7 +410,7 @@ final class HarnessOptions
     }
 
     /**
-     * @return list<'crashes'|'sanitizers'|'leaks'|'memory'|'timeouts'|'failures'>
+     * @return list<'crashes'|'sanitizers'|'leaks'|'memory'|'timeouts'|'failures'|'compatibility'>
      */
     private static function captureList(string $raw): array
     {

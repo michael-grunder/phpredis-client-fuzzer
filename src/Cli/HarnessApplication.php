@@ -507,6 +507,9 @@ Harness options:
                         of it is stored with every reproducer as php.ini
                         The same choices work inside FILE; a generated INI
                         is written in each run's work directory and captured.
+  --php2 PATH          Compatibility: PHP binary for the second client
+  --php-args2 ARGS      Compatibility: independent second PHP startup arguments
+  --php-ini2 FILE       Compatibility: independent second ini file
   --port P [P ...]      One or more Redis ports; also accepts --port=P,P
                         With {port}, all ports must pass a startup PING using
                         the worker's --host/--username/--password (1s timeout).
@@ -525,7 +528,9 @@ Harness options:
                         (leak reports from a debug PHP build or Relay's shared
                         allocator), memory (fatal allocation exhaustion or
                         integer overflow), timeouts (runs killed for exceeding
-                        --run-timeout), failures (any other non-zero exit).
+                        --run-timeout), failures (other non-zero exits), compatibility
+                        (stable A/B differences from bin/compatibility).
+                        Compatibility owns its targets and minimizes concrete calls.
                         e.g. --capture crashes,leaks,timeouts
   --run-timeout N       Kill a run once it has run for N seconds (0: off);
                         SIGTERM then SIGKILL. Save these with --capture timeouts

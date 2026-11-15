@@ -21,6 +21,9 @@ final class ExitCode
     /** The run executed and something failed (a caught diagnostic, a divergence, ...). */
     public const FAILURE = 1;
 
+    /** Stable difference between isolated compatibility replays. */
+    public const COMPATIBILITY = 2;
+
     /** A supervised HTTP readiness or request deadline expired. */
     public const TIMEOUT = 124;
 

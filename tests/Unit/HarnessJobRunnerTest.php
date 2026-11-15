@@ -25,6 +25,33 @@ final class HarnessJobRunnerTest extends TestCase
 {
     private string $root = '';
 
+    public function testCompatibilityLaunchesCoordinatorAndPreservesArtifacts(): void
+    {
+        $root = $this->workspace();
+        $script = $root . '/compatibility';
+        file_put_contents($script, <<<'PHP'
+<?php
+$dir = getenv('REDIS_CLIENT_TESTER_WORK_DIR') . '/compatibility';
+mkdir($dir);
+file_put_contents($dir . '/evidence.txt', 'both outcomes');
+echo json_encode($argv);
+exit(2);
+PHP);
+        $runner = $this->runner($root, ['--capture=compatibility', '--php-args=-n -d a=1',
+            '--php-args2=-n -d a=2', '--php-ini2=second.ini'], [$script]);
+        $job = $this->await($runner, $runner->spawn(0, null, 42));
+        self::assertSame(JobStatus::Failed, $job->status);
+        self::assertNotNull($job->reproDir);
+        self::assertSame('compatibility', $this->meta($job->reproDir)['kind']);
+        self::assertStringContainsString('/compatibility/', $job->reproDir);
+        self::assertFileExists($job->reproDir . '/compatibility/evidence.txt');
+        self::assertSame(PHP_BINARY, $job->argv[0]);
+        self::assertSame($script, $job->argv[1]);
+        self::assertContains("--php-args='a=1'", $job->argv);
+        self::assertContains("--php-args2='a=2'", $job->argv);
+        self::assertContains('--php-ini2=second.ini', $job->argv);
+    }
+
     public function testChildTimeoutDoesNotClaimTheHarnessDeadlineExpired(): void
     {
         $root = $this->workspace();

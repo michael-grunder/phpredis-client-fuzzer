@@ -137,7 +137,8 @@ final class DifferentialRuntimeTest extends TestCase
     {
         self::assertSame('Client::get(): x', DiffRuntime::normalizeMessage('Redis::get(): x'));
         self::assertSame('Client::get(): x', DiffRuntime::normalizeMessage('Relay\\Relay::get(): x'));
-        self::assertSame('RedisCluster::get(): x', DiffRuntime::normalizeMessage('RedisCluster::get(): x'));
+        self::assertSame('Client::get(): x', DiffRuntime::normalizeMessage('RedisCluster::get(): x'));
+        self::assertSame('Client::get(): x', DiffRuntime::normalizeMessage('Relay\\Cluster::get(): x'));
         self::assertSame('MyRedis::get(): x', DiffRuntime::normalizeMessage('MyRedis::get(): x'));
     }
 

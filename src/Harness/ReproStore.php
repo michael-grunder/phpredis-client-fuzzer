@@ -78,6 +78,7 @@ final class ReproStore
     {
         $kind = match ($meta['kind'] ?? null) {
             'crash' => 'crash',
+            'compatibility' => 'compatibility',
             'sanitizer' => 'sanitizer',
             'memory' => 'memory',
             'leak' => 'leak',
@@ -128,6 +129,11 @@ final class ReproStore
         }
         $cores = $job->pid === null ? [] : $this->collectCores($job->pid, $dir);
         $cores = [...$cores, ...$this->collectSapi($job->workDir, $dir)];
+
+        if (is_dir($job->workDir . '/compatibility')
+            && !Fs::move($job->workDir . '/compatibility', $dir . '/compatibility')) {
+            throw new \RuntimeException('Cannot preserve compatibility artifacts');
+        }
 
         $ini = $job->phpIni ?? $this->phpIni;
         $this->copyIni($dir, $ini);
