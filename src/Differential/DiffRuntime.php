@@ -537,13 +537,21 @@ final class DiffRuntime
     }
 
     /**
-     * Only the client class name is normalized: `Redis::get()` and
-     * `Relay\Relay::get()` name the same API. Everything else in a message is
-     * evidence and stays intact.
+     * Only engine-generated API naming is normalized: the client class name
+     * (`Redis::get()` and `Relay\Relay::get()` name the same API), the declared
+     * method-name case (PHP methods are case-insensitive), and arginfo parameter
+     * names in `Argument #N ($name)`. Parameter names are static signature data,
+     * not runtime behavior. Everything else in a message is evidence and stays intact.
      */
     public static function normalizeMessage(string $message): string
     {
-        return (string) preg_replace('/(?<![\\\\\w])(?:Relay\\\\(?:Relay|Cluster)|RedisCluster|Redis)::/', 'Client::', $message);
+        $message = (string) preg_replace_callback(
+            '/(?<![\\\\\w])(?:Relay\\\\(?:Relay|Cluster)|RedisCluster|Redis)::(\w+)\(/',
+            static fn (array $match): string => 'Client::' . strtolower($match[1]) . '(',
+            $message,
+        );
+        $message = (string) preg_replace('/(?<![\\\\\w])(?:Relay\\\\(?:Relay|Cluster)|RedisCluster|Redis)::/', 'Client::', $message);
+        return (string) preg_replace('/(Argument #\d+) \(\$\w+\)/', '$1', $message);
     }
 
     /**

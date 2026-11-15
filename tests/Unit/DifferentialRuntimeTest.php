@@ -140,6 +140,14 @@ final class DifferentialRuntimeTest extends TestCase
         self::assertSame('Client::get(): x', DiffRuntime::normalizeMessage('RedisCluster::get(): x'));
         self::assertSame('Client::get(): x', DiffRuntime::normalizeMessage('Relay\\Cluster::get(): x'));
         self::assertSame('MyRedis::get(): x', DiffRuntime::normalizeMessage('MyRedis::get(): x'));
+        self::assertSame(
+            DiffRuntime::normalizeMessage('Relay\\Relay::setbit(): Argument #3 ($val) must be of type bool, int given'),
+            DiffRuntime::normalizeMessage('Redis::setBit(): Argument #3 ($value) must be of type bool, int given'),
+        );
+        self::assertNotSame(
+            DiffRuntime::normalizeMessage('Redis::setBit(): Argument #3 ($value) must be of type bool, int given'),
+            DiffRuntime::normalizeMessage('Redis::setBit(): Argument #2 ($value) must be of type bool, int given'),
+        );
     }
 
     public function testShowEscapesBinaryData(): void

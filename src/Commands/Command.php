@@ -95,7 +95,8 @@ abstract class Command implements HasWeight {
     public function comparisonMode(): string {
         return match ($this->name()) {
             'smembers', 'sinter', 'sunion', 'sdiff', 'hkeys', 'hvals', 'keys' => 'set',
-            'hgetall', 'hmget' => 'map',
+            // HMGET replies follow request order, so only HGETALL is an unordered map.
+            'hgetall' => 'map',
             default => 'exact',
         };
     }

@@ -28,6 +28,7 @@ final class CompatibilityTest extends TestCase
         }
         self::assertSame('map', $registry->get('hgetall')?->comparisonMode());
         self::assertSame('exact', $registry->get('lrange')?->comparisonMode());
+        self::assertSame('exact', $registry->get('hmget')?->comparisonMode());
         self::assertSame(Recording::canonical(['b', 'a'], 'set'), Recording::canonical(['a', 'b'], 'set'));
         self::assertSame(Recording::canonical(['b' => 1, 'a' => 2], 'map'), Recording::canonical(['a' => 2, 'b' => 1], 'map'));
         self::assertNotSame(Recording::canonical(['b', 'a'], 'exact'), Recording::canonical(['a', 'b'], 'exact'));

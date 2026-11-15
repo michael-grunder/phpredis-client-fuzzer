@@ -3184,12 +3184,15 @@ Only one client is allowed per side. Workloads requiring forks, hooks, saturatio
 stateful scenarios, connection changes, expiration, random server choices, scan
 cursors, stream IDs, server metadata, vector search, unsorted geo/SORT results,
 or arbitrary Lua/raw chaos are currently
-excluded or rejected. The selected command filters still apply; selecting only
+excluded or rejected. Methods the first client has but the second lacks (for
+example Relay-only methods when comparing Relay against PhpRedis) are excluded
+from generation and listed in `report.json` as `excluded_missing_on_client2`. The selected command filters still apply; selecting only
 excluded commands fails rather than silently running another workload.
 
 Replies retain PHP types, nested ordered values, duplicate members, and object
 properties. Command metadata declares unordered results: set results and hash
-key/value lists are sorted, while hash maps retain field/value associations.
+key/value lists are sorted, while `HGETALL` maps retain field/value associations.
+`HMGET` replies keep request order.
 Raw `HGETALL` sorts field/value pairs. Warnings, exceptions and Redis errors are
 compared separately; only corresponding client class names are normalized.
 Final state is inspected through neutral RESP connections, including all keys
@@ -3202,7 +3205,10 @@ try to preserve its command/diagnostic or state signature for 30 seconds
 (`--minimize-seconds`; a started trial may finish after that budget). The minimized
 case is checked again for stability. `--no-minimize` retains the complete case.
 `--worker-timeout=60` bounds each generation/replay worker; crashes and timeouts
-remain separate outcomes, never ordinary Redis replies.
+remain separate outcomes, never ordinary Redis replies. A minimization candidate that
+crashes or times out a worker is treated as not reproducing the divergence, so
+the stable difference is still reported. `reproduce.sh` is written before the
+first replay, so a crash or timeout there still leaves a runnable reproducer.
 
 Artifacts live under `reproducers/compatibility` or `--artifacts=DIR`. They include
 `original.case`, `minimized.case`, generated calls, each trial's outcomes and state,

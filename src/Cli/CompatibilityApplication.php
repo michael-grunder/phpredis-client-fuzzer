@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\RedisClientTester\Cli;
 
 use Mgrunder\RedisClientTester\ClientType;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
 use Mgrunder\RedisClientTester\Commands\Registry;
 use Mgrunder\RedisClientTester\Compatibility\Process;
 use Mgrunder\RedisClientTester\Compatibility\Minimizer;
@@ -29,6 +30,7 @@ final class CompatibilityApplication
         'client2', 'redis-server', 'artifacts', 'replay', 'minimize-seconds', 'worker-timeout'];
     private const FLAGS = ['no-minimize'];
     private int $trial = 0;
+    private bool $interrupted = false;
 
     /**
      * @param list<string> $arguments */
@@ -91,17 +93,22 @@ final class CompatibilityApplication
                 }
                 $startup[] = $rendered['args'];
             }
+            $methods = [];
             foreach ([$first, $second] as $index => $type) {
-                $check = 'if (PHP_VERSION_ID < 80400 || !extension_loaded("redis") || !class_exists('
-                    . var_export($type->className(), true) . ')) { exit(78); } echo "compatibility-ready";';
+                $class = var_export($type->className(), true);
+                $check = 'if (PHP_VERSION_ID < 80400 || !extension_loaded("redis") || !class_exists(' . $class
+                    . ')) { exit(78); } echo "compatibility-ready\n", json_encode(array_map("strtolower", get_class_methods(' . $class . ')));';
                 $log = $dir . '/preflight-' . $index;
                 $status = Process::run([$index === 0 ? $php : $php2, ...$startup[$index], '-r', $check], $log, $timeout);
-                $out = file_get_contents($log . '.stdout.log');
+                $out = (string) file_get_contents($log . '.stdout.log');
                 $err = file_get_contents($log . '.stderr.log');
-                if ($status !== 0 || $out !== 'compatibility-ready' || $err !== '') {
+                [$ready, $list] = explode("\n", $out, 2) + ['', ''];
+                $list = json_decode($list, true);
+                if ($status !== 0 || $ready !== 'compatibility-ready' || $err !== '' || !is_array($list)) {
                     throw new \RuntimeException('PHP side ' . ($index + 1) . ' preflight failed: '
                         . ($err ?: $out ?: 'requires PHP >=8.4, PhpRedis and ' . $type->className()));
                 }
+                $methods[] = $list;
             }
         } catch (\Throwable $error) {
             fwrite(STDERR, 'compatibility: ' . $error->getMessage() . "\n");
@@ -113,7 +120,8 @@ final class CompatibilityApplication
             if (function_exists('pcntl_async_signals')) {
                 pcntl_async_signals(true);
                 foreach ([SIGTERM, SIGINT] as $signal) {
-                    pcntl_signal($signal, static function (int $signal): never {
+                    pcntl_signal($signal, function (int $signal): never {
+                        $this->interrupted = true;
                         throw new \RuntimeException('Compatibility interrupted', 128 + $signal);
                     });
                 }
@@ -123,10 +131,18 @@ final class CompatibilityApplication
             $commands = [[$php, ...$startup[0], $script], [$php2, ...$startup[1], $script]];
             $tapePath = $dir . '/original.case';
             $replay = $options->nullableString('replay');
+            $unsupported = [];
             if ($replay === null) {
                 $excluded = [];
                 foreach (new Registry() as $command) {
-                    if (!$command->supportsCompatibilityReplay()) {
+                    // Generation only calls methods the first client has; a method the second lacks
+                    // would fail every run with "undefined method" and mask real differences.
+                    $missing = $command instanceof FuzzInterface && in_array($command->name(), $methods[0], true)
+                        && !in_array($command->name(), $methods[1], true);
+                    if ($missing) {
+                        $unsupported[] = $command->name();
+                    }
+                    if ($missing || !$command->supportsCompatibilityReplay()) {
                         $excluded[] = '-' . $command->name();
                     }
                 }
@@ -143,10 +159,23 @@ final class CompatibilityApplication
             if ($tape['configuration']->type->isCluster() !== $first->isCluster()) {
                 throw new \InvalidArgumentException('Replay topology does not match the selected clients');
             }
+            $reproduce = [$script, '--php=' . $php, '--php2=' . $php2,
+                '--client=' . $first->value, '--client2=' . $second->value,
+                '--redis-server=' . $options->string('redis-server', 'redis-server'), '--seed=' . $seed,
+                '--worker-timeout=' . $timeout, '--no-minimize'];
+            foreach ($startup as $index => $args) {
+                foreach ($args as $arg) {
+                    $reproduce[] = '--php-args' . ($index === 0 ? '' : '2') . '=' . escapeshellarg($arg);
+                }
+            }
+            // Written before any replay so a worker crash or timeout still leaves a runnable reproducer.
+            Recording::write($dir . '/minimized.case', $tape);
+            self::writeReproducer($dir, [PHP_BINARY, ...$reproduce]);
             $original = $this->pair($tape, $target, $commands, [$first, $second], $dir, $timeout);
             $difference = self::difference($tape, $original[0], $original[1]);
             $report = ['seed' => $seed, 'clients' => [$first->value, $second->value],
-                'calls' => count($tape['calls']), 'difference' => $difference, 'stable' => null];
+                'calls' => count($tape['calls']), 'difference' => $difference, 'stable' => null,
+                'excluded_missing_on_client2' => $unsupported];
             $code = 0;
             $best = $tape;
             if ($difference !== null) {
@@ -159,8 +188,17 @@ final class CompatibilityApplication
                     $best = Minimizer::reduce($tape,
                         /** @param Tape $candidate */
                         function (array $candidate) use ($target, $commands, $first, $second, $dir, $timeout, $difference): bool {
-                            $trial = $this->pair($candidate, $target, $commands, [$first, $second], $dir, $timeout);
-                            $found = self::difference($candidate, $trial[0], $trial[1]);
+                            try {
+                                $trial = $this->pair($candidate, $target, $commands, [$first, $second], $dir, $timeout);
+                                $found = self::difference($candidate, $trial[0], $trial[1]);
+                            } catch (\Throwable $error) {
+                                // A candidate that crashes or hangs a worker is a different failure; keep the
+                                // stable divergence instead of aborting the whole comparison.
+                                if ($this->interrupted) {
+                                    throw $error;
+                                }
+                                return false;
+                            }
                             return $found !== null && $found['signature'] === $difference['signature'];
                         }, $budget);
                     // A reduced sequence can introduce instability even when the original was stable.
@@ -177,16 +215,6 @@ final class CompatibilityApplication
             Recording::write($dir . '/minimized.case', $best);
             $report['minimized_calls'] = count($best['calls']);
             Fs::write($dir . '/report.json', json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n");
-            $reproduce = [$script, '--php=' . $php, '--php2=' . $php2,
-                '--client=' . $first->value, '--client2=' . $second->value,
-                '--redis-server=' . $options->string('redis-server', 'redis-server'), '--seed=' . $seed,
-                '--worker-timeout=' . $timeout, '--no-minimize'];
-            foreach ($startup as $index => $args) {
-                foreach ($args as $arg) {
-                    $reproduce[] = '--php-args' . ($index === 0 ? '' : '2') . '=' . escapeshellarg($arg);
-                }
-            }
-            self::writeReproducer($dir, [PHP_BINARY, ...$reproduce]);
             fwrite(STDOUT, sprintf("compatibility: %s; %d calls (%d minimized); seed %d; artifacts %s\n",
                 $difference === null ? 'matched' : ($report['stable'] ? 'DIVERGENCE' : 'unstable replay'),
                 count($tape['calls']), count($best['calls']), $seed, $dir));

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `bin/compatibility` no longer generates methods that only the first client
+  has, which made Relay vs PhpRedis runs fail on "undefined method"; the excluded
+  names go to `report.json`. `HMGET` replies are now compared in order. When a
+  minimization candidate crashes or times out, it no longer aborts the stable
+  divergence report, and `reproduce.sh` is written before the first replay.
+- Differential and compatibility message comparison also normalizes the method
+  name case and arginfo parameter names in engine `Argument #N ($name)` errors.
+  Previously Relay-vs-PhpRedis runs diverged on identical `TypeError`s.
+
 ### Added
 
 - Add `bin/compatibility` for separate-process, same-topology comparisons of all
