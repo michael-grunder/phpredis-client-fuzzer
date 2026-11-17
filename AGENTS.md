@@ -59,6 +59,9 @@ entries for those scripts inside `local-scripts/`, not in this package's
 
 - Use PSR-4 namespace `Mgrunder\RedisClientTester` and four-space
   indentation.
+- Keep commit message lines at 80 characters or fewer.
+- Aim for lines of 80 characters or fewer in new code; this is a guideline,
+  not a hard limit.
 - Keep public configuration explicit, typed, validated, and documented.
 - After each change, add an entry to `CHANGELOG.md` under `Unreleased` in the
   appropriate Keep a Changelog category. Do not backfill changes from before the

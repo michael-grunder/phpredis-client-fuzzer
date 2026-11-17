@@ -19,6 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Document an 80-character line limit for commit messages and a soft target
+  for new code in `AGENTS.md`.
+
 - Add opt-in seeded deserialization failure injection during mixed workloads and
   named scenarios for exceptions, engine errors, fatal/compile/user errors, OOM,
   execution timeout, exit, and separately selected same-key recursion. Warm PHP
