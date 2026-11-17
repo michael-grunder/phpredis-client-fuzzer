@@ -2255,6 +2255,66 @@ mutation calls are annotated rather than replayed a second time. These fixtures
 are bounded value graphs; queued caller mutation and general cyclic/object-graph
 reduction are separate workloads.
 
+Deserialization failures can also be injected during mixed workloads with
+`--deserialization-failure-chance=0.001` (`deserializationFailureChance: 0.001`
+for embedded callers). The default is zero. This requires `--include=crash`
+(`includeCrashing: true`); `--include=all` does not grant permission. HTTP callers
+cannot override this server-side setting. Each selected step writes a temporary
+fixture with a 60-second TTL, performs one to four unarmed `GET`s to warm the
+cache, then arms a callback and reads it again. The existing seed determines the
+injection points, failure categories, callback choice (`__unserialize` or
+`__wakeup`), warm-up count and concrete keys. Replay scripts embed the fixtures
+and record the arming before the failing read, including when a fatal truncates
+the recording. Stored fixtures are inert in subsequent, unarmed requests.
+
+Use PHP or igbinary serialization. Other serializers report a skipped scenario;
+client serializer, compression and prefix settings are preserved. Warm-up reads
+make a cache hit possible but do not guarantee cache admission with every Relay
+configuration. These scenarios work with all four client classes and keep their
+keys in one cluster slot.
+
+To force a category once before the ordinary workload, select a named scenario:
+
+| Scenario suffix (prefix with `deserialization-`) | Callback behavior |
+| --- | --- |
+| `random` | Seeded selection from the categories below, excluding recursion |
+| `exception` | Throw `RuntimeException` |
+| `error`, `type-error`, `value-error`, `parse-error` | Throw `Error`, or trigger the corresponding engine exception |
+| `fatal` | Function redeclaration: an uncatchable engine fatal |
+| `compile-fatal` | Invalid abstract class declaration: compiler fatal |
+| `user-fatal` | `trigger_error(..., E_USER_ERROR)` (also deprecated on recent PHP) |
+| `oom` | Lower PHP's memory limit to current usage plus 8 MiB, then request 16 MiB |
+| `timeout` | Set a one-second PHP execution limit and consume CPU until it fires |
+| `exit` | End the request with exit status 86 |
+| `recursion` | Repeatedly read the same key from its callback, without a recursion guard |
+
+Catchable failures are recorded with their concrete exception class and followed
+by a recovery read. Bailouts terminate the request; they are never converted to
+ordinary Redis replies. `user-fatal` remains subject to an application's custom
+error handler. The OOM case tests PHP allocator exhaustion, not the OS OOM killer.
+Startup errors cannot originate inside a deserialization callback. These fixtures
+cover distinct failure mechanisms, not every possible exception subclass.
+
+All these named scenarios require `--include=crash` and explicit selection;
+`--scenarios=random` never adds them. Recursion is excluded from both random
+failure injection and `deserialization-random`: use it only as a dedicated probe
+with an external wall-clock timeout. Run terminating scenarios under `bin/harness`
+or the existing SAPI supervision so workers can be replaced and diagnostics kept.
+A normal `--seconds` workload limit cannot interrupt a callback that hangs.
+
+```bash
+# DISPOSABLE_REDIS_PORT must identify a disposable test server.
+timeout --kill-after=2s 10s bin/tester --client=relay \
+  --port="${DISPOSABLE_REDIS_PORT:?}" --serializer=php --commands=set,get \
+  --seed=42 --steps=10000 --include=crash \
+  --deserialization-failure-chance=0.001 --script-log=/tmp/failure-replay.php
+
+# Force a fatal; use deserialization-recursion for the isolated recursion probe.
+timeout --kill-after=2s 10s bin/tester --client=redis \
+  --port="${DISPOSABLE_REDIS_PORT:?}" --serializer=php --commands=get --steps=1 \
+  --seed=42 --include=crash --scenarios=deserialization-fatal
+```
+
 The local catalog also includes `_unserialize`, `_unpack` and `_uncompress`,
 gated by the installed encoder/decoder methods and the existing `local` flag.
 Each encodes a generated value, tests a truncated/bad-header/bad-length/trailing

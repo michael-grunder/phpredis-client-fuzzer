@@ -162,6 +162,7 @@ final class Tester
                 'raw-chaos' => $configuration->rawChaos,
                 'max-value-bytes' => $configuration->maxValueBytes,
                 'deserialization-mutations' => $configuration->allowDeserializationMutations,
+                'deserialization-failure-chance' => $configuration->deserializationFailureChance,
                 'saturate-chance' => $configuration->saturateChance,
                 'saturate-steps' => $configuration->saturateSteps ?? 'keyspace',
                 'saturate-target' => $configuration->saturateTarget ?? 'disabled',
@@ -190,6 +191,13 @@ final class Tester
                 $seed,
             );
             while ($this->withinLimits($steps, $started, $configuration)) {
+                if ($configuration->deserializationFailureChance > 0.0
+                    && mt_rand() / (mt_getrandmax() + 1) < $configuration->deserializationFailureChance) {
+                    $failureClient = $executionClients[array_rand($executionClients)];
+                    $statefulOutcomes[] = (new Stateful\DeserializationFailureScenario(
+                        'deserialization-random', $clientInvoker,
+                    ))->run($failureClient, mt_rand(), $clientIndexes[spl_object_id($failureClient)]);
+                }
                 $command = $selector->pick();
                 $eligible = $this->eligibleClients(
                     $executionClients,

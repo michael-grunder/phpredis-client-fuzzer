@@ -90,6 +90,10 @@ final class StatefulScenarioRegistry
         ClientInvoker $clientInvoker = new StrictClientInvoker(),
     ): StatefulScenario
     {
+        if (in_array(strtolower($name), DeserializationFailureScenario::names(), true)) {
+            return new DeserializationFailureScenario(strtolower($name), $clientInvoker);
+        }
+
         return match (strtolower($name)) {
             'transaction-exec' => new TransactionScenario('transaction-exec', $clientInvoker),
             'transaction-discard' => new TransactionScenario('transaction-discard', $clientInvoker),

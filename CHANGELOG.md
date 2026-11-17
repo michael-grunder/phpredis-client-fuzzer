@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add opt-in seeded deserialization failure injection during mixed workloads and
+  named scenarios for exceptions, engine errors, fatal/compile/user errors, OOM,
+  execution timeout, exit, and separately selected same-key recursion. Warm PHP
+  or igbinary callback fixtures before failure, preserve concrete script replay,
+  require the crash gate, and keep persisted fixtures inert outside armed calls.
+
 - Add `bin/compatibility` for separate-process, same-topology comparisons of all
   four clients, including two versions of the same extension. Own private Redis
   servers per comparison, record concrete seeded workload calls, compare typed

@@ -521,6 +521,25 @@ class ScriptLogger {
         fflush($logger->fp);
     }
 
+    /** @internal Preserve explicit callback arming, including scripts truncated by a fatal. */
+    public static function deserializationFailure(
+        Redis|RedisCluster|Relay|Cluster $client,
+        string $key,
+        ?string $mode,
+    ): void {
+        $logger = self::$instance;
+        if ($logger === null) {
+            return;
+        }
+        if (!isset($logger->clientNames[$client])) {
+            $logger->initObject($client);
+        }
+        $name = $logger->clientNames[$client];
+        fprintf($logger->fp, "\\Mgrunder\\RedisClientTester\\Values\\DeserializationFailure::arm(%s, static fn () => %s->get(%s));\n",
+            var_export($mode, true), $name, $logger->varExport($key));
+        fflush($logger->fp);
+    }
+
     public static function comment(string $message): void {
         if (self::$instance === null)
             return;

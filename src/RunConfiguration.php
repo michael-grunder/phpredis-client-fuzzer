@@ -53,7 +53,15 @@ final readonly class RunConfiguration implements \JsonSerializable
         public bool $allowDeserializationMutations = false,
         public bool $includeConnection = false,
         public array $commandGroups = [],
+        public float $deserializationFailureChance = 0.0,
     ) {
+        if (!is_finite($deserializationFailureChance) || $deserializationFailureChance < 0.0
+            || $deserializationFailureChance > 1.0) {
+            throw new \InvalidArgumentException('deserializationFailureChance must be between 0 and 1');
+        }
+        if ($deserializationFailureChance > 0.0 && !$includeCrashing) {
+            throw new \InvalidArgumentException('Deserialization failures require includeCrashing (--include=crash)');
+        }
         new Values\ValueCorpus($maxValueBytes);
         KeyAccessSampler::validate($keySkew, $keyReadGroups);
         if ($maxSteps < 0) {
@@ -104,6 +112,10 @@ final readonly class RunConfiguration implements \JsonSerializable
             throw new \InvalidArgumentException('differentialPollIntervalMs must be finite and greater than zero');
         }
         foreach ($scenarios as $scenario) {
+            if (in_array(strtolower(trim($scenario)), Stateful\DeserializationFailureScenario::names(), true)
+                && !$includeCrashing) {
+                throw new \InvalidArgumentException('Deserialization failure scenarios require includeCrashing (--include=crash)');
+            }
             if (trim($scenario) === '') {
                 throw new \InvalidArgumentException('scenarios must contain non-empty names');
             }
@@ -119,6 +131,7 @@ final readonly class RunConfiguration implements \JsonSerializable
     public function jsonSerialize(): array
     {
         return [
+            'deserializationFailureChance' => $this->deserializationFailureChance,
             'maxSteps' => $this->maxSteps,
             'maxSeconds' => $this->maxSeconds,
             'seed' => $this->seed,

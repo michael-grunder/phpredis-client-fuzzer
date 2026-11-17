@@ -76,6 +76,22 @@ final class HttpEndpointTest extends TestCase
         }
     }
 
+    public function testRequestsCannotEnableDeserializationFailures(): void
+    {
+        $endpoint = new TesterEndpoint(
+            static fn (): \Redis => new \Redis(),
+            new RunConfiguration(maxSteps: 1, seed: 42, commands: ['isconnected'], includeLocal: true),
+        );
+        $response = $endpoint->handle(['deserializationFailureChance' => 1,
+            'deserialization-failure-chance' => 1, 'scenarios' => 'deserialization-fatal', 'include' => 'crash']);
+        self::assertTrue($response['ok']);
+        $actual = $response['result']['configuration'] ?? null;
+        self::assertIsArray($actual);
+        self::assertSame(0.0, $actual['deserializationFailureChance']);
+        self::assertSame([], $actual['scenarios']);
+        self::assertFalse($actual['includeCrashing']);
+    }
+
     public function testKeyProfilesRemainServerControlled(): void
     {
         $configuration = new RunConfiguration(

@@ -17,7 +17,8 @@ final class ValueCode
 
     public static function requiresExport(mixed $value): bool
     {
-        if ($value instanceof StringValue || $value instanceof SerializedValue || $value instanceof WakeupValue) {
+        if ($value instanceof StringValue || $value instanceof SerializedValue
+            || $value instanceof DeserializationWakeupFailure || $value instanceof WakeupValue) {
             return true;
         }
         if (is_array($value)) {
@@ -70,12 +71,14 @@ final class ValueCode
 
             return '[' . implode(', ', $entries) . ']';
         }
-        if ($value instanceof StringValue || $value instanceof SerializedValue || $value instanceof WakeupValue) {
+        if ($value instanceof StringValue || $value instanceof SerializedValue
+            || $value instanceof DeserializationWakeupFailure || $value instanceof WakeupValue) {
             $id = spl_object_id($value);
             if (!isset($this->objects[$id])) {
                 $variable = '$value' . $this->next++;
                 $this->objects[$id] = $variable;
-                $option = $value instanceof SerializedValue ? $value->behavior : $value->throws;
+                $option = ($value instanceof SerializedValue || $value instanceof DeserializationWakeupFailure)
+                    ? $value->behavior : $value->throws;
                 $this->statements[] = $variable . ' = new \\' . $value::class . '('
                     . $this->expression($value->payload) . ', ' . var_export($option, true) . ');';
             }
@@ -89,6 +92,7 @@ final class ValueCode
     /** @return list<class-string> */
     public static function fixtureClasses(): array
     {
-        return [StringValue::class, SerializedValue::class, WakeupValue::class, CallbackContext::class, MutatingValue::class];
+        return [StringValue::class, SerializedValue::class, WakeupValue::class, CallbackContext::class,
+            MutatingValue::class, DeserializationFailure::class, DeserializationWakeupFailure::class];
     }
 }

@@ -54,7 +54,8 @@ final class CompatibilityApplication
             }
             foreach (['host', 'port', 'seeds', 'username', 'password', 'tls', 'tls-options', 'persistent',
                 'forks', 'seconds', 'catch', 'pick-client', 'differential', 'hook', 'hook-arg', 'scenarios',
-                'saturate-chance', 'saturate-target', 'raw-chaos', 'allow-deserialization-mutations'] as $name) {
+                'saturate-chance', 'saturate-target', 'raw-chaos', 'allow-deserialization-mutations',
+                'deserialization-failure-chance'] as $name) {
                 if ($run->has($name)) {
                     throw new \InvalidArgumentException("--{$name} is not supported by isolated compatibility replay");
                 }

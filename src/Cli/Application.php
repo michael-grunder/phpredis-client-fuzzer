@@ -54,7 +54,7 @@ final class Application
         'saturate-steps', 'saturate-target', 'saturate-mode', 'script-log', 'catch',
         'invocation-mode', 'include',
         'differential-tolerance-ms', 'differential-poll-ms',
-        'scenarios', 'hook', 'hook-arg',
+        'scenarios', 'hook', 'hook-arg', 'deserialization-failure-chance',
         'output',
         'relay-failover', 'relay-distribute', 'relay-node-read-timeout',
         'relay-multikey-reordering', 'slave-failover',
@@ -293,6 +293,7 @@ final class Application
                 differentialToleranceMs: $options->number('differential-tolerance-ms', 10.0),
                 differentialPollIntervalMs: $options->number('differential-poll-ms', 1.0),
                 scenarios: $options->csv('scenarios'),
+                deserializationFailureChance: $options->number('deserialization-failure-chance', 0.0),
                 invocationMode: $invocationMode,
                 rawChaos: $options->has('raw-chaos'),
                 keySkew: $options->number('key-skew', 0.0),
@@ -640,6 +641,10 @@ Run configuration:
   --output=MODE              json, simple, or detailed (default: json)
   --raw                      Enable raw-protocol command paths
   --max-value-bytes=N         Boundary-value string cap, 1..1048576 (default: 4097)
+  --deserialization-failure-chance=N
+                             Chance per step of a seeded cached callback failure;
+                             0..1, default 0; requires --include=crash and PHP/igbinary.
+                             Recursion is excluded. Use a supervised disposable worker.
   --allow-deserialization-mutations
                              Opt in to callbacks that close/reconfigure/re-enter clients
   --raw-chaos                Enable rawCommand calls with arbitrary scalar arguments
@@ -660,7 +665,15 @@ Run configuration:
                              cache-hll, cache-collections,
                              cluster-queue-error, cluster-watch-abort,
                              cluster-error-alignment, lua-replies,
-                             none, or random (random may select any subset).
+                             none, or random (random may select any safe subset).
+                             Explicit --include=crash scenarios (never implicit):
+                             deserialization-random, deserialization-exception,
+                             deserialization-error, deserialization-type-error,
+                             deserialization-value-error, deserialization-parse-error,
+                             deserialization-fatal, deserialization-compile-fatal,
+                             deserialization-user-fatal, deserialization-timeout,
+                             deserialization-oom, deserialization-exit,
+                             deserialization-recursion (requires an external timeout).
                              watch-abort, watch-unwatch-commit and
                              cluster-watch-abort open a second
                              connection from the same --client configuration
