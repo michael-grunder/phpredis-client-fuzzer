@@ -19,6 +19,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Add explicit YAML configuration for harness, tester/coercive, SAPI campaigns,
+  compatibility, and differential runs. Reuse CLI option catalogs and safety
+  validation, support scalar overrides and repeatable options, and expand
+  child settings before target checks and reproduction. Add `symfony/yaml`.
+
 - Document an 80-character line limit for commit messages and a soft target
   for new code in `AGENTS.md`.
 

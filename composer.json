@@ -38,7 +38,8 @@
         "php": ">=8.4",
         "ext-json": "*",
         "ext-redis": "*",
-        "php-tui/php-tui": "^0.2.1"
+        "php-tui/php-tui": "^0.2.1",
+        "symfony/yaml": "^7.4"
     },
     "suggest": {
         "ext-posix": "Required by killer and sapi process supervision",

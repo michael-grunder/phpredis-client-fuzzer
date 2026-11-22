@@ -65,10 +65,23 @@ final class DiffApplication
         $this->error = $error ?? STDERR;
     }
 
+    /**
+     * @internal
+     * @param array<string, mixed> $values
+     * @return list<string>
+     */
+    public static function configurationArguments(array $values): array
+    {
+        return YamlConfiguration::options(
+            $values, self::VALUE_OPTIONS, self::FLAG_OPTIONS, ['commands'],
+        );
+    }
+
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
         try {
+            $arguments = YamlConfiguration::expand($arguments, 'diff');
             $options = Options::parse($arguments, self::VALUE_OPTIONS, self::FLAG_OPTIONS, ['commands']);
             if ($options->has('help')) {
                 fwrite($this->output, self::HELP);
@@ -587,6 +600,7 @@ Usage:
 Connection:
   --tls                     Encrypt client and neutral RESP connections
   --tls-options=JSON        PHP SSL context options; implies --tls
+  --config FILE              Load YAML workload options (CLI values take precedence)
   --host=HOST                 Redis host (default: 127.0.0.1)
   --port=PORT                 Redis port (default: 6379)
   --username=USER             ACL username (with --password)

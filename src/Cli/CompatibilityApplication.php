@@ -33,17 +33,30 @@ final class CompatibilityApplication
     private bool $interrupted = false;
 
     /**
+     * @internal
+     * @param array<string, mixed> $values
+     * @return list<string>
+     */
+    public static function configurationArguments(array $values): array
+    {
+        return YamlConfiguration::options(
+            $values, self::VALUES, self::FLAGS, ['php-args', 'php-args2'],
+        );
+    }
+
+    /**
      * @param list<string> $arguments */
     public function run(array $arguments): int
     {
         if (count($arguments) === 2 && $arguments[0] === '--internal-worker') {
             return $this->worker($arguments[1]);
         }
-        if (in_array('--help', $arguments, true)) {
-            fwrite(STDOUT, self::HELP);
-            return 0;
-        }
         try {
+            $arguments = YamlConfiguration::expand($arguments, 'compatibility');
+            if (in_array('--help', $arguments, true)) {
+                fwrite(STDOUT, self::HELP);
+                return 0;
+            }
             [$own, $workload] = self::split($arguments);
             $options = Options::parse($own, self::VALUES, self::FLAGS, ['php-args', 'php-args2']);
             $run = Application::parseOptions($workload);
@@ -376,6 +389,7 @@ Runs concrete identical client calls in separate PHP processes, each starting
 from empty private Redis servers. No existing Redis endpoint is accepted.
 Standalone and three-primary cluster comparisons support all four clients.
 
+  --config FILE               Load YAML compatibility and workload settings
   --php PATH / --php2 PATH        PHP executables (default: current PHP / first PHP)
   --php-args ARGS / --php-args2 ARGS  Repeatable shell-style startup arguments
   --php-ini FILE / --php-ini2 FILE   Independent ini files (supports harness choices)

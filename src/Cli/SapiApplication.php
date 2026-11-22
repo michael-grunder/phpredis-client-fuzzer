@@ -14,6 +14,24 @@ use Random\Randomizer;
 /** Runs the existing workload application inside real cli-server requests. */
 final class SapiApplication
 {
+    private const VALUES = ['workers', 'concurrency', 'requests', 'idle-ms',
+        'step-jitter', 'request-timeout', 'directory', 'php-arg', 'php-ini',
+        'server-prefix'];
+    private const FLAGS = ['help', 'keep-work'];
+    private const REPEATABLE = ['php-arg', 'server-prefix'];
+
+    /**
+     * @internal
+     * @param array<string, mixed> $values
+     * @return list<string>
+     */
+    public static function configurationArguments(array $values): array
+    {
+        return YamlConfiguration::options(
+            $values, self::VALUES, self::FLAGS, self::REPEATABLE,
+        );
+    }
+
     public function __construct(private readonly string $autoload)
     {
     }
@@ -26,12 +44,11 @@ final class SapiApplication
         }
         $started = false;
         try {
+            $arguments = YamlConfiguration::expand($arguments, 'sapi');
             $separator = array_search('--', $arguments, true);
             $options = Options::parse(
                 $separator === false ? $arguments : array_slice($arguments, 0, $separator),
-                ['workers', 'concurrency', 'requests', 'idle-ms', 'step-jitter', 'request-timeout', 'directory', 'php-arg', 'php-ini', 'server-prefix'],
-                ['help', 'keep-work'],
-                ['php-arg', 'server-prefix'],
+                self::VALUES, self::FLAGS, self::REPEATABLE,
             );
             if ($options->has('help')) {
                 echo self::HELP;
@@ -160,6 +177,7 @@ Usage: sapi [server options] -- [tester options]
   --php-ini FILE         Server PHP ini file
   --server-prefix ARG    One wrapper token; e.g. valgrind, then --trace-children=yes
   --keep-work            Retain successful standalone runs (failures always retained)
+  --config FILE          Load YAML sapi and workload settings
   --help                 Show this help
 
 Linux, /proc, setsid, pcntl and posix are required. HTTP binds only 127.0.0.1

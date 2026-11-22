@@ -679,6 +679,113 @@ vendor/bin/tester \
     --seed=123456
 ```
 
+### YAML configuration
+
+`bin/harness`, `bin/tester`, `bin/coercive`, `bin/sapi` (campaign mode),
+`bin/compatibility`, and `bin/diff` accept `--config=FILE` or `--config FILE`.
+YAML parsing uses `symfony/yaml`, installed by Composer; no PHP YAML extension
+is required. Existing CLI invocations continue to work.
+
+A campaign file separates harness scheduling from the workload. For example,
+create `campaign.yaml` with the port of your disposable Redis target:
+
+```yaml
+harness:
+  jobs: 2
+  runs: 10
+  steps: 1000
+  seed: 42
+  port: [6390]
+  run-timeout: 60
+  output: reproducers-yaml
+runner: tester
+workload:
+  client: redis
+  port: '{port}'
+  steps: '{steps}'
+  commands: 'set,get,del'
+  keys: 32
+  output: simple
+```
+
+```bash
+bin/harness --config=campaign.yaml
+# Override harness values before -- and runner values after it:
+bin/harness --config=campaign.yaml --jobs=4 -- --keys=100
+```
+
+`runner` selects a bundled binary: `tester`, `coercive`, `sapi`,
+`compatibility`, or `diff`. With a configured runner, arguments after `--`
+are **option overrides only**; do not repeat the executable name. A file with
+only a `harness:` section can instead use any existing command template:
+
+```bash
+bin/harness --config=harness.yaml -- bin/tester --steps='{steps}'
+```
+
+For a standalone tester/coercive/diff invocation, use a file containing just
+`workload:` and supply concrete steps/port values. An optional `runner` must
+match the invoked binary. `diff` uses its own workload option catalog.
+`compatibility` additionally accepts a `compatibility:` mapping for its
+comparison options (`client2`, `php2`, `php-args2`, etc.).
+
+For a SAPI campaign, set `runner: sapi` and add its server options:
+
+```yaml
+sapi:
+  workers: 4
+  concurrency: 2
+  requests: 20
+  idle-ms: 100
+  step-jitter: 50
+```
+
+SAPI overrides retain their existing separation:
+
+```bash
+bin/harness --config=sapi-campaign.yaml --jobs=2 -- \
+  --workers=8 -- --keys=100
+# A standalone SAPI file contains sapi/workload, without harness:
+bin/sapi --config=sapi.yaml --workers=8 -- --keys=100
+```
+
+The long-lived `sapi serve/client/info/list` subcommands and other binaries
+retain their existing CLI interfaces.
+
+Configuration rules:
+
+- Mapping keys are existing CLI option names without `--`. Unknown sections,
+  unknown options, duplicate YAML keys, and invalid types are rejected.
+- Value options take strings or finite numbers. Flags take `true` or `false`;
+  `false` omits the flag. Null values are rejected.
+- Lists represent repeated occurrences of a repeatable option (`hook`,
+  `hook-arg`, `weight`, `commands`, `php-args`, etc.) or harness `port`.
+  Use comma-separated strings for CSV value options such as `serializer`,
+  `compression`, `client`, `capture`, and `include`.
+- CLI scalar values override file values regardless of the position of
+  `--config`. Repeated options append in order, including harness ports.
+  Repeated `commands` entries intersect; `commands: ['get', 'set']` therefore
+  differs from `commands: 'get,set'`. To replace a list or turn off a YAML flag,
+  edit the file; existing CLI flags do not acquire a new negation syntax.
+- Quote placeholders, startup ranges, `@` expressions, date-like strings,
+  and values whose leading zeroes matter. `php-args` entries retain their
+  existing shell-style token splitting; `sapi.php-arg` entries are single tokens.
+  `tls-options` remains a JSON string, just as on the CLI.
+- Relative paths, including ini files, hooks, logs, and output directories,
+  are relative to the current working directory. Nothing implicitly changes
+  directory. There is no environment/shell expansion, automatic config
+  discovery, file inheritance, or recursive `config:` option.
+- One explicit configuration file is accepted at each invocation layer.
+  A CLI child such as `bin/tester --config=workload.yaml` is expanded by the
+  harness before target checks, placeholder validation, or child launch.
+  SAPI likewise expands workload files before writing request scripts.
+  Saved arguments contain the expanded values, so editing a file does not
+  change a running campaign, reduction, or reproducer.
+
+YAML does not enable any safety categories by default. Shell setup such as
+core limits and background helpers stays in the launcher. The embedded PHP API
+and HTTP adapter do not load these CLI configuration files.
+
 ### Forked concurrent runs
 
 `--forks=N` runs the workload in `N` `pcntl_fork()`ed children instead of the

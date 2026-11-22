@@ -558,6 +558,7 @@ Harness options:
   --no-tui              Force plain line output
   --quiet               Plain output: only print failures and periodic summaries
   --no-core-check       Skip the core_pattern must-contain-%p check
+  --config FILE         Load a YAML campaign; CLI options override file values
   --help                Show this help
 
 The kernel core_pattern must contain %p (so a core can be matched to the run

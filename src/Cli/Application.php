@@ -84,6 +84,18 @@ final class Application
         return Options::parse($arguments, self::VALUE_OPTIONS, self::FLAG_OPTIONS, self::REPEATABLE_OPTIONS);
     }
 
+    /**
+     * @internal
+     * @param array<string, mixed> $values
+     * @return list<string>
+     */
+    public static function configurationArguments(array $values): array
+    {
+        return YamlConfiguration::options(
+            $values, self::VALUE_OPTIONS, self::FLAG_OPTIONS, self::REPEATABLE_OPTIONS,
+        );
+    }
+
     /** @param list<string> $arguments */
     public function run(array $arguments): int
     {
@@ -94,6 +106,9 @@ final class Application
         $configured = false;
 
         try {
+            $arguments = YamlConfiguration::expand($arguments,
+                $this->defaultInvocationMode === InvocationMode::Coercive
+                    ? 'coercive' : 'tester');
             $options = self::parseOptions($arguments);
 
             if ($options->has('help')) {
@@ -678,6 +693,7 @@ Run configuration:
                              cluster-watch-abort open a second
                              connection from the same --client configuration
   --verbose                  Log command execution to stderr
+  --config FILE              Load YAML workload options (CLI values take precedence)
   --help                     Show this help without connecting to Redis
 
 Choosing a setting at random:

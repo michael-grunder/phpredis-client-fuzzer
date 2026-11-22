@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Mgrunder\RedisClientTester\Harness;
 
+use Mgrunder\RedisClientTester\Cli\YamlConfiguration;
+
 /**
  * Parses the harness command line, which has the shape:
  *
@@ -117,9 +119,23 @@ final class HarnessOptions
         return in_array('failures', $this->capture, true);
     }
 
+    /**
+     * @internal
+     * @param array<string, mixed> $values
+     * @return list<string>
+     */
+    public static function configurationArguments(array $values): array
+    {
+        return YamlConfiguration::options(
+            $values, [...self::SINGLE, ...self::APPEND, ...self::MULTI],
+            self::FLAGS, [...self::APPEND, ...self::MULTI],
+        );
+    }
+
     /** @param list<string> $argv Arguments after the program name. */
     public static function parse(array $argv): self
     {
+        $argv = YamlConfiguration::expand($argv, 'harness');
         $separator = array_search('--', $argv, true);
         $harnessArgs = $separator === false ? $argv : array_slice($argv, 0, $separator);
         $command = $separator === false ? [] : array_slice($argv, $separator + 1);
