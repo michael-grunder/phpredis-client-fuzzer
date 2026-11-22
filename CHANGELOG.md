@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Random pipeline testing now detects `pipeline()` support instead of rejecting
+  both cluster classes, enabling capable Relay and PhpRedis cluster builds.
+
 - `bin/compatibility` no longer generates methods that only the first client
   has, which made Relay vs PhpRedis runs fail on "undefined method"; the excluded
   names go to `report.json`. `HMGET` replies are now compared in order. When a

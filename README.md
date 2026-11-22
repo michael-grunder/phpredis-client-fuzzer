@@ -2247,6 +2247,15 @@ into the random stream. The `--include` option accepts a comma-separated list
 of `admin`, `local`, `connection`, `flush`, `stateful`, and `crash`;
 `--include=all` enables every listed category except `crash`.
 
+The random `pipeline` command checks for a `pipeline()` method on the selected
+client and enters only from atomic mode. This includes `Relay\Cluster` and
+`RedisCluster` builds that expose the method; older cluster builds are skipped.
+Subsequent random commands queue until `exec` or `discard` is selected, so keep
+those commands in the workload when filtering for pipeline testing. For bounded
+correctness checks, use `--scenarios=pipeline-replies`: it probes
+`multi(PIPELINE)` at runtime and checks mixed replies, an empty pipeline, and
+discard, recording `skipped` when the client cannot enter pipeline mode.
+
 Connection-changing commands such as `close` and `pclose` require
 `--include=connection` (or `includeConnection: true` for library callers).
 They are excluded by default and are no longer enabled by `--include=local`.

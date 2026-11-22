@@ -24,7 +24,7 @@ class pipeline extends Command implements FuzzInterface {
                          FuzzConfig $config): mixed
     {
         try {
-            if (($client instanceOf RedisCluster) || ($client instanceOf Cluster))
+            if (!method_exists($client, 'pipeline'))
                 return false;
 
             if ($client->getMode() != Redis::ATOMIC)
