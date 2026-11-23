@@ -22,12 +22,11 @@ class multi extends Command implements FuzzInterface {
 
     private function canExec(Redis|RedisCluster|Relay|Cluster $client): bool {
         try {
-            if (!$this->isRelay($client))
-                return $client->getMode() == Redis::ATOMIC;
+            $mode = $this->isRelay($client)
+                ? $client->getMode(true)
+                : $client->getMode();
 
-            $mode = $client->getMode(true);
-
-            return $mode == Relay::ATOMIC || $mode == Relay::PIPELINE;
+            return $mode == Redis::ATOMIC || $mode == Redis::PIPELINE;
         } catch (\Exception $ex) {
             return false;
         }

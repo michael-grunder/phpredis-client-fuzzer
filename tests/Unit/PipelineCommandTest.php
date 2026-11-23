@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mgrunder\RedisClientTester\Tests\Unit;
 
 use Mgrunder\RedisClientTester\Commands\Command\pipeline;
+use Mgrunder\RedisClientTester\Commands\Command\multi;
 use Mgrunder\RedisClientTester\Commands\FuzzConfig;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -35,6 +36,14 @@ trait RecordsPipelineEntry
         return $this;
     }
 
+    public function multi(int $mode = Redis::MULTI): static|false
+    {
+        $this->entries++;
+        $this->mode |= $mode;
+
+        return $this;
+    }
+
     public function getLastError(): ?string
     {
         return null;
@@ -53,7 +62,7 @@ final class PipelineCommandTest extends TestCase
 
     /** @param class-string $class */
     #[DataProvider('clients')]
-    public function testPipelineUsesCapabilityAndRequiresAtomicMode(string $class): void
+    public function testPipelineAndMultiEntryModes(string $class): void
     {
         if (!class_exists($class)) {
             self::markTestSkipped($class . ' is not loaded');
@@ -86,6 +95,22 @@ final class PipelineCommandTest extends TestCase
             self::assertFalse($command->fuzz($client, $config));
             self::assertSame($mode, $client->mode);
             self::assertSame(1, $client->entries);
+        }
+
+        $multi = new multi();
+        foreach ([Redis::ATOMIC, Redis::PIPELINE] as $mode) {
+            $client->mode = $mode;
+            $entries = $client->entries;
+            self::assertSame($client, $multi->fuzz($client, $config));
+            self::assertSame($mode | Redis::MULTI, $client->mode);
+            self::assertSame($entries + 1, $client->entries);
+        }
+        foreach ([Redis::MULTI, Redis::MULTI | Redis::PIPELINE] as $mode) {
+            $client->mode = $mode;
+            $entries = $client->entries;
+            self::assertFalse($multi->fuzz($client, $config));
+            self::assertSame($mode, $client->mode);
+            self::assertSame($entries, $client->entries);
         }
     }
 

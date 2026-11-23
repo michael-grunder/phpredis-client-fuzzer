@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Allow random PhpRedis `multi` calls from pipeline mode, making transaction
+  queue errors after earlier pipeline replies reachable in stateful workloads.
+
 - Random pipeline testing now detects `pipeline()` support instead of rejecting
   both cluster classes, enabling capable Relay and PhpRedis cluster builds.
 
@@ -21,6 +24,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Previously Relay-vs-PhpRedis runs diverged on identical `TypeError`s.
 
 ### Added
+
+- Include a fixed unknown-command probe in the default `rawcommand` workload,
+  with cluster routing and normal diagnostics/reproduction logging, without
+  requiring raw mode or raw chaos.
 
 - Add explicit YAML configuration for harness, tester/coercive, SAPI campaigns,
   compatibility, and differential runs. Reuse CLI option catalogs and safety

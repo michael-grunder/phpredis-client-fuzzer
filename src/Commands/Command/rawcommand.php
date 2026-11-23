@@ -5,6 +5,7 @@ namespace Mgrunder\RedisClientTester\Commands\Command;
 
 use Mgrunder\RedisClientTester\Commands\Command;
 use Mgrunder\RedisClientTester\Commands\FuzzConfig;
+use Mgrunder\RedisClientTester\Commands\FuzzInterface;
 use Mgrunder\RedisClientTester\Commands\FuzzRawInterface;
 
 use Redis;
@@ -12,9 +13,8 @@ use RedisCluster;
 use Relay\Relay;
 use Relay\Cluster;
 
-/* A bit of a meta-fuzz testing class which exists to use rawCommand with a
- * random number of arguments, to fuzz improper command execution */
-class rawcommand extends Command implements FuzzRawInterface {
+/* Normal calls probe unknown-command errors; raw calls fuzz argument counts. */
+class rawcommand extends Command implements FuzzInterface, FuzzRawInterface {
     private const COMMANDS = [
         'get' => 1, 'smembers' => 1, 'hgetall' => 1, 'lrange' => 1
     ];
@@ -25,6 +25,16 @@ class rawcommand extends Command implements FuzzRawInterface {
 
     public function flags(): int {
         return self::READ | self::WRITE;
+    }
+
+    public function fuzz(Redis|RedisCluster|Relay|Cluster $client,
+                         FuzzConfig $config): mixed
+    {
+        $args = ['REDIS-CLIENT-TESTER-NO-SUCH-COMMAND'];
+        if ($this->isCluster($client))
+            array_unshift($args, $this->clusterRawRoutingKey());
+
+        return $this->exec($client, ...$args);
     }
 
     private function randomArg(FuzzConfig $config): mixed {

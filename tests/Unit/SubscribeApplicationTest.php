@@ -104,7 +104,7 @@ final class SubscribeApplicationTest extends TestCase
         $first = new SubscribeCommands(42, 2, ['get', 'flushall', 'blpop', 'multi', 'rawcommand', 'isconnected']);
         $second = new SubscribeCommands(42, 2, ['get']);
         $result = $first->run(new RecordingRedis());
-        self::assertSame(['get'], $result->selectedCommands);
+        self::assertEqualsCanonicalizing(['get', 'rawcommand'], $result->selectedCommands);
         self::assertSame(2, $result->steps);
         self::assertSame($result->seed, $second->run(new RecordingRedis())->seed);
         $next = $first->run(new RecordingRedis());

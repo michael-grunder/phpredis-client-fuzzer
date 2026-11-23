@@ -70,7 +70,7 @@ final class TesterTest extends TestCase
             public function rawCommand(string $command, mixed ...$args): mixed
             {
                 if ($command === 'command') {
-                    return [['rawcommand']];
+                    return [['debug']];
                 }
 
                 $this->calls[] = ['command' => $command, 'args' => array_values($args)];
@@ -94,13 +94,13 @@ final class TesterTest extends TestCase
             new RunConfiguration(
                 maxSteps: 1,
                 seed: 42,
-                commands: ['rawcommand'],
+                commands: ['debug'],
                 rawChaos: true,
             ),
         );
 
         self::assertSame('raw-chaos', $result->outcomes[0]->operation);
-        self::assertSame('rawcommand', $client->calls[0]['command']);
+        self::assertSame('debug', $client->calls[0]['command']);
         foreach ($client->calls[0]['args'] as $argument) {
             self::assertTrue(is_scalar($argument));
         }

@@ -99,6 +99,15 @@ which keeps the selected command name (and cluster routing argument)
 deterministic while filling the remaining argument positions with seeded,
 arbitrary scalar values. Local client helpers (`@local`, such as `_compress` or
 `getOption`) have no server command and never take the raw-chaos operation.
+
+The normal `rawcommand` workload is enabled by default and sends only the fixed
+unknown name `REDIS-CLIENT-TESTER-NO-SUCH-COMMAND`, with no server arguments.
+It exercises error replies and queue-time transaction rejection without
+`--raw` or `--raw-chaos`; cluster clients receive a separate routing key.
+Errors, warnings, and exceptions retain their normal diagnostic handling.
+Use `--commands=-rawcommand` to exclude it. With `--raw`, this catalog entry
+also retains its existing argument-count fuzzing of a small command allowlist.
+
 `close` and `pclose` explicitly reconnect a standalone `Relay\Relay` with its
 original endpoint, timeouts, and credentials, because Relay, unlike PhpRedis,
 does not reconnect lazily after `close()`.
@@ -2251,8 +2260,13 @@ The random `pipeline` command checks for a `pipeline()` method on the selected
 client and enters only from atomic mode. This includes `Relay\Cluster` and
 `RedisCluster` builds that expose the method; older cluster builds are skipped.
 Subsequent random commands queue until `exec` or `discard` is selected, so keep
-those commands in the workload when filtering for pipeline testing. For bounded
-correctness checks, use `--scenarios=pipeline-replies`: it probes
+those commands in the workload when filtering for pipeline testing. Random
+`multi` can enter from atomic or pipeline mode, allowing transaction blocks
+inside pipelines on capable clients. Together with `rawcommand`, this covers
+queue rejection inside a pipeline containing earlier replies (including hash
+reads); nested blocks need an `exec` for the transaction and another for the
+pipeline. These combinations are sampled, not guaranteed in every run. For
+bounded correctness checks, use `--scenarios=pipeline-replies`: it probes
 `multi(PIPELINE)` at runtime and checks mixed replies, an empty pipeline, and
 discard, recording `skipped` when the client cannot enter pipeline mode.
 
